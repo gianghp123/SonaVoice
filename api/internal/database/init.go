@@ -2,7 +2,7 @@ package database
 
 import (
 	"github.com/gianghp123/SonaVoice/api/internal/configs"
-	"github.com/gianghp123/SonaVoice/api/internal/core/logger"
+	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -13,6 +13,6 @@ func Init(cfg configs.DatabaseConfig) *gorm.DB {
 	if err != nil {
 		panic(err)
 	}
-	logger.S().Info("Connected to database")
+	zapLogger.S().Info("Connected to database")
 	return db
 }

@@ -1,4 +1,4 @@
-package logger
+package zapLogger
 
 import (
 	"github.com/gianghp123/SonaVoice/api/internal/configs"

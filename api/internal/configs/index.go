@@ -7,10 +7,10 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Auth     AuthConfig
-	Logger   LoggerConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	ClerkAuth ClerkConfig
+	Logger    LoggerConfig
 }
 
 func Load() *Config {
@@ -21,9 +21,9 @@ func Load() *Config {
 	}
 
 	return &Config{
-		Server:   loadServerConfig(),
-		Database: loadDatabaseConfig(),
-		Auth:     loadAuthConfig(),
-		Logger:   loadLoggerConfig(),
+		Server:    loadServerConfig(),
+		Database:  loadDatabaseConfig(),
+		ClerkAuth: loadClerkConfig(),
+		Logger:    loadLoggerConfig(),
 	}
 }
