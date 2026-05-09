@@ -1,12 +1,12 @@
 package response
 
-import "your-project/internal/core/errors"
+import "github.com/gianghp123/SonaVoice/api/internal/core/errors"
 
 type BaseResponse[T any] struct {
-	Success bool            `json:"success"`
-	Data    T               `json:"data,omitempty"`
+	Success bool             `json:"success"`
+	Data    T                `json:"data,omitempty"`
 	Error   *errors.AppError `json:"error,omitempty"`
-	Meta    *Meta           `json:"meta,omitempty"`
+	Meta    *Meta            `json:"meta,omitempty"`
 }
 
 func Success[T any](data T) BaseResponse[T] {

@@ -1,6 +1,6 @@
 package configs
 
-import "your-project/internal/utils"
+import "github.com/gianghp123/SonaVoice/api/internal/utils"
 
 type LoggerConfig struct {
 	Mode string
@@ -8,6 +8,6 @@ type LoggerConfig struct {
 
 func loadLoggerConfig() LoggerConfig {
 	return LoggerConfig{
-		Mode: utils.GetEnv("LOGGER_MODE", "development"),
+		Mode: utils.GetEnv("ENVIRONMENT", "development"),
 	}
 }

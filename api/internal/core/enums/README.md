@@ -12,7 +12,7 @@
 ## Usage
 
 ```go
-import "your-project/internal/core/enums"
+import "github.com/gianghp123/SonaVoice/api/internal/core/enums"
 
 ctx = context.WithValue(ctx, enums.ContextKeyUserID, "user-1")
 ctx = context.WithValue(ctx, enums.ContextKeyUserRole, enums.UserRoleAdmin)

@@ -2,7 +2,8 @@ package configs
 
 import (
 	"log"
-	"os"
+
+	dotenv "github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -13,10 +14,10 @@ type Config struct {
 }
 
 func Load() *Config {
-	// Optional: load .env file with a library like godotenv.
-	// Without it, rely on system environment variables.
-	if _, err := os.Stat(".env"); err == nil {
-		log.Println(".env file found, reading env vars from system")
+
+	err := dotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
 	}
 
 	return &Config{

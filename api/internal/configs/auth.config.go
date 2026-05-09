@@ -1,9 +1,9 @@
 package configs
 
-import "your-project/internal/utils"
+import "github.com/gianghp123/SonaVoice/api/internal/utils"
 
 type AuthConfig struct {
-	JWTSecret       string
+	JWTSecret        string
 	JWTAccessExpiry  int
 	JWTRefreshExpiry int
 }

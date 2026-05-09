@@ -29,7 +29,7 @@ Add `Count(tx)` and `Apply(tx)` methods adapted to your ORM (GORM, SQLx, etc.).
 **Imports:**
 
 ```go
-import "your-project/internal/database"
+import "github.com/gianghp123/SonaVoice/api/internal/database"
 ```
 
 ## Recommendations

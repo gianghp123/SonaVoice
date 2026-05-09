@@ -1,6 +1,6 @@
 package configs
 
-import "your-project/internal/utils"
+import "github.com/gianghp123/SonaVoice/api/internal/utils"
 
 type ServerConfig struct {
 	Port string

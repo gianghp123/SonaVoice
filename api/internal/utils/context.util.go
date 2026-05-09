@@ -3,7 +3,7 @@ package utils
 import (
 	"context"
 
-	"your-project/internal/core/enums"
+	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 )
 
 func GetCtx[T any](ctx context.Context, key enums.ContextKey) T {
