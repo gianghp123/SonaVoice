@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/clerk/clerk-sdk-go/v2 v2.6.0
 	github.com/gin-gonic/gin v1.12.0
+	github.com/google/uuid v1.6.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
 	go.uber.org/zap v1.28.0

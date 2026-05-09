@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/gianghp123/SonaVoice/api/internal/core"
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	appErr "github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
@@ -15,7 +14,7 @@ import (
 func RequireRole(roles ...enums.UserRole) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logger := zapLogger.S()
-		role := utils.GetCtx[enums.UserRole](c, core.RoleKey)
+		role := utils.GetCtx[enums.UserRole](c, enums.ContextKeyUserRole)
 		if slices.Contains(roles, role) {
 			c.Next()
 		}
@@ -27,7 +26,5 @@ func RequireRole(roles ...enums.UserRole) gin.HandlerFunc {
 			"role", role,
 		)
 		c.AbortWithStatusJSON(http.StatusForbidden, appErr.Forbidden())
-
-		return
 	}
 }

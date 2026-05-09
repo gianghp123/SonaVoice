@@ -5,7 +5,7 @@ export
 
 DOCKER_COMPOSE = docker compose --env-file .env -f docker/docker-compose.yaml
 
-DB_URL = postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
+DB_URL = $(DATABASE_URL)
 
 migrate-create:
 	@if [ -z "$(name)" ]; then \

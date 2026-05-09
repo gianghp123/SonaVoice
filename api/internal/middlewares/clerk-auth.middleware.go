@@ -8,7 +8,6 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
 	"github.com/gianghp123/SonaVoice/api/internal/configs"
-	"github.com/gianghp123/SonaVoice/api/internal/core"
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	appErr "github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
@@ -61,11 +60,8 @@ func ClerkAuth() gin.HandlerFunc {
 				role = customClaims.Role
 			}
 
-			c.Set(core.UserIDKey, userID)
-			c.Set(core.RoleKey, role)
-
-			ctx := context.WithValue(r.Context(), core.UserIDKey, userID)
-			ctx = context.WithValue(ctx, core.RoleKey, role)
+			ctx := context.WithValue(r.Context(), string(enums.ContextKeyUserID), userID)
+			ctx = context.WithValue(ctx, string(enums.ContextKeyUserRole), role)
 
 			// Replace the request context with our new one
 			c.Request = c.Request.WithContext(ctx)

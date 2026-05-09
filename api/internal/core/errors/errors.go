@@ -3,6 +3,8 @@ package errors
 import (
 	"errors"
 	"net/http"
+
+	"gorm.io/gorm"
 )
 
 type AppError struct {
@@ -54,12 +56,12 @@ var (
 
 // MapRepoError maps ORM/database errors to sentinel errors.
 // Extend with your ORM-specific error checks (GORM, SQLx, etc.).
-// func MapRepoError(err error) error {
-// 	if err == nil {
-// 		return nil
-// 	}
-// 	if errors.Is(err, gorm.ErrRecordNotFound) {
-// 		return ErrNotFound
-// 	}
-// 	return err
-// }
+func MapRepoError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrNotFound
+	}
+	return err
+}
