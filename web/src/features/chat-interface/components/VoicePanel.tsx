@@ -1,5 +1,3 @@
-import { PanelRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/common/Logo"
 import { SessionIndicator } from "./SessionIndicator"
 import { SessionTimer } from "./SessionTimer"
@@ -7,31 +5,16 @@ import { VoiceOrb } from "./VoiceOrb"
 import { WaveformVisualization } from "./WaveformVisualization"
 import { VoiceToolbar } from "./VoiceToolbar"
 
-interface VoicePanelProps {
-  showHistory: boolean
-  onToggleHistory: () => void
-}
-
-export function VoicePanel({ showHistory, onToggleHistory }: VoicePanelProps) {
+export function VoicePanel({ children }: { children?: React.ReactNode }) {
   return (
-    <section
-      className={`relative flex flex-col items-center justify-center border-r border-border bg-card ${
-        showHistory ? "w-[60%]" : "flex-1"
-      }`}
-    >
+    <section className="relative flex flex-1 flex-col items-center justify-center bg-card">
       <div className="absolute top-4 left-4 flex items-center gap-2">
         <Logo />
         <span className="text-muted-foreground">/</span>
         <SessionIndicator />
       </div>
 
-      {!showHistory && (
-        <div className="absolute top-4 right-4">
-          <Button variant="ghost" size="icon-sm" onClick={onToggleHistory}>
-            <PanelRight />
-          </Button>
-        </div>
-      )}
+      {children}
 
       <div className="absolute top-4 left-1/2 -translate-x-1/2">
         <SessionTimer />

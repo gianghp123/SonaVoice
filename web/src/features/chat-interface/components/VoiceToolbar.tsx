@@ -4,14 +4,13 @@ import { Separator } from "@/components/ui/separator"
 
 export function VoiceToolbar() {
   return (
-    <div className="flex rounded-md border border-secondary bg-secondary shadow-sm overflow-hidden">
-      <Button variant="ghost" className="text-primary rounded-none">
+    <div className="flex">
+      <Button variant="secondary" className="rounded-l-full gap-0">
         <MicOff />
         Mic Muted
       </Button>
-      <Separator orientation="vertical" className="bg-primary/20" />
-      <Button variant="ghost" className="text-primary rounded-none">
-        <PhoneOff />
+      <Button variant="secondary" className="rounded-r-full">
+        <PhoneOff className="text-destructive"/>
         End Session
       </Button>
     </div>
