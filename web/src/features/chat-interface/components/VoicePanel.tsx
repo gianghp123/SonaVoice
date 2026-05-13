@@ -1,17 +1,22 @@
+"use client"
+
 import { Logo } from "@/components/common/Logo"
 import { SessionIndicator } from "./SessionIndicator"
 import { SessionTimer } from "./SessionTimer"
 import { VoiceOrb } from "./VoiceOrb"
 import { WaveformVisualization } from "./WaveformVisualization"
 import { VoiceToolbar } from "./VoiceToolbar"
+import { usePipecatClientTransportState } from "@pipecat-ai/client-react"
 
-export function VoicePanel({ children }: { children?: React.ReactNode }) {
+export function VoicePanel({ children, handleDisconnect }: { children?: React.ReactNode, handleDisconnect: () => void | Promise<void> }) {
+  const transportState = usePipecatClientTransportState()
+
   return (
     <section className="relative flex flex-1 flex-col items-center justify-center bg-card">
       <div className="absolute top-4 left-4 flex items-center gap-2">
         <Logo />
         <span className="text-muted-foreground">/</span>
-        <SessionIndicator />
+        <SessionIndicator transportType={transportState === "ready" ? "Active" : null} />
       </div>
 
       {children}
@@ -26,7 +31,7 @@ export function VoicePanel({ children }: { children?: React.ReactNode }) {
       </div>
 
       <div className="absolute bottom-4">
-        <VoiceToolbar />
+        <VoiceToolbar handleDisconnect={handleDisconnect} />
       </div>
     </section>
   )
