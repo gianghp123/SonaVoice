@@ -1,44 +1,62 @@
 "use client"
 
-import { Conversation, type FunctionCallRenderer } from "@pipecat-ai/voice-ui-kit"
+import { usePipecatConversation } from "@pipecat-ai/client-react"
+import { MessageBubble } from "./MessageBubble"
+import { MessageRole } from "@/lib/enums/message-role.enum"
 import { AnalysisCard } from "./AnalysisCard"
 import { HistoryHeader } from "./HistoryHeader"
 
-interface FunctionCallArgs {
-  original?: string
-  corrected?: string
-  word?: string
-  phonetic?: string
-}
-
-const AnalysisRenderer: FunctionCallRenderer = (functionCall) => {
-  const args = (functionCall.args ?? {}) as FunctionCallArgs
-  return (
-    <AnalysisCard
-      suggestions={{
-        hint: "Correction:",
-        original: args.original ?? "",
-        corrected: args.corrected ?? "",
-      }}
-      pronunciation={{
-        word: args.word ?? "",
-        phonetic: args.phonetic ?? "",
-      }}
-    />
-  )
-}
-
 export function HistoryPanelContent() {
+  const { messages } = usePipecatConversation()
+
   return (
-    <>
+    <div className="px-5">
       <HistoryHeader />
-      <Conversation
-        noTextInput
-        functionCallRenderer={AnalysisRenderer}
-        classNames={{
-          container: "flex flex-col gap-6",
-        }}
-      />
-    </>
+      <div className="flex flex-col gap-6">
+        {messages.map((message, i) => {
+          // function call
+          if (message.role === "function_call" && message.functionCall) {
+            const args = (message.functionCall.args ?? {})
+            return (
+              <MessageBubble key={i} role={MessageRole.Analysis}>
+                <AnalysisCard
+                  suggestions={{
+                    hint: "Correction:",
+                    original: "",
+                    corrected: "",
+                  }}
+                  pronunciation={{
+                    word: "",
+                    phonetic: "",
+                  }}
+                />
+              </MessageBubble>
+            )
+          }
+
+          const role = message.role === "user" ? MessageRole.User : MessageRole.Assistant
+          const text = message.parts?.map(p => {
+            if (typeof p.text === "string") return p.text
+            if (
+              p.text !== null &&
+              typeof p.text === "object" &&
+              "spoken" in p.text &&
+              "unspoken" in p.text
+            ) {
+              // BotOutputText
+              return (p.text as { spoken: string; unspoken: string }).spoken + 
+                    (p.text as { spoken: string; unspoken: string }).unspoken
+            }
+            return ""
+          }).join("")
+
+          return (
+            <MessageBubble key={i} role={role}>
+              {text}
+            </MessageBubble>
+          )
+        })}
+      </div>
+    </div>
   )
 }

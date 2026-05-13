@@ -35,7 +35,7 @@ export function ChatLayout({ handleDisconnect }: { handleDisconnect: () => void 
   return (
     <SidebarProvider
       defaultOpen={true}
-      style={{ "--sidebar-width": "40vh" } as React.CSSProperties}
+      style={{ "--sidebar-width": "60vh" } as React.CSSProperties}
     >
       <SidebarInset className="bg-card">
         <VoicePanel handleDisconnect={redirectOnDisconnect}>
