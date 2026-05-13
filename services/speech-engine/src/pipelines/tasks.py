@@ -14,12 +14,13 @@ from pipecat.utils.context.llm_context_summarization import (
 )
 from src.agents.tools import tools
 from src.pipelines.processors import FrameProcessor
+from loguru import logger
 
 async def create_voice_bot_task(
-    transport, stt, llm, tts, memory_processor: FrameProcessor, app_resources
+    transport, stt, llm, tts, memory_processor: FrameProcessor, context: LLMContext, app_resources = None
 ) -> PipelineTask:
     
-    context = LLMContext(tools=tools)
+
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
         user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer()),
@@ -59,14 +60,18 @@ async def create_voice_bot_task(
     async def on_user_turn_idle(aggregator):
         msg = {"role": "developer", "content": "The user is quiet. Ask if they are there."}
         await aggregator.push_frame(LLMMessagesAppendFrame([msg], run_llm=True))
-
-    @transport.event_handler("on_first_participant_joined")
-    async def on_first_participant_joined(transport, participant):
-        context.add_message({"role": "developer", "content": "Introduce yourself."})
+        
+    @transport.event_handler("on_client_disconnected")
+    async def on_client_disconnected(transport, client):
+        logger.info("Client disconnected - cancelling pipeline")
+        await task.cancel()
+        
+    @transport.event_handler("on_client_connected")
+    async def on_client_connected(transport, client):
+        logger.info(f"Client connected")
+        # Add a greeting message to the context
+        context.add_message({"role": "system", "content": "Say hello and briefly introduce yourself."})
+        # Prompt the bot to start talking when the client connects
         await task.queue_frames([LLMRunFrame()])
-
-    @transport.event_handler("on_participant_left")
-    async def on_participant_left(transport, participant, reason):
-         await task.cancel()
-
+                            
     return task

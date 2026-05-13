@@ -5,25 +5,48 @@ from pipecat.services.cartesia.tts import CartesiaTTSService
 from src.core.config import settings
 from src.pipelines.processors import CustomMem0Processor
 from src.transports.daily import create_daily_transport
+from src.transports.small_webrtc import create_small_webrtc_transport
 from src.pipelines.tasks import create_voice_bot_task
 from mem0 import AsyncMemory
 from src.core.app_resources import AppResources
 from src.agents.prompts import ENGLIST_TEACHER_SYSTEM_INSTRUCTION
 from pipecat.runner.types import RunnerArguments
 from pipecat.runner.types import DailyRunnerArguments, RunnerArguments, SmallWebRTCRunnerArguments
+from pipecat.transports.smallwebrtc.transport import TransportParams, SmallWebRTCConnection
+from pipecat.transports.base_transport import BaseTransport
 from loguru import logger
-from pipecat.transports.daily.transport import DailyTransport
+from pipecat.transports.daily.transport import DailyParams
 from dotenv import load_dotenv
+from src.agents.tools import summarize_conversation, save_user_preferences, tools
+from pipecat.processors.aggregators.llm_context import LLMContext
 load_dotenv()
 
 async def bot(runner_args: RunnerArguments):
     transport = None
 
     if isinstance(runner_args, DailyRunnerArguments):
-        user_id = runner_args.body.get("user_id")
-        session_id = runner_args.body.get("session_id")
-        transport = create_daily_transport(room_url=runner_args.room_url, token=runner_args.token, bot=settings.BOT_NAME)
-        
+        transport = create_daily_transport(
+            room_url=runner_args.room_url,
+            token=runner_args.token,
+            bot=settings.BOT_NAME,
+            params=DailyParams(
+                audio_in_enabled=True,
+                audio_out_enabled=True,
+                transcription_enabled=True,
+            ),
+        )
+    if isinstance(runner_args, SmallWebRTCRunnerArguments):
+        logger.info(f"Starting the bot, received body: {runner_args.body}")
+        webrtc_connection: SmallWebRTCConnection = runner_args.webrtc_connection
+        transport = create_small_webrtc_transport(
+            webrtc_connection,
+            params=TransportParams(
+                audio_in_enabled=True,
+                audio_out_enabled=True,
+                transcription_enabled=True
+            )
+        )
+    
     else:
         logger.error(f"Unsupported runner arguments type: {type(runner_args)}")
         return
@@ -32,10 +55,15 @@ async def bot(runner_args: RunnerArguments):
         logger.error("Failed to create transport")
         return
 
-    await run_bot(transport, user_id=user_id, session_id=session_id)
+    await run_bot(transport, runner_args)
 
-async def run_bot(transport: DailyTransport, user_id: str, session_id: str):
+async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
+    logger.info(f"Starting the bot, received body: {runner_args.body}") 
+    user_id = runner_args.body.get("user_id")
+    session_id = runner_args.body.get("session_id")
+    
     stt = DeepgramSTTService(api_key=settings.DEEPGRAM_API_KEY)
+    
     llm = OpenAILLMService(
         api_key=settings.OPENCODE_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
@@ -44,6 +72,9 @@ async def run_bot(transport: DailyTransport, user_id: str, session_id: str):
             system_instruction=ENGLIST_TEACHER_SYSTEM_INSTRUCTION,
         ),
     )
+    
+    llm.register_function("summarize_conversation", summarize_conversation)
+    llm.register_function("save_user_preferences", save_user_preferences)
 
     tts = CartesiaTTSService(
         api_key=settings.CARTESIA_API_KEY,
@@ -51,6 +82,8 @@ async def run_bot(transport: DailyTransport, user_id: str, session_id: str):
             voice=settings.CARTESIA_VOICE_ID, # Sophie - Female - British English
         ),
     )
+    
+    context = LLMContext(tools=tools)
     
     memory_client = AsyncMemory.from_config(settings.memory_config)
     
@@ -64,10 +97,10 @@ async def run_bot(transport: DailyTransport, user_id: str, session_id: str):
     )
 
     # Create the Task using our factory
-    task = await create_voice_bot_task(transport, stt, llm, tts, memory_processor, app_resource)
+    task = await create_voice_bot_task(transport, stt, llm, tts, memory_processor, context, app_resources=app_resource)
 
     # Run
-    runner = PipelineRunner(handle_sigint=True)
+    runner = PipelineRunner(handle_sigint=False)
     await runner.run(task)
     
     

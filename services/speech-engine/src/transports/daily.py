@@ -2,16 +2,12 @@ from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from loguru import logger
 from src.core.config import settings
 
-def create_daily_transport(room_url: str, token: str, bot: str) -> DailyTransport:
+def create_daily_transport(room_url: str, token: str, bot: str, params: DailyParams = None) -> DailyTransport:
     transport = DailyTransport(
         room_url,
         token,
         bot,
-        DailyParams(
-            audio_in_enabled=True,
-            audio_out_enabled=True,
-            transcription_enabled=True,
-        ),
+        params=params
     )
 
     @transport.event_handler("on_joined")
