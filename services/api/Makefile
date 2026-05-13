@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: migrate-create migrate-up migrate-down up down build logs restart clean dev test test-coverage
+.PHONY: migrate-create migrate-up migrate-down up down build logs restart clean dev test test-coverage swag-init
 
 DOCKER_COMPOSE = docker compose --env-file .env -f docker/docker-compose.yaml
 
@@ -48,3 +48,6 @@ test:
 test-coverage:
 	go test ./... -coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
+
+swag-init:
+	swag init -g main.go -d "./cmd/servers/model-gateway,internal/modules/model-gateway,internal/core" -o ./cmd/servers/model-gateway/docs 

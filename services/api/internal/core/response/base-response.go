@@ -17,6 +17,6 @@ func SuccessWithMeta[T any](data T, meta *Meta) BaseResponse[T] {
 	return BaseResponse[T]{Success: true, Data: data, Meta: meta}
 }
 
-func Fail[T any](err *errors.AppError) BaseResponse[T] {
-	return BaseResponse[T]{Success: false, Error: err}
+func Fail(err *errors.AppError) BaseResponse[any] {
+	return BaseResponse[any]{Success: false, Error: err}
 }

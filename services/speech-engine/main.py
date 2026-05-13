@@ -17,8 +17,10 @@ from pipecat.transports.base_transport import BaseTransport
 from loguru import logger
 from pipecat.transports.daily.transport import DailyParams
 from dotenv import load_dotenv
-from src.agents.tools import summarize_conversation, save_user_preferences, tools
+from src.agents.tools import summarize_conversation, save_user_preferences
 from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.adapters.schemas.tools_schema import ToolsSchema
+from src.agents.tools import summarize_function, save_memory_function
 
 load_dotenv()
 
@@ -60,7 +62,11 @@ async def bot(runner_args: RunnerArguments):
 async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     logger.info(f"Starting the bot, received body: {runner_args.body}") 
     user_id = "anonymous"
-    session_id = "anonymous"
+    session_id = None
+    memory_client = None
+    app_resource = None
+    tools = None
+    
     if runner_args.body:
         logger.debug("No body received")
         user_id = runner_args.body.get("user_id")
@@ -94,11 +100,19 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         ),
     )
     
+    
+
+    
+    if session_id is None or session_id == "":
+        tools = ToolsSchema([summarize_function])
+    else:
+        tools = ToolsSchema([summarize_function, save_memory_function])
+        memory_client = AsyncMemory.from_config(settings.memory_config)
+        app_resource = AppResources(memory_client=memory_client, user_id=user_id, session_id=session_id)
+    
     context = LLMContext(tools=tools)
     
-    memory_client = AsyncMemory.from_config(settings.memory_config)
     
-    app_resource = AppResources(memory_client=memory_client, user_id=user_id, session_id=session_id)
     
     # Initialize Memory Processor
     memory_processor = CustomMem0Processor(
@@ -108,7 +122,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     )
 
     # Create the Task using our factory
-    task = await create_voice_bot_task(transport, stt, llm, tts, memory_processor, context, app_resources=app_resource)
+    task = await create_voice_bot_task(transport, stt, llm, tts, context, memory_processor=memory_processor, app_resources=app_resource)
 
     # Run
     runner = PipelineRunner(handle_sigint=False)

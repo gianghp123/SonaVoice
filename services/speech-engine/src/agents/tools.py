@@ -1,7 +1,7 @@
 from pipecat.frames.frames import LLMSummarizeContextFrame
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.adapters.schemas.function_schema import FunctionSchema
-from pipecat.adapters.schemas.tools_schema import ToolsSchema
+
 
 async def summarize_conversation(params: FunctionCallParams):
     """Trigger manual context summarization via a pipeline frame."""
@@ -49,5 +49,3 @@ save_memory_function = FunctionSchema(
     properties={},
     required=[],
 )
-
-tools = ToolsSchema([summarize_function, save_memory_function])
