@@ -19,6 +19,9 @@ from pipecat.transports.daily.transport import DailyParams
 from dotenv import load_dotenv
 from src.agents.tools import summarize_conversation, save_user_preferences, tools
 from pipecat.processors.aggregators.llm_context import LLMContext
+# from anthropic import AsyncAnthropic
+# from pipecat.services.anthropic.llm import AnthropicLLMService
+
 load_dotenv()
 
 async def bot(runner_args: RunnerArguments):
@@ -35,7 +38,7 @@ async def bot(runner_args: RunnerArguments):
                 transcription_enabled=True,
             ),
         )
-    if isinstance(runner_args, SmallWebRTCRunnerArguments):
+    elif isinstance(runner_args, SmallWebRTCRunnerArguments):
         logger.info(f"Starting the bot, received body: {runner_args.body}")
         webrtc_connection: SmallWebRTCConnection = runner_args.webrtc_connection
         transport = create_small_webrtc_transport(
@@ -59,8 +62,8 @@ async def bot(runner_args: RunnerArguments):
 
 async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     logger.info(f"Starting the bot, received body: {runner_args.body}") 
-    user_id = runner_args.body.get("user_id")
-    session_id = runner_args.body.get("session_id")
+    user_id = runner_args.body.get("user_id") or "user"
+    session_id = runner_args.body.get("session_id") or "session"
     
     stt = DeepgramSTTService(api_key=settings.DEEPGRAM_API_KEY)
     
@@ -70,9 +73,30 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         settings=OpenAILLMService.Settings(
             model=settings.LLM_NAME,
             system_instruction=ENGLIST_TEACHER_SYSTEM_INSTRUCTION,
+            extra={
+                "extra_body": {
+                    "thinking": {"type": "disabled"}
+                }
+            }
         ),
     )
     
+    # custom_llm_client = AsyncAnthropic(
+    #     api_key=settings.OPENCODE_API_KEY,
+    #     base_url=settings.OPENAI_BASE_URL,
+    # )
+    
+    # llm = AnthropicLLMService(
+    #     api_key=settings.OPENCODE_API_KEY,
+    #     client = custom_llm_client,
+    #     settings=AnthropicLLMService.Settings(
+    #         model=settings.LLM_NAME,
+    #         system_instruction=ENGLIST_TEACHER_SYSTEM_INSTRUCTION,
+    #         thinking=AnthropicLLMService.ThinkingConfig(
+    #             type="disabled",
+    #         ),
+    #     ),
+    # )
     llm.register_function("summarize_conversation", summarize_conversation)
     llm.register_function("save_user_preferences", save_user_preferences)
 

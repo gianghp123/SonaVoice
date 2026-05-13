@@ -8,12 +8,6 @@ def create_small_webrtc_transport(webrtc_connection: SmallWebRTCConnection, para
         webrtc_connection=webrtc_connection,
         params=params
     )
-    
-    @transport.event_handler("on_client_connectedned")
-    async def on_joined(transport, data):
-        logger.info("Client connected, triggering greeting")
-        message = {"role": "system", "content": "Say hello and briefly introduce yourself."}
-        await transport
 
     # @transport.event_handler("on_joined")
     # async def on_joined(transport, data):

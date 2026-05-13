@@ -9,11 +9,15 @@ async def summarize_conversation(params: FunctionCallParams):
     await params.llm.queue_frame(LLMSummarizeContextFrame())
     
 async def save_user_preferences(params: FunctionCallParams):
-    user_id = params.app_resources.user_id
-    session_id = params.app_resources.session_id
-    memory_client = params.app_resources.memory_client
-    messages = params.context.messages
-    await memory_client.add(messages, user_id=user_id, run_id=session_id)
+    user_id = params.tool_resources.user_id
+    session_id = params.tool_resources.session_id
+    memory_client = params.tool_resources.memory_client
+    messages_to_store = [
+        m for m in params.context.messages
+        if m.get("role") in ("user", "assistant")
+        and isinstance(m.get("content"), str)
+    ]
+    await memory_client.add(messages_to_store, user_id=user_id, run_id=session_id)
     await params.result_callback({"success": True})
     
 summarize_function = FunctionSchema(
