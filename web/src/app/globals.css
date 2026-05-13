@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@pipecat-ai/voice-ui-kit/styles.scoped";
+@import "@pipecat-ai/voice-ui-kit/styles.scoped.css";
 
 @custom-variant dark (&:is(.dark *));
 

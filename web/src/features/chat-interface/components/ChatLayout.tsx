@@ -1,4 +1,12 @@
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Sidebar,
@@ -13,12 +21,14 @@ import { RTVIEvent } from "@pipecat-ai/client-js"
 import { useRTVIClientEvent } from "@pipecat-ai/client-react"
 import { PanelRight } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { toast } from "sonner"
 
 function HistoryTrigger() {
   const { toggleSidebar, open } = useSidebar()
+
   if (open) return null
+
   return (
     <div className="absolute top-4 right-4 z-10">
       <Button variant="ghost" size="icon-sm" onClick={toggleSidebar}>
@@ -28,36 +38,70 @@ function HistoryTrigger() {
   )
 }
 
-export function ChatLayout({ handleDisconnect }: { handleDisconnect: () => void | Promise<void> }) {
+export function ChatLayout({
+  handleDisconnect,
+}: {
+  handleDisconnect: () => void | Promise<void>
+}) {
+  const [fatalError, setFatalError] = useState<string | null>(null)
   const router = useRouter()
+
   useRTVIClientEvent(
     RTVIEvent.Error,
     useCallback((message) => {
-      const { message: text, fatal } = message.data as any;
-      console.error("Bot runtime error:", text);
-      toast.error("An error occurred in the bot runtime. Please try again.");
+      const { message: text, fatal } = message.data as any
+
+      console.error("Bot runtime error:", text)
+      toast.error("An error occurred in the bot runtime. Please try again. \n Details: " + text, {
+        duration: 10000,
+      })
+
       if (fatal) {
-        // Bot has disconnected — show reconnect UI
+        setFatalError(text)
       }
     }, [])
-  );
+  )
 
-
-  const redirectOnDisconnect = () => {
-    handleDisconnect()
+  const redirectOnDisconnect = async () => {
+    await handleDisconnect()
     router.push("/")
   }
 
   return (
     <SidebarProvider
-      defaultOpen={true}
+      defaultOpen={false}
       style={{ "--sidebar-width": "60vh" } as React.CSSProperties}
     >
       <SidebarInset className="bg-card">
         <VoicePanel handleDisconnect={redirectOnDisconnect}>
           <HistoryTrigger />
+
+          <AlertDialog
+            open={!!fatalError}
+            onOpenChange={(open) => {
+              if (!open && fatalError) return
+            }}
+          >
+            <AlertDialogContent
+              onEscapeKeyDown={(event) => event.preventDefault()}
+            >
+              <AlertDialogHeader>
+                <AlertDialogTitle>Session ended</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {fatalError || "The bot runtime stopped unexpectedly."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+
+              <AlertDialogFooter>
+                <AlertDialogAction onClick={redirectOnDisconnect}>
+                  Return home
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </VoicePanel>
       </SidebarInset>
+
       <Sidebar side="right">
         <SidebarContent>
           <HistoryPanelContent />
