@@ -7,25 +7,18 @@ import { Button } from "@/components/ui/button"
 
 export function VoiceToolbar({ handleDisconnect }: { handleDisconnect: () => void | Promise<void> }) {
   return (
-    <div className="flex">
+    <div className="flex lg:mb-10">
       <PipecatClientMicToggle>
         {({ disabled, isMicEnabled, onClick }) => (
-          <Button variant="secondary" className="rounded-l-full gap-0" disabled={disabled} onClick={onClick}>
+          <Button variant="ghost" disabled={disabled} onClick={onClick}>
             {isMicEnabled ? <MicOff /> : <Mic />}
             {isMicEnabled ? "Mic Muted" : "Unmute"}
           </Button>
         )}
       </PipecatClientMicToggle>
       <ConnectButton
-        className="rounded-r-full"
-        defaultVariant="secondary"
+        className="hover:bg-muted px-2.5 text-destructive"
         onDisconnect={handleDisconnect}
-        stateContent={{
-          ready: {
-            variant: "secondary",
-            children: <><PhoneOff className="text-destructive" /> End Session</>
-          },
-        }}
       />
     </div>
   )
