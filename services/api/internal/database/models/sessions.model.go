@@ -9,7 +9,7 @@ import (
 type Session struct {
 	BaseModel
 	UserID          string `gorm:"type:varchar(255);not null"`
-	SpeechSessionID string `gorm:"type:varchar(255);not null"`
+	SpeechSessionID string `gorm:"type:varchar(255);"`
 	StartedAt       time.Time
 	EndedAt         time.Time
 	Messages        []Message           `gorm:"foreignKey:SessionID"`

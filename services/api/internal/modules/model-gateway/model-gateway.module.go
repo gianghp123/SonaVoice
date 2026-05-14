@@ -17,9 +17,8 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHt
 
 	group := router.Group("/model-gateway")
 
-	group.Use(middlewares.OptionalClerkAuthMiddleware())
-
-	group.POST("/start", controller.HandleStart)
-	group.POST("/sessions/:sessionId/api/offer", controller.HandleOffer)
-	group.PATCH("/sessions/:sessionId/api/offer", controller.HandleOffer)
+	group.POST("/sessions", middlewares.ClerkAuthMiddleware(), controller.HandleCreateSession)
+	group.POST("/start", middlewares.OptionalClerkAuthMiddleware(), controller.HandleStart)
+	group.POST("/sessions/:sessionId/api/offer", middlewares.OptionalClerkAuthMiddleware(), controller.HandleOffer)
+	group.PATCH("/sessions/:sessionId/api/offer", middlewares.OptionalClerkAuthMiddleware(), controller.HandleOffer)
 }

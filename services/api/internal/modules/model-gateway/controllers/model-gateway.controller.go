@@ -4,11 +4,13 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	_ "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
+	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,6 +20,32 @@ type ModelGatewayController struct {
 
 func NewModelGatewayController(svc services.IModelGatewayService) *ModelGatewayController {
 	return &ModelGatewayController{svc: svc}
+}
+
+// HandleCreateSession godoc
+// @Summary      Create a new session
+// @Description  Create a new session for an authenticated user. Use the returned session ID with /start.
+// @Security     Bearer
+// @Tags         model-gateway
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  response.BaseResponse[res.SessionRes]
+// @Failure      401  {object}  response.BaseResponse[any]
+// @Failure      500  {object}  response.BaseResponse[any]
+// @Router       /model-gateway/sessions [post]
+func (ctrl *ModelGatewayController) HandleCreateSession(c *gin.Context) {
+	userID := utils.GetCtx[string](c.Request.Context(), enums.ContextKeyUserID)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, response.Fail(errors.Unauthorized("authentication required")))
+		return
+	}
+
+	sessionRes, appErr := ctrl.svc.CreateSession(c.Request.Context())
+	if appErr != nil {
+		c.JSON(appErr.Code, response.Fail(appErr))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(sessionRes))
 }
 
 // HandleStart godoc

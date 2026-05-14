@@ -20,6 +20,7 @@ import (
 )
 
 type IModelGatewayService interface {
+	CreateSession(ctx context.Context) (*res.SessionRes, *errors.AppError)
 	StartConnection(ctx context.Context, reqBody *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError)
 	ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
 }
@@ -36,6 +37,31 @@ func NewModelGatewayService(httpClient httpclient.IHttpClient, sessionRepo repos
 	}
 }
 
+func (s *modelGatewayService) CreateSession(
+	ctx context.Context,
+) (*res.SessionRes, *errors.AppError) {
+	logger := zapLogger.S()
+
+	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+
+	session := &models.Session{
+		UserID: requesterId,
+		Status: enums.SessionStatusPending,
+	}
+
+	if err := s.sessionRepo.Create(ctx, session); err != nil {
+		logger.Errorw("Failed to create session", "error", err)
+		return nil, errors.Internal("failed to create session")
+	}
+
+	return &res.SessionRes{
+		ID:        session.ID,
+		UserID:    session.UserID,
+		Status:    string(session.Status),
+		CreatedAt: session.CreatedAt,
+	}, nil
+}
+
 func (s *modelGatewayService) StartConnection(
 	ctx context.Context,
 	reqBody *req.StartConnectionReq,
@@ -43,7 +69,7 @@ func (s *modelGatewayService) StartConnection(
 	logger := zapLogger.S()
 	logger.Debug("Starting connect to speech engine")
 
-	requesterId := utils.GetCtx[string](ctx, "user_id")
+	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 
 	var sessionId string
 	var session *models.Session
@@ -70,17 +96,7 @@ func (s *modelGatewayService) StartConnection(
 		session = existingSession
 		sessionId = session.ID
 	} else {
-		session = &models.Session{
-			UserID: requesterId,
-			Status: enums.SessionStatusPending,
-		}
-
-		if err := s.sessionRepo.Create(ctx, session); err != nil {
-			logger.Errorw("Failed to create session", "error", err)
-			return nil, errors.Internal("failed to create session")
-		}
-
-		sessionId = session.ID
+		return nil, errors.BadRequest("session_id is required")
 	}
 
 	body := map[string]interface{}{
