@@ -29,7 +29,7 @@ async function webrtcProxy(
 
   if (contentType) forwardedHeaders.set("content-type", contentType);
   if (accept) forwardedHeaders.set("accept", accept);
-  forwardedHeaders.set("Authorization", `Bearer ${token}`);
+  if (token) forwardedHeaders.set("Authorization", `Bearer ${token}`);
 
   try {
     const upstreamResponse = await fetch(targetUrl, {
