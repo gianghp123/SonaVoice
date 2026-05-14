@@ -5,6 +5,7 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/configs"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
+	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 
 	modelgateway "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway"
@@ -72,6 +73,8 @@ func main() {
 
 	logger.Info("database connected successfully")
 
+	httpClient := httpclient.NewHttpClient()
+
 	// Init Gin
 	router := gin.Default()
 
@@ -85,7 +88,7 @@ func main() {
 	})
 
 	// Register modules
-	modelgateway.SetupModule(api, db)
+	modelgateway.SetupModule(api, db, httpClient)
 
 	// Server address
 	addr := fmt.Sprintf(":%s", serverCfg.Port)

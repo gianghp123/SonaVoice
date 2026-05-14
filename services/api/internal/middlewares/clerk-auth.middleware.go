@@ -28,7 +28,7 @@ func withCustomClaims(params *clerkhttp.AuthorizationParams) error {
 	return nil
 }
 
-func ClerkAuth() gin.HandlerFunc {
+func ClerkAuthMiddleware() gin.HandlerFunc {
 	logger := zapLogger.S()
 	clerkCfg := configs.Load().ClerkAuth
 	clerk.SetKey(clerkCfg.ClerkSecret)
@@ -73,5 +73,61 @@ func ClerkAuth() gin.HandlerFunc {
 		if c.IsAborted() {
 			return
 		}
+	}
+}
+
+func OptionalClerkAuthMiddleware() gin.HandlerFunc {
+	logger := zapLogger.S()
+	clerkCfg := configs.Load().ClerkAuth
+	clerk.SetKey(clerkCfg.ClerkSecret)
+
+	return func(c *gin.Context) {
+		authHeader := c.Request.Header.Get("Authorization")
+
+		// No auth header => continue as guest
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		handler := clerkhttp.WithHeaderAuthorization(withCustomClaims)(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				claims, ok := clerk.SessionClaimsFromContext(r.Context())
+				if !ok {
+					logger.Warnw(
+						"Invalid clerk session; continuing as guest",
+						"path", r.URL.Path,
+						"method", r.Method,
+						"ip", c.ClientIP(),
+					)
+
+					c.Next()
+					return
+				}
+
+				userID := claims.Subject
+				role := enums.UserRoleUser
+
+				if customClaims, ok := claims.Custom.(*ClerkMetadata); ok && customClaims.Role != "" {
+					role = customClaims.Role
+				}
+
+				ctx := context.WithValue(
+					r.Context(),
+					string(enums.ContextKeyUserID),
+					userID,
+				)
+				ctx = context.WithValue(
+					ctx,
+					string(enums.ContextKeyUserRole),
+					role,
+				)
+
+				c.Request = c.Request.WithContext(ctx)
+				c.Next()
+			}),
+		)
+
+		handler.ServeHTTP(c.Writer, c.Request)
 	}
 }

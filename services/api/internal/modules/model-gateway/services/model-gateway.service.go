@@ -1,48 +1,87 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"time"
 
+	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
+	"github.com/gianghp123/SonaVoice/api/internal/database/models"
+	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/repositories"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/google/uuid"
 )
 
 type IModelGatewayService interface {
-	GetConnnection(ctx context.Context) (*res.WebRTCConnectionRes, *errors.AppError)
+	StartConnection(ctx context.Context, reqBody *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError)
 	ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
 }
 
 type modelGatewayService struct {
+	httpClient  httpclient.IHttpClient
+	sessionRepo repositories.ISessionRepository
 }
 
-func NewModelGatewayService() IModelGatewayService {
-	return &modelGatewayService{}
+func NewModelGatewayService(httpClient httpclient.IHttpClient, sessionRepo repositories.ISessionRepository) IModelGatewayService {
+	return &modelGatewayService{
+		httpClient:  httpClient,
+		sessionRepo: sessionRepo,
+	}
 }
 
-func (s *modelGatewayService) GetConnnection(ctx context.Context) (*res.WebRTCConnectionRes, *errors.AppError) {
+func (s *modelGatewayService) StartConnection(
+	ctx context.Context,
+	reqBody *req.StartConnectionReq,
+) (*res.WebRTCConnectionRes, *errors.AppError) {
 	logger := zapLogger.S()
 	logger.Debug("Starting connect to speech engine")
-	requesterId := utils.GetCtx[string](ctx, "user_id")
-	sessionId := "test"
 
-	if requesterId == "" {
-		requesterId = "guest_" + uuid.NewString()
-		sessionId = ""
+	requesterId := utils.GetCtx[string](ctx, "user_id")
+
+	var sessionId string
+	var session *models.Session
+
+	if reqBody != nil {
+		sessionId = reqBody.SessionId
 	}
 
-	logger.Debugw(
-		"Requester from context",
-		"requesterId", requesterId,
-		"requesterIdLength", len(requesterId),
-	)
+	isGuest := requesterId == ""
+	if isGuest {
+		requesterId = "guest_" + uuid.NewString()
+		sessionId = ""
+	} else if sessionId != "" {
+		existingSession, err := s.sessionRepo.Get(ctx, sessionId)
+		if err != nil {
+			logger.Errorw("Failed to get session", "error", err)
+			return nil, errors.Internal("failed to get session")
+		}
+
+		if existingSession.UserID != requesterId {
+			return nil, errors.Forbidden("session does not belong to requester")
+		}
+
+		session = existingSession
+		sessionId = session.ID
+	} else {
+		session = &models.Session{
+			UserID: requesterId,
+			Status: enums.SessionStatusPending,
+		}
+
+		if err := s.sessionRepo.Create(ctx, session); err != nil {
+			logger.Errorw("Failed to create session", "error", err)
+			return nil, errors.Internal("failed to create session")
+		}
+
+		sessionId = session.ID
+	}
 
 	body := map[string]interface{}{
 		"enableDefaultIceServers": true,
@@ -52,76 +91,156 @@ func (s *modelGatewayService) GetConnnection(ctx context.Context) (*res.WebRTCCo
 		},
 	}
 
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		logger.Error(err)
-		return nil, errors.Internal()
+	failSession := func(reason string, fields ...interface{}) {
+		logger.Errorw(reason, fields...)
+
+		if session == nil {
+			return
+		}
+
+		session.Status = enums.SessionStatusFailed
+
+		if err := s.sessionRepo.Update(ctx, session); err != nil {
+			logger.Errorw("Failed to update session to failed", "error", err)
+		}
 	}
 
-	req, err := http.NewRequest(
+	responseBody, statusCode, appErr := s.httpClient.Do(
+		ctx,
 		http.MethodPost,
 		fmt.Sprintf("%s/start", utils.GetEnv("SPEECH_SERVICE_URL", "")),
-		bytes.NewBuffer(jsonBody),
+		map[string]string{
+			"Content-Type": "application/json",
+		},
+		body,
 	)
-	if err != nil {
-		logger.Errorw("Failed to create request to speech service", "error", err)
-		return nil, errors.Internal()
+	if appErr != nil {
+		failSession("Failed to connect to speech service", "error", appErr)
+		return nil, appErr
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
+		failSession(
+			"Speech service returned non-success status",
+			"statusCode", statusCode,
+			"responseBody", string(responseBody),
+		)
 
-	client := &http.Client{}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		logger.Errorw("Failed to connect to speech service", "error", err)
-		return nil, errors.Internal()
-	}
-	defer resp.Body.Close()
-
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Errorw("Failed to read response from speech service", "error", err)
-		return nil, errors.Internal()
+		return nil, errors.Internal("speech service failed")
 	}
 
 	var result res.WebRTCConnectionRes
 	if err := json.Unmarshal(responseBody, &result); err != nil {
+		failSession(
+			"Failed to parse speech service response",
+			"error", err,
+			"responseBody", string(responseBody),
+		)
+
 		return nil, errors.Internal("failed to parse speech service response")
+	}
+
+	if session != nil {
+		session.SpeechSessionID = result.SessionID
+		if err := s.sessionRepo.Update(ctx, session); err != nil {
+			logger.Errorw("Failed to update session to active", "error", err)
+			return nil, errors.Internal("failed to update speechSessionId")
+		}
 	}
 
 	return &result, nil
 }
 
-func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError) {
+func (s *modelGatewayService) ProxyOffer(
+	ctx context.Context,
+	sessionId string,
+	method string,
+	body []byte,
+) ([]byte, int, *errors.AppError) {
 	logger := zapLogger.S()
 	logger.Debug("Proxying offer to speech engine")
 
-	req, err := http.NewRequest(
+	if sessionId == "" {
+		return nil, 0, errors.BadRequest("missing session id")
+	}
+
+	appSession, err := s.sessionRepo.GetBySpeechSessionID(ctx, sessionId)
+	if err != nil {
+		logger.Warnw(
+			"No app session found for speech session id; continuing as guest",
+			"speechSessionId", sessionId,
+			"error", err,
+		)
+		appSession = nil
+	}
+
+	failSession := func(reason string, fields ...interface{}) {
+		logger.Errorw(reason, fields...)
+
+		if appSession == nil {
+			return
+		}
+
+		appSession.Status = enums.SessionStatusFailed
+
+		if err := s.sessionRepo.Update(ctx, appSession); err != nil {
+			logger.Errorw(
+				"Failed to update session to failed",
+				"sessionId", appSession.ID,
+				"speechSessionId", sessionId,
+				"error", err,
+			)
+		}
+	}
+
+	responseBody, statusCode, appErr := s.httpClient.Do(
+		ctx,
 		method,
-		fmt.Sprintf("%s/sessions/%s/api/offer", utils.GetEnv("SPEECH_SERVICE_URL", ""), sessionId),
-		bytes.NewBuffer(body),
+		fmt.Sprintf(
+			"%s/sessions/%s/api/offer",
+			utils.GetEnv("SPEECH_SERVICE_URL", ""),
+			sessionId,
+		),
+		map[string]string{
+			"Content-Type": "application/json",
+		},
+		json.RawMessage(body),
 	)
-	if err != nil {
-		logger.Errorw("Failed to create offer request to speech service", "error", err)
-		return nil, 0, errors.Internal()
+	if appErr != nil {
+		failSession(
+			"Failed to proxy offer to speech service",
+			"speechSessionId", sessionId,
+			"error", appErr,
+		)
+
+		return nil, 0, appErr
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
+		failSession(
+			"Speech service returned non-success status while proxying offer",
+			"speechSessionId", sessionId,
+			"statusCode", statusCode,
+			"responseBody", string(responseBody),
+		)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		logger.Errorw("Failed to proxy offer to speech service", "error", err)
-		return nil, 0, errors.Internal()
-	}
-	defer resp.Body.Close()
-
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Errorw("Failed to read offer response from speech service", "error", err)
-		return nil, 0, errors.Internal()
+		return responseBody, statusCode, nil
 	}
 
-	return responseBody, resp.StatusCode, nil
+	if appSession != nil {
+		appSession.StartedAt = time.Now()
+		appSession.Status = enums.SessionStatusActive
+
+		if err := s.sessionRepo.Update(ctx, appSession); err != nil {
+			logger.Errorw(
+				"Failed to update session to active",
+				"sessionId", appSession.ID,
+				"speechSessionId", sessionId,
+				"error", err,
+			)
+			return nil, 0, errors.Internal("failed to update session to active")
+		}
+	}
+
+	return responseBody, statusCode, nil
 }

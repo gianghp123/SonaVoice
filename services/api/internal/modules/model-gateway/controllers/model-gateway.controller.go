@@ -6,6 +6,7 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	_ "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,18 @@ func NewModelGatewayController(svc services.IModelGatewayService) *ModelGatewayC
 // @Failure      500  {object}  response.BaseResponse[any]
 // @Router       /model-gateway/start [post]
 func (ctrl *ModelGatewayController) HandleStart(c *gin.Context) {
-	offer, appErr := ctrl.svc.GetConnnection(c.Request.Context())
+	var req req.StartConnectionReq
+
+	// Bind JSON body to struct
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	offer, appErr := ctrl.svc.StartConnection(c.Request.Context(), &req)
+
 	if appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
