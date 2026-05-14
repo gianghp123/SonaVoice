@@ -8,6 +8,6 @@ type ClerkConfig struct {
 
 func loadClerkConfig() ClerkConfig {
 	return ClerkConfig{
-		ClerkSecret: utils.GetEnv("CLERK_SECRET", ""),
+		ClerkSecret: utils.GetEnv("CLERK_SECRET_KEY", ""),
 	}
 }

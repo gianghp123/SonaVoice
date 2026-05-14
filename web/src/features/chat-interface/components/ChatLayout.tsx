@@ -1,3 +1,5 @@
+'use client'
+
 import { SidebarFooterUI } from "@/components/common/SidebarFooter"
 import {
   AlertDialog,
@@ -19,7 +21,6 @@ import {
 } from "@/components/ui/sidebar"
 import { HistoryPanelContent } from "@/features/chat-interface/components/HistoryPanelContent"
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
-import { Show, SignInButton, UserAvatar } from "@clerk/nextjs"
 import { RTVIEvent } from "@pipecat-ai/client-js"
 import { useRTVIClientEvent } from "@pipecat-ai/client-react"
 import { PanelRight } from "lucide-react"

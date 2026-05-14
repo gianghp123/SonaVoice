@@ -12,7 +12,7 @@ export default function AuthenticatedChatPage() {
     <PipecatAppBase
       transportType="smallwebrtc"
       startBotParams={{
-        endpoint: "api/proxy/webrtc/model-gateway/start",
+        endpoint: "/api/proxy/webrtc/model-gateway/start",
         requestData: {
           session_id: id as string,
         }

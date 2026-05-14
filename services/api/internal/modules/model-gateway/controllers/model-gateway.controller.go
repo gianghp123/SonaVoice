@@ -4,13 +4,11 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	_ "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
-	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -34,12 +32,6 @@ func NewModelGatewayController(svc services.IModelGatewayService) *ModelGatewayC
 // @Failure      500  {object}  response.BaseResponse[any]
 // @Router       /model-gateway/sessions [post]
 func (ctrl *ModelGatewayController) HandleCreateSession(c *gin.Context) {
-	userID := utils.GetCtx[string](c.Request.Context(), enums.ContextKeyUserID)
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, response.Fail(errors.Unauthorized("authentication required")))
-		return
-	}
-
 	sessionRes, appErr := ctrl.svc.CreateSession(c.Request.Context())
 	if appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))

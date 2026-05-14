@@ -44,6 +44,8 @@ func (s *modelGatewayService) CreateSession(
 
 	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 
+	logger.Debugw("Creating session", "userId", requesterId)
+
 	session := &models.Session{
 		UserID: requesterId,
 		Status: enums.SessionStatusPending,

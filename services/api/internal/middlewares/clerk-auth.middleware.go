@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/clerk/clerk-sdk-go/v2"
@@ -34,45 +33,51 @@ func ClerkAuthMiddleware() gin.HandlerFunc {
 	clerk.SetKey(clerkCfg.ClerkSecret)
 
 	return func(c *gin.Context) {
-		handler := clerkhttp.WithHeaderAuthorization(withCustomClaims)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			claims, ok := clerk.SessionClaimsFromContext(r.Context())
-			if !ok {
-				authHeader := r.Header.Get("Authorization")
-				reason := fmt.Sprintf("missing or invalid clerk session, auth header: %s", authHeader)
-				if authHeader == "" {
-					reason = "missing clerk authorization header"
-				}
+		var nextReq *http.Request
 
-				logger.Warnw("Unauthorized request",
-					"path", r.URL.Path,
-					"method", r.Method,
-					"ip", c.ClientIP(),
-					"reason", reason,
-				)
-				c.AbortWithStatusJSON(http.StatusUnauthorized, appErr.Unauthorized())
-				return
-			}
-
-			userID := claims.Subject
-			role := enums.UserRoleUser // Default
-
-			if customClaims, ok := claims.Custom.(*ClerkMetadata); ok && customClaims.Role != "" {
-				role = customClaims.Role
-			}
-
-			ctx := context.WithValue(r.Context(), string(enums.ContextKeyUserID), userID)
-			ctx = context.WithValue(ctx, string(enums.ContextKeyUserRole), role)
-
-			// Replace the request context with our new one
-			c.Request = c.Request.WithContext(ctx)
-			c.Next()
-		}))
+		handler := clerkhttp.WithHeaderAuthorization(withCustomClaims)(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				nextReq = r
+			}),
+		)
 
 		handler.ServeHTTP(c.Writer, c.Request)
 
-		if c.IsAborted() {
+		if nextReq == nil {
+			logger.Warnw("Clerk rejected before inner handler",
+				"path", c.Request.URL.Path,
+				"method", c.Request.Method,
+				"authHeader", c.GetHeader("Authorization"),
+				"status", c.Writer.Status(),
+			)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, appErr.Unauthorized())
 			return
 		}
+
+		claims, ok := clerk.SessionClaimsFromContext(nextReq.Context())
+		if !ok || claims.Subject == "" {
+			logger.Warnw("Invalid clerk session", "path", nextReq.URL.Path, "method", nextReq.Method, "subject", claims.Subject)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, appErr.Unauthorized())
+			return
+		}
+
+		userID := claims.Subject
+		role := enums.UserRoleUser
+
+		logger.Warnw("Clerk claims debug",
+			"subject", userID,
+			"hasCustomClaims", claims.Custom != nil,
+		)
+
+		if customClaims, ok := claims.Custom.(*ClerkMetadata); ok && customClaims.Role != "" {
+			role = customClaims.Role
+		}
+
+		ctx := context.WithValue(nextReq.Context(), enums.ContextKeyUserID, userID)
+		ctx = context.WithValue(ctx, enums.ContextKeyUserRole, role)
+
+		c.Request = nextReq.WithContext(ctx)
+		c.Next()
 	}
 }
 
@@ -82,52 +87,56 @@ func OptionalClerkAuthMiddleware() gin.HandlerFunc {
 	clerk.SetKey(clerkCfg.ClerkSecret)
 
 	return func(c *gin.Context) {
-		authHeader := c.Request.Header.Get("Authorization")
+		authHeader := c.GetHeader("Authorization")
 
-		// No auth header => continue as guest
 		if authHeader == "" {
 			c.Next()
 			return
 		}
 
+		var nextReq *http.Request
+
 		handler := clerkhttp.WithHeaderAuthorization(withCustomClaims)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				claims, ok := clerk.SessionClaimsFromContext(r.Context())
-				if !ok {
-					logger.Warnw(
-						"Invalid clerk session; continuing as guest",
-						"path", r.URL.Path,
-						"method", r.Method,
-						"ip", c.ClientIP(),
-					)
-
-					c.Next()
-					return
-				}
-
-				userID := claims.Subject
-				role := enums.UserRoleUser
-
-				if customClaims, ok := claims.Custom.(*ClerkMetadata); ok && customClaims.Role != "" {
-					role = customClaims.Role
-				}
-
-				ctx := context.WithValue(
-					r.Context(),
-					string(enums.ContextKeyUserID),
-					userID,
-				)
-				ctx = context.WithValue(
-					ctx,
-					string(enums.ContextKeyUserRole),
-					role,
-				)
-
-				c.Request = c.Request.WithContext(ctx)
-				c.Next()
+				nextReq = r
 			}),
 		)
 
 		handler.ServeHTTP(c.Writer, c.Request)
+
+		if nextReq == nil {
+			logger.Warnw("Invalid clerk session; continuing as guest",
+				"path", c.Request.URL.Path,
+				"method", c.Request.Method,
+				"status", c.Writer.Status(),
+			)
+
+			c.Next()
+			return
+		}
+
+		claims, ok := clerk.SessionClaimsFromContext(nextReq.Context())
+		if !ok || claims.Subject == "" {
+			logger.Warnw("Invalid clerk claims; continuing as guest",
+				"path", nextReq.URL.Path,
+				"method", nextReq.Method,
+			)
+
+			c.Next()
+			return
+		}
+
+		userID := claims.Subject
+		role := enums.UserRoleUser
+
+		if customClaims, ok := claims.Custom.(*ClerkMetadata); ok && customClaims.Role != "" {
+			role = customClaims.Role
+		}
+
+		ctx := context.WithValue(nextReq.Context(), enums.ContextKeyUserID, userID)
+		ctx = context.WithValue(ctx, enums.ContextKeyUserRole, role)
+
+		c.Request = nextReq.WithContext(ctx)
+		c.Next()
 	}
 }

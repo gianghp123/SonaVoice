@@ -11,7 +11,7 @@ export default function ChatPage() {
     <PipecatAppBase
       transportType="smallwebrtc"
       startBotParams={{ 
-        endpoint: "api/proxy/webrtc/model-gateway/start",
+        endpoint: "/api/proxy/webrtc/model-gateway/start",
       }}
       noThemeProvider
       clientOptions={{ enableMic: true }}
