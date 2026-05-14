@@ -21,6 +21,7 @@ from src.agents.tools import summarize_conversation, save_user_preferences
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from src.agents.tools import summarize_function, save_memory_function
+from pipecat.frames.frames import ErrorFrame
 
 load_dotenv()
 
@@ -99,9 +100,6 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
             voice=settings.CARTESIA_VOICE_ID, # Sophie - Female - British English
         ),
     )
-    
-    
-
     
     if session_id is None or session_id == "":
         tools = ToolsSchema([summarize_function])

@@ -14,7 +14,8 @@ from pipecat.utils.context.llm_context_summarization import (
 )
 from src.pipelines.processors import FrameProcessor
 from loguru import logger
-
+from pipecat.frames.frames import ErrorFrame
+from src.utils.error_msg import get_custom_error_message
 
 async def create_voice_bot_task(
     transport,
@@ -104,5 +105,42 @@ async def create_voice_bot_task(
         )
         # Prompt the bot to start talking when the client connects
         await task.queue_frames([LLMRunFrame()])
+        
+    
 
+    @tts.event_handler("on_connection_error")
+    async def on_tts_connection_error(service, error):
+        logger.error(f"TTS connection error: {error}")
+
+
+    @stt.event_handler("on_connection_error")
+    async def on_stt_connection_error(service, error):
+        logger.error(f"STT connection error: {error}")
+
+
+    @llm.event_handler("on_connection_error")
+    async def on_llm_connection_error(service, error):
+        logger.error(f"LLM connection error: {error}")
+
+
+    @task.event_handler("on_pipeline_error")
+    async def on_pipeline_error(task, frame):
+        logger.error(f"Pipeline error: {frame.error}, fatal: {frame.fatal}")
+
+        error_msg = str(frame.error)
+
+        if "Cartesia" in error_msg or "TTS" in error_msg or "WebSocket" in error_msg:
+            service_name = "TTS service"
+        elif "STT" in error_msg:
+            service_name = "STT service"
+        elif "LLM" in error_msg:
+            service_name = "LLM service"
+        else:
+            service_name = "Service"
+
+        custom_msg = get_custom_error_message(error_msg, service_name)
+
+        await task.queue_frames([
+            ErrorFrame(error=custom_msg, fatal=True)
+        ])
     return task

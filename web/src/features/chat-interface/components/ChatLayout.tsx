@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import { HistoryPanelContent } from "@/features/chat-interface/components/HistoryPanelContent"
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
+import { Show, SignInButton, UserAvatar } from "@clerk/nextjs"
 import { RTVIEvent } from "@pipecat-ai/client-js"
 import { useRTVIClientEvent } from "@pipecat-ai/client-react"
 import { PanelRight } from "lucide-react"
@@ -49,12 +50,15 @@ export function ChatLayout({
   useRTVIClientEvent(
     RTVIEvent.Error,
     useCallback((message) => {
-      const { message: text, fatal } = message.data as any
+      const { error, message: msg, fatal } = message.data as any
+      const text = error ?? msg  // use "error" first, fall back to "message"
 
       console.error("Bot runtime error:", text)
-      toast.error("An error occurred in the bot runtime. Please try again. \n Details: " + text, {
+      toast.error("An error occurred: " + text, {
         duration: 10000,
       })
+
+
 
       if (fatal) {
         setFatalError(text)
@@ -105,6 +109,12 @@ export function ChatLayout({
       <Sidebar side="right">
         <SidebarContent>
           <HistoryPanelContent />
+          <Show when="signed-in">
+            <UserAvatar />
+          </Show>
+          <Show when="signed-out">
+            <SignInButton />
+          </Show>
         </SidebarContent>
       </Sidebar>
     </SidebarProvider>
