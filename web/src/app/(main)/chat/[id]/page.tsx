@@ -11,7 +11,7 @@ export default function AuthenticatedChatPage() {
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
-      startBotParams={{ 
+      startBotParams={{
         endpoint: "api/proxy/webrtc/model-gateway/start",
         requestData: {
           session_id: id as string,
@@ -22,13 +22,14 @@ export default function AuthenticatedChatPage() {
       initDevicesOnMount={true}
       connectOnMount={true}
     >
-      {({ client, handleDisconnect }) => {
+      {({ client, error, handleDisconnect }) => {
         if (!client) {
           return <LoadingScreen />
         }
 
         return <ChatLayout
           handleDisconnect={handleDisconnect ?? (() => { })}
+          initialError={error}
         />
       }}
     </PipecatAppBase>

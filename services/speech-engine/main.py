@@ -11,8 +11,15 @@ from mem0 import AsyncMemory
 from src.core.app_resources import AppResources
 from src.agents.prompts import ENGLIST_TEACHER_SYSTEM_INSTRUCTION
 from pipecat.runner.types import RunnerArguments
-from pipecat.runner.types import DailyRunnerArguments, RunnerArguments, SmallWebRTCRunnerArguments
-from pipecat.transports.smallwebrtc.transport import TransportParams, SmallWebRTCConnection
+from pipecat.runner.types import (
+    DailyRunnerArguments,
+    RunnerArguments,
+    SmallWebRTCRunnerArguments,
+)
+from pipecat.transports.smallwebrtc.transport import (
+    TransportParams,
+    SmallWebRTCConnection,
+)
 from pipecat.transports.base_transport import BaseTransport
 from loguru import logger
 from pipecat.transports.daily.transport import DailyParams
@@ -21,9 +28,10 @@ from src.agents.tools import summarize_conversation, save_user_preferences
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from src.agents.tools import summarize_function, save_memory_function
-from pipecat.frames.frames import ErrorFrame
+from pipecat.services.piper.tts import PiperTTSService
 
 load_dotenv()
+
 
 async def bot(runner_args: RunnerArguments):
     transport = None
@@ -47,9 +55,9 @@ async def bot(runner_args: RunnerArguments):
             params=TransportParams(
                 audio_in_enabled=True,
                 audio_out_enabled=True,
-            )
+            ),
         )
-    
+
     else:
         logger.error(f"Unsupported runner arguments type: {type(runner_args)}")
         return
@@ -60,73 +68,83 @@ async def bot(runner_args: RunnerArguments):
 
     await run_bot(transport, runner_args)
 
+
 async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
-    logger.info(f"Starting the bot, received body: {runner_args.body}") 
+    logger.info(f"Starting the bot, received body: {runner_args.body}")
     user_id = "anonymous"
     session_id = None
     memory_client = None
     app_resource = None
     tools = None
-    
+
     if runner_args.body:
         logger.debug("No body received")
         user_id = runner_args.body.get("user_id")
         session_id = runner_args.body.get("session_id")
     else:
         logger.debug("No body received")
-        
+
     stt = DeepgramSTTService(api_key=settings.DEEPGRAM_API_KEY)
-    
+
     llm = OpenAILLMService(
         api_key=settings.OPENCODE_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
         settings=OpenAILLMService.Settings(
             model=settings.LLM_NAME,
             system_instruction=ENGLIST_TEACHER_SYSTEM_INSTRUCTION,
-            extra={
-                "extra_body": {
-                    "thinking": {"type": "disabled"}
-                }
-            }
+            extra={"extra_body": {"thinking": {"type": "disabled"}}},
         ),
     )
-    
+
     llm.register_function("summarize_conversation", summarize_conversation)
     llm.register_function("save_user_preferences", save_user_preferences)
 
-    tts = CartesiaTTSService(
-        api_key=settings.CARTESIA_API_KEY,
-        settings=CartesiaTTSService.Settings(
-            voice=settings.CARTESIA_VOICE_ID, # Sophie - Female - British English
+    # tts = CartesiaTTSService(
+    #     api_key=settings.CARTESIA_API_KEY,
+    #     settings=CartesiaTTSService.Settings(
+    #         voice=settings.CARTESIA_VOICE_ID, # Sophie - Female - British English
+    #     ),
+    # )
+
+    tts = PiperTTSService(
+        settings=PiperTTSService.Settings(
+            voice="en_US-lessac-high",
         ),
     )
-    
+
     if session_id is None or session_id == "":
         tools = ToolsSchema([summarize_function])
     else:
         tools = ToolsSchema([summarize_function, save_memory_function])
         memory_client = AsyncMemory.from_config(settings.memory_config)
-        app_resource = AppResources(memory_client=memory_client, user_id=user_id, session_id=session_id)
-    
+        app_resource = AppResources(
+            memory_client=memory_client, user_id=user_id, session_id=session_id
+        )
+
     context = LLMContext(tools=tools)
-    
-    
-    
+
     # Initialize Memory Processor
     memory_processor = CustomMem0Processor(
-        memory_client=memory_client,
-        user_id=user_id,
-        session_id=session_id
+        memory_client=memory_client, user_id=user_id, session_id=session_id
     )
 
     # Create the Task using our factory
-    task = await create_voice_bot_task(transport, stt, llm, tts, context, memory_processor=memory_processor, app_resources=app_resource)
+    task = await create_voice_bot_task(
+        transport,
+        stt,
+        llm,
+        tts,
+        context,
+        memory_processor=memory_processor,
+        app_resources=app_resource,
+    )
 
     # Run
     runner = PipelineRunner(handle_sigint=False)
     await runner.run(task)
-    
-    
+
+
 if __name__ == "__main__":
     from pipecat.runner.run import main
+
     main()

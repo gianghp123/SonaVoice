@@ -3,6 +3,7 @@
 import { LoadingScreen } from "@/components/common/LoadingScreen"
 import { ChatLayout } from "@/features/chat-interface/components/ChatLayout"
 import { PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
+import { toast } from "sonner"
 
 
 export default function ChatPage() {
@@ -17,13 +18,14 @@ export default function ChatPage() {
       initDevicesOnMount={true}
       connectOnMount={true}
     >
-      {({ client, handleDisconnect }) => {
+      {({ client, error, handleDisconnect }) => {
         if (!client) {
           return <LoadingScreen />
         }
 
         return <ChatLayout
           handleDisconnect={handleDisconnect ?? (() => { })}
+          initialError={error}
         />
       }}
     </PipecatAppBase>

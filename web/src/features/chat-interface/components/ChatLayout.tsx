@@ -1,3 +1,4 @@
+import { SidebarFooterUI } from "@/components/common/SidebarFooter"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarInset,
   SidebarProvider,
   useSidebar,
@@ -22,7 +24,7 @@ import { RTVIEvent } from "@pipecat-ai/client-js"
 import { useRTVIClientEvent } from "@pipecat-ai/client-react"
 import { PanelRight } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
 function HistoryTrigger() {
@@ -41,8 +43,10 @@ function HistoryTrigger() {
 
 export function ChatLayout({
   handleDisconnect,
+  initialError
 }: {
   handleDisconnect: () => void | Promise<void>
+  initialError?: string | null
 }) {
   const [fatalError, setFatalError] = useState<string | null>(null)
   const router = useRouter()
@@ -53,12 +57,9 @@ export function ChatLayout({
       const { error, message: msg, fatal } = message.data as any
       const text = error ?? msg  // use "error" first, fall back to "message"
 
-      console.error("Bot runtime error:", text)
       toast.error("An error occurred: " + text, {
         duration: 10000,
       })
-
-
 
       if (fatal) {
         setFatalError(text)
@@ -71,12 +72,18 @@ export function ChatLayout({
     router.push("/")
   }
 
+  useEffect(() => {
+    if (initialError) {
+      setFatalError(initialError)
+    }
+  }, [initialError])
+
   return (
     <SidebarProvider
       defaultOpen={false}
       style={{ "--sidebar-width": "60vh" } as React.CSSProperties}
     >
-      <SidebarInset className="bg-card">
+      <SidebarInset>
         <VoicePanel handleDisconnect={redirectOnDisconnect}>
           <HistoryTrigger />
 
@@ -109,13 +116,10 @@ export function ChatLayout({
       <Sidebar side="right">
         <SidebarContent>
           <HistoryPanelContent />
-          <Show when="signed-in">
-            <UserAvatar />
-          </Show>
-          <Show when="signed-out">
-            <SignInButton />
-          </Show>
         </SidebarContent>
+        <SidebarFooter className="border-t-[0.5px]">
+          <SidebarFooterUI />
+        </SidebarFooter>
       </Sidebar>
     </SidebarProvider>
   )
