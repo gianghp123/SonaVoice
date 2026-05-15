@@ -1,7 +1,7 @@
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams, PipelineTask
-from pipecat.frames.frames import LLMRunFrame, LLMMessagesAppendFrame
+from pipecat.frames.frames import LLMRunFrame, LLMMessagesAppendFrame, EndTaskFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
@@ -16,6 +16,8 @@ from src.pipelines.processors import FrameProcessor
 from loguru import logger
 from pipecat.frames.frames import ErrorFrame
 from src.utils.error_msg import get_custom_error_message
+import asyncio
+from pipecat.processors.frame_processor import FrameDirection
 
 async def create_voice_bot_task(
     transport,
@@ -23,6 +25,7 @@ async def create_voice_bot_task(
     llm,
     tts,
     context: LLMContext,
+    max_duration=None,
     memory_processor: FrameProcessor = None,
     app_resources=None,
 ) -> PipelineTask:
@@ -96,6 +99,21 @@ async def create_voice_bot_task(
         logger.info("Client disconnected - cancelling pipeline")
         await task.cancel()
 
+
+    async def session_timer(task, aggregator, timeout_secs=300):
+        await asyncio.sleep(timeout_secs)
+        # Trigger LLM to say goodbye
+        await aggregator.push_frame(
+            LLMMessagesAppendFrame(
+                messages=[{"role": "system", "content": "Say goodbye to the user since the session is over."}],
+                run_llm=True
+            )
+        )
+        # EndFrame is queued, so the goodbye speech will complete before shutdown
+        await aggregator.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
+
+   
+
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
         logger.info(f"Client connected")
@@ -105,6 +123,8 @@ async def create_voice_bot_task(
         )
         # Prompt the bot to start talking when the client connects
         await task.queue_frames([LLMRunFrame()])
+        if max_duration is not None:
+            asyncio.create_task(session_timer(task, user_aggregator, timeout_secs=max_duration))
         
     
 

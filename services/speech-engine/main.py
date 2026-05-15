@@ -135,6 +135,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         llm,
         tts,
         context,
+        max_duration=60*60,
         memory_processor=memory_processor,
         app_resources=app_resource,
     )

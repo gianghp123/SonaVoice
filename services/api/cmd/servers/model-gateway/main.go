@@ -8,6 +8,7 @@ import (
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 
+	globalconfig "github.com/gianghp123/SonaVoice/api/internal/modules/global-config"
 	modelgateway "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway"
 
 	"github.com/gin-gonic/gin"
@@ -89,6 +90,7 @@ func main() {
 
 	// Register modules
 	modelgateway.SetupModule(api, db, httpClient)
+	globalconfig.SetupModule(api, db)
 
 	// Server address
 	addr := fmt.Sprintf(":%s", serverCfg.Port)
