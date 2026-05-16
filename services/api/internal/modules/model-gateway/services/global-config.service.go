@@ -8,8 +8,8 @@ import (
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/global-config/dtos"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/global-config/dtos/res"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"gorm.io/datatypes"
 )
 

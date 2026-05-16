@@ -8,7 +8,6 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
-	globalconfigsvc "github.com/gianghp123/SonaVoice/api/internal/modules/global-config/services"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
@@ -22,14 +21,14 @@ type IModelGatewayService interface {
 }
 
 type modelGatewayService struct {
-	configService      globalconfigsvc.IGlobalConfigService
+	configService      IGlobalConfigService
 	sessionService     ISessionService
 	speechProxyService ISpeechProxyService
 	quoteService       IQuoteService
 }
 
 func NewModelGatewayService(
-	configService globalconfigsvc.IGlobalConfigService,
+	configService IGlobalConfigService,
 	sessionService ISessionService,
 	speechProxyService ISpeechProxyService,
 	quoteService IQuoteService,

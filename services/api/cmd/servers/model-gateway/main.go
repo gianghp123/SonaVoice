@@ -11,7 +11,6 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/redis/go-redis/v9"
 
-	globalconfig "github.com/gianghp123/SonaVoice/api/internal/modules/global-config"
 	modelgateway "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway"
 
 	"github.com/gin-gonic/gin"
@@ -99,7 +98,6 @@ func main() {
 
 	// Register modules
 	modelgateway.SetupModule(api, db, httpClient, redisClient)
-	globalconfig.SetupModule(api, db)
 
 	// Server address
 	addr := fmt.Sprintf(":%s", serverCfg.Port)

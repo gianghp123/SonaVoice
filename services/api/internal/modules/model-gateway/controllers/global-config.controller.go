@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/global-config/dtos/req"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/global-config/services"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
 	"github.com/gin-gonic/gin"
 )
 

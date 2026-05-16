@@ -4,7 +4,6 @@ import (
 	"gorm.io/gorm"
 
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
-	globalconfigrepo "github.com/gianghp123/SonaVoice/api/internal/modules/global-config/repositories"
 	modelgatewayrepo "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/repositories"
 )
 
@@ -27,7 +26,7 @@ func NewGormProvider(tx *gorm.DB) IProvider {
 
 func (p *gormProvider) GlobalConfig() repository_interfaces.IGlobalConfigRepository {
 	if p.globalConfigRepo == nil {
-		p.globalConfigRepo = globalconfigrepo.NewGlobalConfigRepository(p.tx)
+		p.globalConfigRepo = modelgatewayrepo.NewGlobalConfigRepository(p.tx)
 	}
 	return p.globalConfigRepo
 }
