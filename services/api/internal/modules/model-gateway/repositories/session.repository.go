@@ -4,21 +4,15 @@ import (
 	"context"
 
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
+	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	"gorm.io/gorm"
 )
-
-type ISessionRepository interface {
-	Create(ctx context.Context, model *models.Session) error
-	Get(ctx context.Context, sessionId string) (*models.Session, error)
-	Update(ctx context.Context, model *models.Session) error
-	GetBySpeechSessionID(ctx context.Context, speechSessionId string) (*models.Session, error)
-}
 
 type sessionRepository struct {
 	db *gorm.DB
 }
 
-func NewSessionRepository(db *gorm.DB) ISessionRepository {
+func NewSessionRepository(db *gorm.DB) repository_interfaces.ISessionRepository {
 	return &sessionRepository{
 		db: db,
 	}

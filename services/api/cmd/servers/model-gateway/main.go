@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/gianghp123/SonaVoice/api/internal/configs"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
+	redisClient "github.com/gianghp123/SonaVoice/api/internal/redis-client"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
+	"github.com/redis/go-redis/v9"
 
 	globalconfig "github.com/gianghp123/SonaVoice/api/internal/modules/global-config"
 	modelgateway "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway"
@@ -74,6 +77,12 @@ func main() {
 
 	logger.Info("database connected successfully")
 
+	opt, _ := redis.ParseURL(os.Getenv("REDIS_URL"))
+	client := redis.NewClient(opt)
+	redisClient := redisClient.NewClient(client)
+
+	logger.Info("redis connected successfully")
+
 	httpClient := httpclient.NewHttpClient()
 
 	// Init Gin
@@ -89,7 +98,7 @@ func main() {
 	})
 
 	// Register modules
-	modelgateway.SetupModule(api, db, httpClient)
+	modelgateway.SetupModule(api, db, httpClient, redisClient)
 	globalconfig.SetupModule(api, db)
 
 	// Server address

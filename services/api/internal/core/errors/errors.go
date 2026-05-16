@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -48,20 +49,24 @@ func Internal(msg ...string) *AppError {
 	return New(http.StatusInternalServerError, "Internal server error", msg...)
 }
 
-// Sentinel errors for repo-to-service error mapping
-var (
-	ErrNotFound      = errors.New("not found")
-	ErrAlreadyExists = errors.New("already exists")
-)
+func AlreadyExists(msg ...string) *AppError {
+	return New(http.StatusConflict, "Already exists", msg...)
+}
 
 // MapRepoError maps ORM/database errors to sentinel errors.
 // Extend with your ORM-specific error checks (GORM, SQLx, etc.).
 func MapRepoError(err error) error {
+	var pgErr *pgconn.PgError
 	if err == nil {
 		return nil
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return ErrNotFound
+		return NotFound()
 	}
-	return err
+
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return Conflict()
+	}
+
+	return Internal()
 }

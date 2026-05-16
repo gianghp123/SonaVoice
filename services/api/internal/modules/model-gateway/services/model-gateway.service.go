@@ -11,10 +11,10 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
+	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/repositories"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/google/uuid"
 )
@@ -26,14 +26,16 @@ type IModelGatewayService interface {
 }
 
 type modelGatewayService struct {
-	httpClient  httpclient.IHttpClient
-	sessionRepo repositories.ISessionRepository
+	httpClient   httpclient.IHttpClient
+	sessionRepo  repository_interfaces.ISessionRepository
+	quoteService IQuoteService
 }
 
-func NewModelGatewayService(httpClient httpclient.IHttpClient, sessionRepo repositories.ISessionRepository) IModelGatewayService {
+func NewModelGatewayService(httpClient httpclient.IHttpClient, sessionRepo repository_interfaces.ISessionRepository, quoteService IQuoteService) IModelGatewayService {
 	return &modelGatewayService{
-		httpClient:  httpClient,
-		sessionRepo: sessionRepo,
+		httpClient:   httpClient,
+		sessionRepo:  sessionRepo,
+		quoteService: quoteService,
 	}
 }
 

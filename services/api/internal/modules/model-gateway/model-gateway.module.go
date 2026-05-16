@@ -6,14 +6,16 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/controllers"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/repositories"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
+	redisClient "github.com/gianghp123/SonaVoice/api/internal/redis-client"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHttpClient) {
+func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHttpClient, redis redisClient.IRedisClient) {
 	sessionRepo := repositories.NewSessionRepository(db)
-	service := services.NewModelGatewayService(httpClient, sessionRepo)
-	controller := controllers.NewModelGatewayController(service)
+	quoteService := services.NewQuoteService(redis)
+	modelGatewayService := services.NewModelGatewayService(httpClient, sessionRepo, quoteService)
+	controller := controllers.NewModelGatewayController(modelGatewayService)
 
 	group := router.Group("/model-gateway")
 

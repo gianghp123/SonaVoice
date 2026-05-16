@@ -7,9 +7,9 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
+	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/global-config/dtos"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/global-config/dtos/res"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/global-config/repositories"
 	"gorm.io/datatypes"
 )
 
@@ -19,10 +19,10 @@ type IGlobalConfigService interface {
 }
 
 type globalConfigService struct {
-	repo repositories.IGlobalConfigRepository
+	repo repository_interfaces.IGlobalConfigRepository
 }
 
-func NewGlobalConfigService(repo repositories.IGlobalConfigRepository) IGlobalConfigService {
+func NewGlobalConfigService(repo repository_interfaces.IGlobalConfigRepository) IGlobalConfigService {
 	return &globalConfigService{
 		repo: repo,
 	}

@@ -10,6 +10,7 @@ type Config struct {
 	Database  DatabaseConfig
 	ClerkAuth ClerkConfig
 	Logger    LoggerConfig
+	Redis     RedisConfig
 }
 
 func Load() *Config {
@@ -23,5 +24,6 @@ func Load() *Config {
 		Database:  loadDatabaseConfig(),
 		ClerkAuth: loadClerkConfig(),
 		Logger:    loadLoggerConfig(),
+		Redis:     loadRedisConfig(),
 	}
 }

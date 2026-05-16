@@ -4,19 +4,15 @@ import (
 	"context"
 
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
+	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	"gorm.io/gorm"
 )
-
-type IGlobalConfigRepository interface {
-	Get(ctx context.Context) (*models.GlobalConfig, error)
-	Save(ctx context.Context, model *models.GlobalConfig) error
-}
 
 type globalConfigRepository struct {
 	db *gorm.DB
 }
 
-func NewGlobalConfigRepository(db *gorm.DB) IGlobalConfigRepository {
+func NewGlobalConfigRepository(db *gorm.DB) repository_interfaces.IGlobalConfigRepository {
 	return &globalConfigRepository{
 		db: db,
 	}
