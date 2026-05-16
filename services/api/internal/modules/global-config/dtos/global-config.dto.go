@@ -11,11 +11,16 @@ type ConfigPayload struct {
 }
 
 type LimitsConfig struct {
-	Guest UserLimitConfig `json:"guest"`
-	User  UserLimitConfig `json:"user"`
+	Guest   UserLimitConfig    `json:"guest"`
+	User    UserLimitConfig    `json:"user"`
+	Session SessionLimitConfig `json:"session"`
 }
 
 type UserLimitConfig struct {
 	DailyVoiceSeconds int `json:"dailyVoiceSeconds"`
 	DailyRequestCount int `json:"dailyRequestCount"`
+}
+
+type SessionLimitConfig struct {
+	MaxSessionLockTTL int `json:"maxSessionLockTTL"`
 }

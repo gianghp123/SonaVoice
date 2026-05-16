@@ -13,29 +13,32 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
-	"github.com/google/uuid"
 )
 
 type IModelGatewayService interface {
 	CreateSession(ctx context.Context) (*res.SessionRes, *errors.AppError)
 	StartConnection(ctx context.Context, reqBody *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError)
+	CloseSession(ctx context.Context, reqBody *req.CloseSessionReq) *errors.AppError
 	ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
 }
 
 type modelGatewayService struct {
-	httpClient   httpclient.IHttpClient
-	sessionRepo  repository_interfaces.ISessionRepository
-	quoteService IQuoteService
+	httpClient       httpclient.IHttpClient
+	sessionRepo      repository_interfaces.ISessionRepository
+	globalConfigRepo repository_interfaces.IGlobalConfigRepository
+	quoteService     IQuoteService
 }
 
-func NewModelGatewayService(httpClient httpclient.IHttpClient, sessionRepo repository_interfaces.ISessionRepository, quoteService IQuoteService) IModelGatewayService {
+func NewModelGatewayService(httpClient httpclient.IHttpClient, sessionRepo repository_interfaces.ISessionRepository, globalConfigRepo repository_interfaces.IGlobalConfigRepository, quoteService IQuoteService) IModelGatewayService {
 	return &modelGatewayService{
-		httpClient:   httpClient,
-		sessionRepo:  sessionRepo,
-		quoteService: quoteService,
+		httpClient:       httpClient,
+		sessionRepo:      sessionRepo,
+		globalConfigRepo: globalConfigRepo,
+		quoteService:     quoteService,
 	}
 }
 
@@ -48,6 +51,19 @@ func (s *modelGatewayService) CreateSession(
 
 	logger.Debugw("Creating session", "userId", requesterId)
 
+	globalconfig, appErr := s.GetGlobalConfig(ctx)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	lockValue, err := s.quoteService.AcquireSessionLock(ctx, requesterId, time.Duration(globalconfig.Config.Limits.Session.MaxSessionLockTTL)*time.Second)
+
+	if err != nil {
+		return nil, errors.Internal("failed to acquire session lock")
+	}
+
+	defer s.quoteService.ReleaseSessionLock(ctx, requesterId, lockValue)
+
 	session := &models.Session{
 		UserID: requesterId,
 		Status: enums.SessionStatusPending,
@@ -55,7 +71,7 @@ func (s *modelGatewayService) CreateSession(
 
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
 		logger.Errorw("Failed to create session", "error", err)
-		return nil, errors.Internal("failed to create session")
+		return nil, errors.MapRepoError(err)
 	}
 
 	return &res.SessionRes{
@@ -82,32 +98,72 @@ func (s *modelGatewayService) StartConnection(
 		sessionId = reqBody.SessionId
 	}
 
-	isGuest := requesterId == ""
-	if isGuest {
-		requesterId = "guest_" + uuid.NewString()
-		sessionId = ""
-	} else if sessionId != "" {
-		existingSession, err := s.sessionRepo.Get(ctx, sessionId)
-		if err != nil {
-			logger.Errorw("Failed to get session", "error", err)
-			return nil, errors.Internal("failed to get session")
-		}
-
-		if existingSession.UserID != requesterId {
-			return nil, errors.Forbidden("session does not belong to requester")
-		}
-
-		session = existingSession
-		sessionId = session.ID
-	} else {
+	if sessionId == "" {
 		return nil, errors.BadRequest("session_id is required")
 	}
+
+	existingSession, err := s.sessionRepo.Get(ctx, sessionId)
+	if err != nil {
+		logger.Errorw("Failed to get session", "error", err)
+		return nil, errors.Internal("failed to get session")
+	}
+
+	if existingSession.UserID != requesterId {
+		return nil, errors.Forbidden("session does not belong to requester")
+	}
+
+	session = existingSession
+
+	globalconfig, appErr := s.GetGlobalConfig(ctx)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	dailyQuota := globalconfig.Config.Limits.User.DailyVoiceSeconds
+
+	reservedAmount, err := s.quoteService.ReserveAllRemaining(ctx, requesterId, int64(dailyQuota))
+	if err != nil {
+		return nil, errors.Internal()
+	}
+
+	if reservedAmount <= 0 {
+		return nil, errors.Forbidden("quota exceeded")
+	}
+
+	quotaCommitted := false
+
+	defer func() {
+		if quotaCommitted {
+			return
+		}
+
+		releaseCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if err := s.quoteService.Release(
+			releaseCtx,
+			requesterId,
+			reservedAmount,
+			0, // actualUsage = 0 because session did not successfully start
+			int64(dailyQuota),
+		); err != nil {
+			logger.Errorw(
+				"Failed to rollback reserved quota",
+				"userId", requesterId,
+				"reservedAmount", reservedAmount,
+				"error", err,
+			)
+		}
+	}()
+
+	maxDuration := reservedAmount
 
 	body := map[string]interface{}{
 		"enableDefaultIceServers": true,
 		"body": map[string]interface{}{
-			"user_id":    requesterId,
-			"session_id": sessionId,
+			"user_id":     requesterId,
+			"session_id":  sessionId,
+			"maxDuration": maxDuration,
 		},
 	}
 
@@ -168,6 +224,8 @@ func (s *modelGatewayService) StartConnection(
 		}
 	}
 
+	quotaCommitted = true
+
 	return &result, nil
 }
 
@@ -186,12 +244,12 @@ func (s *modelGatewayService) ProxyOffer(
 
 	appSession, err := s.sessionRepo.GetBySpeechSessionID(ctx, sessionId)
 	if err != nil {
-		logger.Warnw(
-			"No app session found for speech session id; continuing as guest",
+		logger.Errorw(
+			"Failed to get app session by speech session id",
 			"speechSessionId", sessionId,
 			"error", err,
 		)
-		appSession = nil
+		return nil, 0, errors.Internal("failed to get session")
 	}
 
 	failSession := func(reason string, fields ...interface{}) {
@@ -263,4 +321,132 @@ func (s *modelGatewayService) ProxyOffer(
 	}
 
 	return responseBody, statusCode, nil
+}
+
+func (s *modelGatewayService) CloseSession(
+	ctx context.Context,
+	reqBody *req.CloseSessionReq,
+) *errors.AppError {
+	logger := zapLogger.S()
+
+	if reqBody == nil {
+		return errors.BadRequest("request body is required")
+	}
+
+	sessionId := reqBody.SessionID
+
+	logger.Debugw(
+		"Closing session",
+		"SessionId", sessionId,
+		"actualUsage", reqBody.ActualUsage,
+		"maxDuration", reqBody.MaxDuration,
+	)
+
+	if sessionId == "" {
+		return errors.BadRequest("sessionId is required")
+	}
+
+	if reqBody.MaxDuration <= 0 {
+		return errors.BadRequest("maxDuration must be greater than 0")
+	}
+
+	if reqBody.ActualUsage < 0 {
+		return errors.BadRequest("actualUsage cannot be negative")
+	}
+
+	session, err := s.sessionRepo.Get(ctx, sessionId)
+	if err != nil {
+		logger.Errorw(
+			"Failed to get session",
+			"speechSessionId", sessionId,
+			"error", err,
+		)
+		return errors.Internal("failed to get session")
+	}
+
+	if session.Status != enums.SessionStatusActive {
+		logger.Errorw(
+			"Session is not active",
+			"speechSessionId", sessionId,
+			"status", session.Status,
+		)
+		return errors.BadRequest("session is not active")
+	}
+
+	globalConfig, appErr := s.GetGlobalConfig(ctx)
+	if appErr != nil {
+		return appErr
+	}
+
+	dailyQuota := globalConfig.Config.Limits.User.DailyVoiceSeconds
+
+	reservedAmount := int64(reqBody.MaxDuration)
+	actualUsage := int64(reqBody.ActualUsage)
+
+	if actualUsage > reservedAmount {
+		logger.Warnw(
+			"Actual usage is greater than reserved amount; clamping to reserved amount",
+			"speechSessionId", sessionId,
+			"actualUsage", actualUsage,
+			"reservedAmount", reservedAmount,
+		)
+
+		actualUsage = reservedAmount
+	}
+
+	releaseCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	if err := s.quoteService.Release(
+		releaseCtx,
+		session.UserID,
+		reservedAmount,
+		actualUsage,
+		int64(dailyQuota),
+	); err != nil {
+		logger.Errorw(
+			"Failed to release quota",
+			"speechSessionId", sessionId,
+			"userId", session.UserID,
+			"reservedAmount", reservedAmount,
+			"actualUsage", actualUsage,
+			"error", err,
+		)
+
+		return errors.Internal("failed to release quota")
+	}
+
+	session.Status = enums.SessionStatusInactive
+
+	if err := s.sessionRepo.Update(ctx, session); err != nil {
+		logger.Errorw(
+			"Failed to update session to inactive",
+			"speechSessionId", sessionId,
+			"error", err,
+		)
+
+		return errors.Internal("failed to update session")
+	}
+
+	return nil
+}
+
+func (s *modelGatewayService) GetGlobalConfig(ctx context.Context) (*dtos.GlobalConfig, *errors.AppError) {
+	logger := zapLogger.S()
+	globalconfig, err := s.globalConfigRepo.Get(ctx)
+
+	if err != nil {
+		logger.Errorw("Failed to get global config", "error", err)
+		return nil, errors.Internal("failed to get global config")
+	}
+
+	var globalConfigDTO dtos.GlobalConfig
+	err = utils.MapToDTO(globalconfig, &globalConfigDTO)
+
+	if err != nil {
+		logger.Errorw("Failed to map global config to dto", "error", err)
+		return nil, errors.Internal("failed to map global config to dto")
+	}
+
+	return &globalConfigDTO, nil
 }

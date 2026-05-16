@@ -1,25 +1,39 @@
 -- reserve.lua
-local key = KEYS[1]                    -- user_quota:{user}:{date}
-local reserve_amount = tonumber(ARGV[1])
-local max_daily = tonumber(ARGV[2])
-local ttl_seconds = tonumber(ARGV[3])
+-- Reserve all remaining daily quota for a live session.
+-- Returns the reserved amount.
+--
+-- KEYS[1] = user_quota:{user}:{date}
+-- ARGV[1] = max_daily
+-- ARGV[2] = ttl_seconds
+
+local key = KEYS[1]
+local max_daily = tonumber(ARGV[1])
+local ttl_seconds = tonumber(ARGV[2])
+
+if not max_daily or max_daily <= 0 then
+    return 0
+end
+
+if not ttl_seconds or ttl_seconds <= 0 then
+    ttl_seconds = 1
+end
 
 local remaining = redis.call('GET', key)
 
 if not remaining then
-    -- First request today: initialise full quota
-    if max_daily < reserve_amount then
-        return 0   -- not enough even at full quota
-    end
-    redis.call('SET', key, max_daily - reserve_amount, 'EX', ttl_seconds)
-    return 1
+    -- First request today: full daily quota is available.
+    -- Reserve all of it by setting remaining to 0.
+    redis.call('SET', key, 0, 'EX', ttl_seconds)
+    return max_daily
 end
 
 remaining = tonumber(remaining)
-if remaining >= reserve_amount then
-    redis.call('DECRBY', key, reserve_amount)
-    redis.call('EXPIRE', key, ttl_seconds)   -- refresh TTL
-    return 1
-else
-    return 0   -- reservation denied
+
+if not remaining or remaining <= 0 then
+    redis.call('EXPIRE', key, ttl_seconds)
+    return 0
 end
+
+-- Reserve all currently remaining quota.
+redis.call('SET', key, 0, 'EX', ttl_seconds)
+return remaining

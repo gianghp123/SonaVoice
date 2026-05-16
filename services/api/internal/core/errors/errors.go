@@ -55,7 +55,7 @@ func AlreadyExists(msg ...string) *AppError {
 
 // MapRepoError maps ORM/database errors to sentinel errors.
 // Extend with your ORM-specific error checks (GORM, SQLx, etc.).
-func MapRepoError(err error) error {
+func MapRepoError(err error) *AppError {
 	var pgErr *pgconn.PgError
 	if err == nil {
 		return nil
