@@ -4,6 +4,7 @@ import (
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/middlewares"
 	globalConfigRepository "github.com/gianghp123/SonaVoice/api/internal/modules/global-config/repositories"
+	globalConfigServices "github.com/gianghp123/SonaVoice/api/internal/modules/global-config/services"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/controllers"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/repositories"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
@@ -15,8 +16,13 @@ import (
 func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHttpClient, redis redisClient.IRedisClient) {
 	sessionRepo := repositories.NewSessionRepository(db)
 	globalConfigRepo := globalConfigRepository.NewGlobalConfigRepository(db)
+
 	quoteService := services.NewQuoteService(redis)
-	modelGatewayService := services.NewModelGatewayService(httpClient, sessionRepo, globalConfigRepo, quoteService)
+	sessionService := services.NewSessionService(sessionRepo)
+	speechProxyService := services.NewSpeechProxyService(httpClient)
+	configService := globalConfigServices.NewGlobalConfigService(globalConfigRepo)
+
+	modelGatewayService := services.NewModelGatewayService(configService, sessionService, speechProxyService, quoteService)
 	controller := controllers.NewModelGatewayController(modelGatewayService)
 
 	group := router.Group("/model-gateway")

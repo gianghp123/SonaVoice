@@ -24,6 +24,8 @@ type IQuoteService interface {
 
 	// ReleaseSessionLock safely releases the lock only if lockValue matches.
 	ReleaseSessionLock(ctx context.Context, userID, lockValue string) error
+
+	ReserveQuota(ctx context.Context, userID string, dailyQuota int64) (reserved int64, cleanup func(bool), err *errors.AppError)
 }
 
 type quoteService struct {
@@ -288,6 +290,47 @@ func (s *quoteService) ReleaseSessionLock(
 	}
 
 	return nil
+}
+
+func (s *quoteService) ReserveQuota(
+	ctx context.Context,
+	userID string,
+	dailyQuota int64,
+) (int64, func(bool), *errors.AppError) {
+	logger := zapLogger.S()
+
+	reservedAmount, err := s.ReserveAllRemaining(ctx, userID, dailyQuota)
+	if err != nil {
+		return 0, nil, errors.Internal("failed to reserve quota")
+	}
+
+	if reservedAmount <= 0 {
+		return 0, nil, errors.Forbidden("quota exceeded")
+	}
+
+	var committed bool
+
+	cleanup := func(commit bool) {
+		if commit {
+			committed = true
+			return
+		}
+		if committed {
+			return
+		}
+		releaseCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := s.Release(releaseCtx, userID, reservedAmount, 0, dailyQuota); err != nil {
+			logger.Errorw(
+				"Failed to rollback reserved quota",
+				"userId", userID,
+				"reservedAmount", reservedAmount,
+				"error", err,
+			)
+		}
+	}
+
+	return reservedAmount, cleanup, nil
 }
 
 func quotaKey(userID string, now time.Time) string {
