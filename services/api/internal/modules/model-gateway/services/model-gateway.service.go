@@ -14,8 +14,7 @@ import (
 )
 
 type IModelGatewayService interface {
-	CreateSession(ctx context.Context) (*res.SessionRes, *errors.AppError)
-	StartConnection(ctx context.Context, reqBody *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError)
+	StartConnection(ctx context.Context) (*res.WebRTCConnectionRes, *errors.AppError)
 	CloseSession(ctx context.Context, reqBody *req.CloseSessionReq) *errors.AppError
 	ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
 }
@@ -41,10 +40,10 @@ func NewModelGatewayService(
 	}
 }
 
-func (s *modelGatewayService) CreateSession(ctx context.Context) (*res.SessionRes, *errors.AppError) {
+func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.WebRTCConnectionRes, *errors.AppError) {
 	logger := zapLogger.S()
 	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
-	logger.Debugw("Creating session", "userId", requesterId)
+	logger.Debugw("Starting connect to speech engine", "userId", requesterId)
 
 	globalconfig, appErr := s.configService.Get(ctx)
 	if appErr != nil {
@@ -57,33 +56,7 @@ func (s *modelGatewayService) CreateSession(ctx context.Context) (*res.SessionRe
 	}
 	defer s.quoteService.ReleaseSessionLock(ctx, requesterId, lockValue)
 
-	return s.sessionService.CreateSession(ctx)
-}
-
-func (s *modelGatewayService) StartConnection(ctx context.Context, reqBody *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError) {
-	logger := zapLogger.S()
-	logger.Debug("Starting connect to speech engine")
-
-	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
-
-	var sessionId string
-	if reqBody != nil {
-		sessionId = reqBody.SessionId
-	}
-
-	if sessionId == "" {
-		return nil, errors.BadRequest("session_id is required")
-	}
-
-	session, appErr := s.sessionService.GetSession(ctx, sessionId)
-	if appErr != nil {
-		return nil, appErr
-	}
-	if appErr = utils.EnforceOwnership(session.UserID, requesterId); appErr != nil {
-		return nil, appErr
-	}
-
-	globalconfig, appErr := s.configService.Get(ctx)
+	session, appErr := s.sessionService.CreateSession(ctx)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -101,21 +74,21 @@ func (s *modelGatewayService) StartConnection(ctx context.Context, reqBody *req.
 	body := map[string]interface{}{
 		"enableDefaultIceServers": true,
 		"body": map[string]interface{}{
-			"user_id":     requesterId,
-			"session_id":  sessionId,
-			"maxDuration": maxDuration,
+			"user_id":      requesterId,
+			"session_id":   session.ID,
+			"max_duration": maxDuration,
 		},
 	}
 
 	result, appErr := s.speechProxyService.StartConnection(ctx, body)
 	if appErr != nil {
-		if err := s.sessionService.MarkSessionFailed(ctx, sessionId); err != nil {
+		if err := s.sessionService.MarkSessionFailed(ctx, session.ID); err != nil {
 			logger.Errorw("Failed to mark session as failed", "error", err)
 		}
 		return nil, appErr
 	}
 
-	if err := s.sessionService.SetSpeechSessionID(ctx, sessionId, result.SessionID); err != nil {
+	if err := s.sessionService.SetSpeechSessionID(ctx, session.ID, result.SessionID); err != nil {
 		return nil, err
 	}
 
@@ -135,11 +108,6 @@ func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, 
 	session, appErr := s.sessionService.GetSessionBySpeechSessionID(ctx, sessionId)
 	if appErr != nil {
 		logger.Errorw("Failed to get app session by speech session id", "speechSessionId", sessionId, "error", appErr)
-		return nil, 0, appErr
-	}
-
-	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
-	if appErr = utils.EnforceOwnership(session.UserID, requesterId); appErr != nil {
 		return nil, 0, appErr
 	}
 
@@ -192,7 +160,7 @@ func (s *modelGatewayService) CloseSession(ctx context.Context, reqBody *req.Clo
 		return appErr
 	}
 
-	if session.Status != string(enums.SessionStatusActive) {
+	if session.Status != enums.SessionStatusActive {
 		logger.Errorw("Session is not active", "speechSessionId", sessionId, "status", session.Status)
 		return errors.BadRequest("session is not active")
 	}

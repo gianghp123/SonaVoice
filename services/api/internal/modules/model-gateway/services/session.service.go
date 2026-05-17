@@ -51,6 +51,13 @@ func (s *sessionService) GetSession(ctx context.Context, sessionID string) (*res
 	if err != nil {
 		return nil, errors.Internal("failed to get session")
 	}
+
+	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+
+	if appErr := utils.EnforceOwnership(session.UserID, requesterId); appErr != nil {
+		return nil, appErr
+	}
+
 	var dto res.SessionRes
 	if err := utils.MapToDTO(session, &dto); err != nil {
 		return nil, errors.Internal("failed to map session to dto")
@@ -63,6 +70,12 @@ func (s *sessionService) GetSessionBySpeechSessionID(ctx context.Context, speech
 	if err != nil {
 		return nil, errors.Internal("failed to get session")
 	}
+
+	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	if appErr := utils.EnforceOwnership(session.UserID, requesterId); appErr != nil {
+		return nil, appErr
+	}
+
 	var dto res.SessionRes
 	if err := utils.MapToDTO(session, &dto); err != nil {
 		return nil, errors.Internal("failed to map session to dto")

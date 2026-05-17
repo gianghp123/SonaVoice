@@ -6,7 +6,6 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	_ "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
 	"github.com/gin-gonic/gin"
@@ -20,49 +19,20 @@ func NewModelGatewayController(svc services.IModelGatewayService) *ModelGatewayC
 	return &ModelGatewayController{svc: svc}
 }
 
-// HandleCreateSession godoc
-// @Summary      Create a new session
-// @Description  Create a new session for an authenticated user. Use the returned session ID with /start.
-// @Security     Bearer
-// @Tags         model-gateway
-// @Accept       json
-// @Produce      json
-// @Success      200  {object}  response.BaseResponse[res.SessionRes]
-// @Failure      401  {object}  response.BaseResponse[any]
-// @Failure      500  {object}  response.BaseResponse[any]
-// @Router       /model-gateway/sessions [post]
-func (ctrl *ModelGatewayController) HandleCreateSession(c *gin.Context) {
-	sessionRes, appErr := ctrl.svc.CreateSession(c.Request.Context())
-	if appErr != nil {
-		c.JSON(appErr.Code, response.Fail(appErr))
-		return
-	}
-	c.JSON(http.StatusOK, response.Success(sessionRes))
-}
-
 // HandleStart godoc
 // @Summary      Create WebRTC connection
-// @Description  Start a new WebRTC session with the speech service and return connection information
+// @Description  Create a new session and start a WebRTC connection with the speech service
 // @Security     Bearer
 // @Tags         model-gateway
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  response.BaseResponse[res.WebRTCConnectionRes]
+// @Failure      401  {object}  response.BaseResponse[any]
+// @Failure      403  {object}  response.BaseResponse[any]
 // @Failure      500  {object}  response.BaseResponse[any]
 // @Router       /model-gateway/start [post]
 func (ctrl *ModelGatewayController) HandleStart(c *gin.Context) {
-	var req req.StartConnectionReq
-
-	// Bind JSON body to struct
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	offer, appErr := ctrl.svc.StartConnection(c.Request.Context(), &req)
-
+	offer, appErr := ctrl.svc.StartConnection(c.Request.Context())
 	if appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
@@ -99,6 +69,5 @@ func (ctrl *ModelGatewayController) HandleOffer(c *gin.Context) {
 		return
 	}
 
-	// ✅ Return raw response directly, no wrapping
 	c.Data(statusCode, "application/json", respBody)
 }
