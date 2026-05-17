@@ -73,6 +73,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     logger.info(f"Starting the bot, received body: {runner_args.body}")
     user_id = "anonymous"
     session_id = None
+    max_duration = None
     memory_client = None
     app_resource = None
     tools = None
@@ -81,8 +82,10 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         logger.debug("No body received")
         user_id = runner_args.body.get("user_id")
         session_id = runner_args.body.get("session_id")
+        max_duration = runner_args.body.get("max_duration")
     else:
         logger.debug("No body received")
+        max_duration = 60*5
 
     stt = DeepgramSTTService(api_key=settings.DEEPGRAM_API_KEY)
 
@@ -135,7 +138,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         llm,
         tts,
         context,
-        max_duration=60*60,
+        max_duration=max_duration,
         memory_processor=memory_processor,
         app_resources=app_resource,
     )

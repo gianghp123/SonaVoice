@@ -7,6 +7,8 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
     LLMAssistantAggregatorParams,
+    UserTurnStoppedMessage,
+    AssistantTurnStoppedMessage,
 )
 from pipecat.utils.context.llm_context_summarization import (
     LLMAutoContextSummarizationConfig,
@@ -18,6 +20,8 @@ from pipecat.frames.frames import ErrorFrame
 from src.utils.error_msg import get_custom_error_message
 import asyncio
 from pipecat.processors.frame_processor import FrameDirection
+from agents.types import SessionMessage, UserMessage, AssistantMessage
+from pipecat.frames.frames import LLMSummarizeContextFrame,EndFrame
 
 async def create_voice_bot_task(
     transport,
@@ -29,6 +33,9 @@ async def create_voice_bot_task(
     memory_processor: FrameProcessor = None,
     app_resources=None,
 ) -> PipelineTask:
+    
+    session_messages: list[SessionMessage] = []
+    actual_usage = max_duration
 
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
@@ -81,10 +88,17 @@ async def create_voice_bot_task(
         tool_resources=app_resources,
     )
 
-    # 3. Attach Pipeline/Aggregator Event Handlers
+    # Messages handler
     @user_aggregator.event_handler("on_user_turn_stopped")
-    async def on_user_turn_stopped(aggregator, strategy, message):
-        print(f"User: {message.content}")
+    async def on_user_turn_stopped(aggregator, strategy, message: UserTurnStoppedMessage):
+        session_messages.append(UserMessage(role="user", content=message.content))
+
+    @assistant_aggregator.event_handler("on_assistant_turn_stopped")
+    async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
+        if message.content:
+            session_messages.append(AssistantMessage(role="assistant", content=message.content, is_interrupted=False, timestamp=message.timestamp))
+        if message.interrupted:
+            session_messages.append(AssistantMessage(role="assistant", content=message.content, is_interrupted=True, timestamp=message.timestamp))
 
     @user_aggregator.event_handler("on_user_turn_idle")
     async def on_user_turn_idle(aggregator):
@@ -94,12 +108,16 @@ async def create_voice_bot_task(
         }
         await aggregator.push_frame(LLMMessagesAppendFrame([msg], run_llm=True))
 
+
+
+    # Disconnect handler
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
         logger.info("Client disconnected - cancelling pipeline")
         await task.cancel()
 
 
+    # Session timer
     async def session_timer(task, aggregator, timeout_secs=300):
         await asyncio.sleep(timeout_secs)
         # Trigger LLM to say goodbye
@@ -127,7 +145,23 @@ async def create_voice_bot_task(
             asyncio.create_task(session_timer(task, user_aggregator, timeout_secs=max_duration))
         
     
+    
+    # Finish handler
+    @task.event_handler("on_pipeline_finished")
+    async def on_pipeline_finished(task, frame):
+        await task.queue_frames([
+            LLMSummarizeContextFrame(
+                config=LLMContextSummaryConfig(
+                    target_context_tokens=4000,
+                    min_messages_after_summary=0,
+                )
+            )
+        ])
+        
 
+
+
+    # Error handlers
     @tts.event_handler("on_connection_error")
     async def on_tts_connection_error(service, error):
         logger.error(f"TTS connection error: {error}")
