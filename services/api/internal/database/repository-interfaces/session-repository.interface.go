@@ -16,9 +16,11 @@ type ISessionRepository interface {
 	FindStaleByUserID(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*models.Session, error)
 	FindActiveByUserID(ctx context.Context, userID string) (*models.Session, error)
 	FindResumableByUserID(ctx context.Context, userID string) ([]*models.Session, error)
+	AcquireLock(ctx context.Context, userID string) error
 	UpdateSpeechSessionID(ctx context.Context, sessionID, speechSessionID string) error
 	UpdateReservation(ctx context.Context, sessionID string, reservedAmount, dailyQuota int64) error
 	UpdateStatus(ctx context.Context, sessionID string, status enums.SessionStatus) error
 	UpdateActiveSession(ctx context.Context, sessionID string, startedAt time.Time) error
 	UpdateQuotaReleased(ctx context.Context, sessionID string) error
+	MarkStaleInactive(ctx context.Context, ids []string) error
 }

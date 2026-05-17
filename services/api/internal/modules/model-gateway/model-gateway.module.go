@@ -2,28 +2,31 @@ package modelgateway
 
 import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
-	"github.com/gianghp123/SonaVoice/api/internal/core/quota"
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/middlewares"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/controllers"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/repositories"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
-	redisClient "github.com/gianghp123/SonaVoice/api/internal/redis-client"
+	"github.com/gianghp123/SonaVoice/api/internal/database/transaction"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHttpClient, redis redisClient.IRedisClient) {
+func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHttpClient) {
 	sessionRepo := repositories.NewSessionRepository(db)
 	configRepo := repositories.NewGlobalConfigRepository(db)
+	quotaRepo := repositories.NewUserQuotaRepository(db)
+	uow := transaction.NewUnitOfWork(db)
 
-	quotaService := quota.NewQuotaService(redis)
-	sessionLockService := services.NewSessionLockService(redis)
 	sessionService := services.NewSessionService(sessionRepo)
 	speechProxyService := services.NewSpeechProxyService(httpClient)
 	configService := services.NewGlobalConfigService(configRepo)
 
-	modelGatewayService := services.NewModelGatewayService(configService, sessionService, speechProxyService, quotaService, sessionLockService)
+	quotaService := services.NewSessionQuotaService(quotaRepo)
+	janitorService := services.NewSessionJanitorService(quotaService)
+	starterService := services.NewSessionStarterService(quotaService, sessionService, speechProxyService)
+
+	modelGatewayService := services.NewModelGatewayService(configService, sessionService, speechProxyService, quotaService, janitorService, starterService, uow)
 	modelGatewayController := controllers.NewModelGatewayController(modelGatewayService, sessionService)
 	globalConfigController := controllers.NewGlobalConfigController(configService)
 

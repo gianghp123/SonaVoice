@@ -106,3 +106,21 @@ func (s *sessionRepository) FindResumableByUserID(ctx context.Context, userID st
 func (s *sessionRepository) UpdateQuotaReleased(ctx context.Context, sessionID string) error {
 	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("quota_released", true).Error
 }
+
+func (s *sessionRepository) MarkStaleInactive(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return s.db.WithContext(ctx).Model(&models.Session{}).
+		Where("id IN ?", ids).
+		Updates(map[string]interface{}{
+			"status":         enums.SessionStatusInactive,
+			"quota_released": true,
+		}).Error
+}
+
+func (s *sessionRepository) AcquireLock(ctx context.Context, userID string) error {
+	return s.db.WithContext(ctx).
+		Raw("SELECT pg_advisory_xact_lock(hashtext(?))", userID).
+		Scan(new(int64)).Error
+}

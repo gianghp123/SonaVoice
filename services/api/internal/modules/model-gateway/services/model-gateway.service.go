@@ -2,15 +2,12 @@ package services
 
 import (
 	"context"
-	"net/http"
-	"time"
 
-	"github.com/gianghp123/SonaVoice/api/internal/core/compensations"
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
-	"github.com/gianghp123/SonaVoice/api/internal/core/quota"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
+	"github.com/gianghp123/SonaVoice/api/internal/database/transaction"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/domain"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
@@ -25,106 +22,39 @@ type IModelGatewayService interface {
 }
 
 type modelGatewayService struct {
-	configService      IGlobalConfigService
-	sessionService     ISessionService
-	speechProxyService ISpeechProxyService
-	quotaService       quota.IQuotaService
-	lockService        ISessionLockService
+	configService  IGlobalConfigService
+	sessionService ISessionService
+	speechService  ISpeechProxyService
+	quotaService   ISessionQuotaService
+	janitorService ISessionJanitorService
+	starterService ISessionStarterService
+	uow            transaction.UnitOfWork
 }
 
 func NewModelGatewayService(
 	configService IGlobalConfigService,
 	sessionService ISessionService,
-	speechProxyService ISpeechProxyService,
-	quotaService quota.IQuotaService,
-	lockService ISessionLockService,
+	speechService ISpeechProxyService,
+	quotaService ISessionQuotaService,
+	janitorService ISessionJanitorService,
+	starterService ISessionStarterService,
+	uow transaction.UnitOfWork,
 ) IModelGatewayService {
 	return &modelGatewayService{
-		configService:      configService,
-		sessionService:     sessionService,
-		speechProxyService: speechProxyService,
-		quotaService:       quotaService,
-		lockService:        lockService,
+		configService:  configService,
+		sessionService: sessionService,
+		speechService:  speechService,
+		quotaService:   quotaService,
+		janitorService: janitorService,
+		starterService: starterService,
+		uow:            uow,
 	}
 }
 
-func (s *modelGatewayService) releaseQuotaIfNotReleased(ctx context.Context, session *domain.Session, actualUsage int64) *errors.AppError {
+func (s *modelGatewayService) CreateSession(ctx context.Context) (*res.CreateSessionRes, *errors.AppError) {
 	logger := zapLogger.S()
-	logger.Debugw("Releasing quota", "sessionId", session.ID, "actualUsage", actualUsage)
-	if !session.ShouldReleaseQuota() {
-		logger.Debugw("Quota already released, skipping", "sessionId", session.ID)
-		return nil
-	}
-	releaseCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if err := s.quotaService.Release(releaseCtx, session.UserID, quota.QuotaConfig{Key: "voice", DailyLimit: session.DailyQuota}, session.ReservedAmount, actualUsage); err != nil {
-		logger.Errorw("Failed to release quota", "sessionId", session.ID, "userId", session.UserID, "error", err)
-		return errors.Internal("failed to release quota")
-	}
-	if appErr := s.sessionService.MarkQuotaReleased(ctx, session.ID); appErr != nil {
-		logger.Errorw("Failed to mark quota released", "sessionId", session.ID, "error", appErr)
-		return appErr
-	}
-	return nil
-}
-
-func (s *modelGatewayService) ensureNoActiveSession(ctx context.Context, userID string) *errors.AppError {
-	active, appErr := s.sessionService.FindActiveByUserID(ctx, userID)
-	if appErr != nil {
-		return appErr
-	}
-	if active != nil {
-		return errors.Conflict("close current session before starting a new one")
-	}
-	return nil
-}
-
-func (s *modelGatewayService) cleanupStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) *errors.AppError {
-	logger := zapLogger.S()
-	staleSessions, appErr := s.sessionService.FindStaleSessions(ctx, userID, pendingTimeoutSeconds)
-	if appErr != nil {
-		logger.Errorw("Failed to find stale sessions", "error", appErr)
-		return appErr
-	}
-	for _, ss := range staleSessions {
-		domainSession := domain.NewSessionFromModel(ss)
-		if releaseErr := s.releaseQuotaIfNotReleased(ctx, domainSession, 0); releaseErr != nil {
-			logger.Errorw("Failed to release quota for stale session", "sessionId", ss.ID, "error", releaseErr)
-			return releaseErr
-		}
-		if markErr := s.sessionService.MarkSessionInactive(ctx, ss.ID); markErr != nil {
-			logger.Errorw("Failed to mark stale session inactive", "sessionId", ss.ID, "error", markErr)
-			return markErr
-		}
-	}
-	return nil
-}
-
-func (s *modelGatewayService) connectToSpeech(ctx context.Context, sessionID string, reservedAmount int64, requesterID string) (*res.WebRTCConnectionRes, *errors.AppError) {
-	connReq := &req.StartConnectionReq{
-		EnableDefaultIceServers: true,
-		Body: req.StartConnectionBody{
-			UserID:      requesterID,
-			SessionID:   sessionID,
-			MaxDuration: reservedAmount,
-		},
-	}
-
-	result, appErr := s.speechProxyService.StartConnection(ctx, connReq)
-	if appErr != nil {
-		_ = s.sessionService.MarkSessionFailed(ctx, sessionID)
-		return nil, appErr
-	}
-
-	if appErr := s.sessionService.SetSpeechSessionID(ctx, sessionID, result.SessionID); appErr != nil {
-		return nil, appErr
-	}
-
-	return result, nil
-}
-
-func (s *modelGatewayService) startOrResume(ctx context.Context, session *models.Session) (*res.CreateSessionRes, *errors.AppError) {
 	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	logger.Debugw("Creating session", "userId", requesterID)
 
 	model, appErr := s.configService.Get(ctx)
 	if appErr != nil {
@@ -135,76 +65,44 @@ func (s *modelGatewayService) startOrResume(ctx context.Context, session *models
 		return nil, errors.Internal()
 	}
 
-	var comp compensations.Compensations
-	defer comp.Run()
+	var session *models.Session
+	err = s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
+		sessionRepo := p.Session()
 
-	lockValue, appErr := s.lockService.Acquire(ctx, requesterID, time.Duration(configPayload.Limits.Session.MaxSessionLockTTL)*time.Second)
-	if appErr != nil {
-		return nil, appErr
-	}
-	comp.Push(func() { _ = s.lockService.Release(ctx, requesterID, lockValue) })
+		if err := sessionRepo.AcquireLock(ctx, requesterID); err != nil {
+			return err
+		}
 
-	if appErr := s.ensureNoActiveSession(ctx, requesterID); appErr != nil {
-		return nil, appErr
-	}
+		if err := s.janitorService.CleanupStaleSessions(ctx, p, requesterID, int64(configPayload.Limits.Session.MaxSessionLockTTL), int64(configPayload.Limits.User.DailyVoiceSeconds)); err != nil {
+			return err
+		}
 
-	if appErr := s.cleanupStaleSessions(ctx, requesterID, int64(configPayload.Limits.Session.MaxSessionLockTTL)); appErr != nil {
-		return nil, appErr
-	}
+		active, err := sessionRepo.FindActiveByUserID(ctx, requesterID)
+		if err != nil {
+			return err
+		}
+		if active != nil {
+			return errors.Conflict("close current session before starting a new one")
+		}
 
-	dailyQuota := configPayload.Limits.User.DailyVoiceSeconds
-	quotaCfg := quota.QuotaConfig{Key: "voice", DailyLimit: int64(dailyQuota)}
-	reservedAmount, err := s.quotaService.ReserveAll(ctx, requesterID, quotaCfg)
+		session = &models.Session{
+			UserID: requesterID,
+			Status: enums.SessionStatusPending,
+		}
+		if err := sessionRepo.Create(ctx, session); err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
-		logger := zapLogger.S()
-		logger.Errorw("Failed to reserve quota", "userId", requesterID, "error", err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			return nil, appErr
+		}
 		return nil, errors.Internal()
 	}
-	if reservedAmount <= 0 {
-		return nil, errors.Forbidden("quota exceeded")
-	}
-	comp.Push(func() {
-		releaseCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		if err := s.quotaService.Release(releaseCtx, requesterID, quotaCfg, reservedAmount, 0); err != nil {
-			zapLogger.S().Errorw("Failed to rollback reserved quota", "userId", requesterID, "reservedAmount", reservedAmount, "error", err)
-		}
-	})
 
-	if appErr := s.sessionService.SetReservation(ctx, session.ID, reservedAmount, int64(dailyQuota)); appErr != nil {
-		return nil, appErr
-	}
-
-	session.ReservedAmount = reservedAmount
-	session.DailyQuota = int64(dailyQuota)
-
-	webrtcRes, appErr := s.connectToSpeech(ctx, session.ID, reservedAmount, requesterID)
-	if appErr != nil {
-		_ = s.releaseQuotaIfNotReleased(ctx, domain.NewSessionFromModel(session), 0)
-		comp.Pop()
-		return nil, appErr
-	}
-
-	comp.Pop()
-
-	return &res.CreateSessionRes{
-		ID:                  session.ID,
-		MaxDuration:         reservedAmount,
-		WebRTCConnectionRes: webrtcRes,
-	}, nil
-}
-
-func (s *modelGatewayService) CreateSession(ctx context.Context) (*res.CreateSessionRes, *errors.AppError) {
-	logger := zapLogger.S()
-	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
-	logger.Debugw("Creating session", "userId", requesterID)
-
-	session, appErr := s.sessionService.Create(ctx, requesterID)
-	if appErr != nil {
-		return nil, appErr
-	}
-
-	return s.startOrResume(ctx, session)
+	return s.starterService.StartOrResume(ctx, session, requesterID, configPayload.Limits.User.DailyVoiceSeconds)
 }
 
 func (s *modelGatewayService) ResumeSession(ctx context.Context, sessionID string) (*res.CreateSessionRes, *errors.AppError) {
@@ -222,12 +120,49 @@ func (s *modelGatewayService) ResumeSession(ctx context.Context, sessionID strin
 		return nil, appErr
 	}
 
-	if appErr := s.sessionService.UpdateStatus(ctx, session.ID, enums.SessionStatusPending); appErr != nil {
+	model, appErr := s.configService.Get(ctx)
+	if appErr != nil {
 		return nil, appErr
 	}
+	configPayload, err := domain.ParseGlobalConfig(model.Config)
+	if err != nil {
+		return nil, errors.Internal()
+	}
+
+	err = s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
+		sessionRepo := p.Session()
+
+		if err := sessionRepo.AcquireLock(ctx, requesterID); err != nil {
+			return err
+		}
+
+		if err := s.janitorService.CleanupStaleSessions(ctx, p, requesterID, int64(configPayload.Limits.Session.MaxSessionLockTTL), int64(configPayload.Limits.User.DailyVoiceSeconds)); err != nil {
+			return err
+		}
+
+		active, err := sessionRepo.FindActiveByUserID(ctx, requesterID)
+		if err != nil {
+			return err
+		}
+		if active != nil && active.ID != sessionID {
+			return errors.Conflict("close current session before starting a new one")
+		}
+
+		if err := sessionRepo.UpdateStatus(ctx, session.ID, enums.SessionStatusPending); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		if appErr, ok := err.(*errors.AppError); ok {
+			return nil, appErr
+		}
+		return nil, errors.Internal()
+	}
+
 	session.Status = enums.SessionStatusPending
 
-	return s.startOrResume(ctx, session)
+	return s.starterService.StartOrResume(ctx, session, requesterID, configPayload.Limits.User.DailyVoiceSeconds)
 }
 
 func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError) {
@@ -245,20 +180,22 @@ func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, 
 		return nil, 0, appErr
 	}
 
-	responseBody, statusCode, appErr := s.speechProxyService.ProxyOffer(ctx, sessionId, method, body)
+	responseBody, statusCode, appErr := s.speechService.ProxyOffer(ctx, sessionId, method, body)
 	if appErr != nil {
 		if err := s.sessionService.MarkSessionFailed(ctx, session.ID); err != nil {
 			logger.Errorw("Failed to mark session as failed", "error", err)
 		}
-		_ = s.releaseQuotaIfNotReleased(ctx, domain.NewSessionFromModel(session), 0)
+		_ = s.quotaService.ReleaseAll(ctx, session.UserID, session.ReservedAmount)
+		_ = s.sessionService.MarkQuotaReleased(ctx, session.ID)
 		return nil, 0, appErr
 	}
 
-	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
+	if statusCode < 200 || statusCode >= 300 {
 		if err := s.sessionService.MarkSessionFailed(ctx, session.ID); err != nil {
 			logger.Errorw("Failed to mark session as failed", "error", err)
 		}
-		_ = s.releaseQuotaIfNotReleased(ctx, domain.NewSessionFromModel(session), 0)
+		_ = s.quotaService.ReleaseAll(ctx, session.UserID, session.ReservedAmount)
+		_ = s.sessionService.MarkQuotaReleased(ctx, session.ID)
 		return responseBody, statusCode, nil
 	}
 
@@ -287,37 +224,59 @@ func (s *modelGatewayService) CloseSession(ctx context.Context, reqBody *req.Clo
 		return errors.BadRequest("actualUsage cannot be negative")
 	}
 
-	session, appErr := s.sessionService.GetInternal(ctx, sessionId)
-	if appErr != nil {
-		logger.Errorw("Failed to get session", "sessionId", sessionId, "error", appErr)
-		return appErr
-	}
+	err := s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
+		sessionRepo := p.Session()
+		quotaRepo := p.UserQuota()
 
-	domainSession := domain.NewSessionFromModel(session)
-	if appErr := domainSession.CanBeClosed(); appErr != nil {
-		logger.Errorw("Session is already inactive", "sessionId", sessionId, "status", session.Status)
-		return appErr
-	}
-
-	if !domainSession.ShouldReleaseQuota() {
-		logger.Debugw("Quota already released, just marking inactive", "sessionId", sessionId)
-		if err := s.sessionService.MarkSessionInactive(ctx, sessionId); err != nil {
-			logger.Errorw("Failed to mark session inactive", "sessionId", sessionId, "error", err)
+		session, err := sessionRepo.Get(ctx, sessionId)
+		if err != nil {
 			return err
 		}
-		return nil
+
+		domainSession := domain.NewSessionFromModel(session)
+		if appErr := domainSession.CanBeClosed(); appErr != nil {
+			return appErr
+		}
+
+		if domainSession.ShouldReleaseQuota() {
+			actualUsage := domainSession.ClampActualUsage(int64(reqBody.ActualUsage))
+			reservedAmount := domainSession.ReservedAmount
+			dailyQuota := domainSession.DailyQuota
+			if reservedAmount <= 0 || dailyQuota <= 0 {
+				configModel, err := p.GlobalConfig().Get(ctx)
+				if err != nil {
+					return err
+				}
+				configPayload, err := domain.ParseGlobalConfig(configModel.Config)
+				if err != nil {
+					return err
+				}
+				dailyQuota = int64(configPayload.Limits.User.DailyVoiceSeconds)
+				if reservedAmount <= 0 {
+					reservedAmount = dailyQuota
+				}
+			}
+			quotaDate := today()
+			unused := reservedAmount - actualUsage
+			if unused < 0 {
+				unused = 0
+			}
+			if err := quotaRepo.Release(ctx, session.UserID, "voice", quotaDate, unused); err != nil {
+				return err
+			}
+			if err := sessionRepo.UpdateQuotaReleased(ctx, session.ID); err != nil {
+				return err
+			}
+		}
+
+		return sessionRepo.UpdateStatus(ctx, session.ID, enums.SessionStatusInactive)
+	})
+
+	if err != nil {
+		if appErr, ok := err.(*errors.AppError); ok {
+			return appErr
+		}
+		return errors.Internal()
 	}
-
-	actualUsage := domainSession.ClampActualUsage(int64(reqBody.ActualUsage))
-
-	if appErr := s.releaseQuotaIfNotReleased(ctx, domainSession, actualUsage); appErr != nil {
-		return appErr
-	}
-
-	if err := s.sessionService.MarkSessionInactive(ctx, sessionId); err != nil {
-		logger.Errorw("Failed to mark session inactive", "sessionId", sessionId, "error", err)
-		return err
-	}
-
 	return nil
 }

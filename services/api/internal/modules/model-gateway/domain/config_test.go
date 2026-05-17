@@ -18,7 +18,7 @@ func TestParseGlobalConfig(t *testing.T) {
 	}{
 		{
 			name:   "valid config",
-			config: datatypes.JSON(`{"enabled":true,"resetTimezone":"UTC","limits":{"user":{"dailyVoiceSeconds":300,"dailyRequestCount":50},"session":{"maxSessionLockTTL":5}}}`),
+			config: datatypes.JSON(`{"enabled":true,"reset_timezone":"UTC","limits":{"user":{"daily_voice_seconds":300,"daily_request_count":50},"session":{"max_session_lockTTL":5}}}`),
 			want: dtos.ConfigPayload{
 				Enabled:       true,
 				ResetTimezone: "UTC",

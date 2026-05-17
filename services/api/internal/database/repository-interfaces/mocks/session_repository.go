@@ -83,7 +83,17 @@ func (m *SessionRepository) FindResumableByUserID(ctx context.Context, userID st
 	return args.Get(0).([]*models.Session), args.Error(1)
 }
 
+func (m *SessionRepository) AcquireLock(ctx context.Context, userID string) error {
+	args := m.Called(ctx, userID)
+	return args.Error(0)
+}
+
 func (m *SessionRepository) UpdateQuotaReleased(ctx context.Context, sessionID string) error {
 	args := m.Called(ctx, sessionID)
+	return args.Error(0)
+}
+
+func (m *SessionRepository) MarkStaleInactive(ctx context.Context, ids []string) error {
+	args := m.Called(ctx, ids)
 	return args.Error(0)
 }

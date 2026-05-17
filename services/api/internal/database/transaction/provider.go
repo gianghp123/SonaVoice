@@ -10,12 +10,14 @@ import (
 type IProvider interface {
 	GlobalConfig() repository_interfaces.IGlobalConfigRepository
 	Session() repository_interfaces.ISessionRepository
+	UserQuota() repository_interfaces.IUserQuotaRepository
 }
 
 type gormProvider struct {
 	tx               *gorm.DB
 	globalConfigRepo repository_interfaces.IGlobalConfigRepository
 	sessionRepo      repository_interfaces.ISessionRepository
+	userQuotaRepo    repository_interfaces.IUserQuotaRepository
 }
 
 func NewGormProvider(tx *gorm.DB) IProvider {
@@ -36,4 +38,11 @@ func (p *gormProvider) Session() repository_interfaces.ISessionRepository {
 		p.sessionRepo = modelgatewayrepo.NewSessionRepository(p.tx)
 	}
 	return p.sessionRepo
+}
+
+func (p *gormProvider) UserQuota() repository_interfaces.IUserQuotaRepository {
+	if p.userQuotaRepo == nil {
+		p.userQuotaRepo = modelgatewayrepo.NewUserQuotaRepository(p.tx)
+	}
+	return p.userQuotaRepo
 }
