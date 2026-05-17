@@ -42,13 +42,13 @@ func (s *speechProxyService) StartConnection(ctx context.Context, body map[strin
 
 	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
 		logger.Errorw("Speech service returned non-success status", "statusCode", statusCode, "responseBody", string(responseBody))
-		return nil, errors.Internal("speech service failed")
+		return nil, errors.Internal()
 	}
 
 	var result res.WebRTCConnectionRes
 	if err := json.Unmarshal(responseBody, &result); err != nil {
 		logger.Errorw("Failed to parse speech service response", "error", err, "responseBody", string(responseBody))
-		return nil, errors.Internal("failed to parse speech service response")
+		return nil, errors.Internal()
 	}
 
 	return &result, nil

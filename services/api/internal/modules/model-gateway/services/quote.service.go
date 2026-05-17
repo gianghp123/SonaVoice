@@ -85,7 +85,7 @@ func (s *quoteService) ReserveAllRemaining(
 
 	if userID == "" {
 		logger.Errorw("Cannot reserve quota for empty userId")
-		return 0, errors.Internal("missing user id")
+		return 0, errors.Internal()
 	}
 
 	if dailyQuota <= 0 {
@@ -148,7 +148,7 @@ func (s *quoteService) Release(
 
 	if userID == "" {
 		logger.Errorw("Cannot release quota for empty userId")
-		return errors.Internal("missing user id")
+		return errors.Internal()
 	}
 
 	if reservedAmount < 0 {
@@ -214,7 +214,7 @@ func (s *quoteService) AcquireSessionLock(
 
 	if userID == "" {
 		logger.Errorw("Cannot acquire session lock for empty userId")
-		return "", errors.Internal("missing user id")
+		return "", errors.Internal()
 	}
 
 	if ttl <= 0 {
@@ -223,7 +223,7 @@ func (s *quoteService) AcquireSessionLock(
 			"userId", userID,
 			"ttl", ttl,
 		)
-		return "", errors.Internal("invalid lock ttl")
+		return "", errors.Internal()
 	}
 
 	lockKey := sessionLockKey(userID)
@@ -264,12 +264,12 @@ func (s *quoteService) ReleaseSessionLock(
 
 	if userID == "" {
 		logger.Errorw("Cannot release session lock for empty userId")
-		return errors.Internal("missing user id")
+		return errors.Internal()
 	}
 
 	if lockValue == "" {
 		logger.Errorw("Cannot release session lock with empty lockValue", "userId", userID)
-		return errors.Internal("missing lock value")
+		return errors.Internal()
 	}
 
 	lockKey := sessionLockKey(userID)
@@ -301,7 +301,7 @@ func (s *quoteService) ReserveQuota(
 
 	reservedAmount, err := s.ReserveAllRemaining(ctx, userID, dailyQuota)
 	if err != nil {
-		return 0, nil, errors.Internal("failed to reserve quota")
+		return 0, nil, errors.Internal()
 	}
 
 	if reservedAmount <= 0 {

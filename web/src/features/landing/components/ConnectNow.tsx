@@ -16,6 +16,7 @@ export function ConnectNow() {
 
   const handleConnect = async () => {
     setLoading(true)
+
     try {
       if (!isSignedIn) {
         router.push("/chat")
@@ -30,10 +31,17 @@ export function ConnectNow() {
       }
 
       const sessionId = res.data?.id
-      if (!sessionId) {
+      const webrtcConnection = res.data?.webrtcConnection
+
+      if (!sessionId || !webrtcConnection) {
         toast.error("Failed to create session")
         return
       }
+
+      sessionStorage.setItem(
+        `webrtcConnection:${sessionId}`,
+        JSON.stringify(webrtcConnection)
+      )
 
       router.push(`/chat/${sessionId}`)
     } catch {

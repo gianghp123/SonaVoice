@@ -11,7 +11,6 @@ type ConfigPayload struct {
 }
 
 type LimitsConfig struct {
-	Guest   UserLimitConfig    `json:"guest"`
 	User    UserLimitConfig    `json:"user"`
 	Session SessionLimitConfig `json:"session"`
 }

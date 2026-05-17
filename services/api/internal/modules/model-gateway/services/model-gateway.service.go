@@ -14,7 +14,7 @@ import (
 )
 
 type IModelGatewayService interface {
-	StartConnection(ctx context.Context) (*res.WebRTCConnectionRes, *errors.AppError)
+	StartConnection(ctx context.Context) (*res.CreateSessionRes, *errors.AppError)
 	CloseSession(ctx context.Context, reqBody *req.CloseSessionReq) *errors.AppError
 	ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
 }
@@ -40,7 +40,7 @@ func NewModelGatewayService(
 	}
 }
 
-func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.WebRTCConnectionRes, *errors.AppError) {
+func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.CreateSessionRes, *errors.AppError) {
 	logger := zapLogger.S()
 	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 	logger.Debugw("Starting connect to speech engine", "userId", requesterId)
@@ -94,7 +94,11 @@ func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.WebRTCC
 
 	cleanup(true)
 
-	return result, nil
+	var response res.CreateSessionRes
+
+	response.ID = session.ID
+	response.WebRTCConnectionRes = result
+	return &response, nil
 }
 
 func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError) {

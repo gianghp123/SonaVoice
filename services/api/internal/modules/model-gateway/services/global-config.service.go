@@ -34,7 +34,7 @@ func (s *globalConfigService) Get(ctx context.Context) (*res.GlobalConfigRes, *e
 	model, err := s.repo.Get(ctx)
 	if err != nil {
 		logger.Errorw("Failed to get global config", "error", err)
-		return nil, errors.Internal("failed to get global config")
+		return nil, errors.Internal()
 	}
 
 	result, appErr := mapModelToDto(model)
@@ -48,23 +48,27 @@ func (s *globalConfigService) Get(ctx context.Context) (*res.GlobalConfigRes, *e
 func (s *globalConfigService) Update(ctx context.Context, cfg *dtos.GlobalConfig) (*res.GlobalConfigRes, *errors.AppError) {
 	logger := zapLogger.S()
 
-	jsonBytes, err := json.Marshal(cfg)
+	if cfg == nil {
+		return nil, errors.BadRequest("global config is required")
+	}
+
+	jsonBytes, err := json.Marshal(cfg.Config)
 	if err != nil {
 		logger.Errorw("Failed to marshal global config", "error", err)
-		return nil, errors.Internal("failed to marshal global config")
+		return nil, errors.Internal()
 	}
 
 	model, err := s.repo.Get(ctx)
 	if err != nil {
 		logger.Errorw("Failed to get global config for update", "error", err)
-		return nil, errors.Internal("failed to get global config")
+		return nil, errors.Internal()
 	}
 
 	model.Config = datatypes.JSON(jsonBytes)
 
 	if err := s.repo.Save(ctx, model); err != nil {
 		logger.Errorw("Failed to save global config", "error", err)
-		return nil, errors.Internal("failed to save global config")
+		return nil, errors.Internal()
 	}
 
 	result, appErr := mapModelToDto(model)
@@ -82,11 +86,13 @@ func mapModelToDto(model *models.GlobalConfig) (*res.GlobalConfigRes, *errors.Ap
 		return &res.GlobalConfigRes{}, nil
 	}
 
-	var result res.GlobalConfigRes
-	if err := json.Unmarshal(model.Config, &result); err != nil {
+	var payload dtos.ConfigPayload
+	if err := json.Unmarshal(model.Config, &payload); err != nil {
 		logger.Errorw("Failed to unmarshal global config", "error", err)
-		return nil, errors.Internal("failed to unmarshal global config")
+		return nil, errors.Internal()
 	}
 
-	return &result, nil
+	return &res.GlobalConfigRes{
+		Config: payload,
+	}, nil
 }

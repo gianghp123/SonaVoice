@@ -6,6 +6,7 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
+	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
@@ -31,6 +32,7 @@ func NewSessionService(sessionRepo repository_interfaces.ISessionRepository) ISe
 }
 
 func (s *sessionService) CreateSession(ctx context.Context) (*res.SessionRes, *errors.AppError) {
+	logger := zapLogger.S()
 	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 	session := &models.Session{
 		UserID: requesterId,
@@ -41,93 +43,114 @@ func (s *sessionService) CreateSession(ctx context.Context) (*res.SessionRes, *e
 	}
 	var dto res.SessionRes
 	if err := utils.MapToDTO(session, &dto); err != nil {
-		return nil, errors.Internal("failed to map session to dto")
+		logger.Errorw("Failed to map session to dto", "error", err)
+		return nil, errors.Internal()
 	}
 	return &dto, nil
 }
 
 func (s *sessionService) GetSession(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError) {
+	logger := zapLogger.S()
 	session, err := s.sessionRepo.Get(ctx, sessionID)
 	if err != nil {
-		return nil, errors.Internal("failed to get session")
+		logger.Errorw("Failed to get session", "error", err)
+		return nil, errors.Internal()
 	}
 
 	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 
 	if appErr := utils.EnforceOwnership(session.UserID, requesterId); appErr != nil {
+		logger.Errorw("Failed to enforce ownership", "error", appErr)
 		return nil, appErr
 	}
 
 	var dto res.SessionRes
 	if err := utils.MapToDTO(session, &dto); err != nil {
-		return nil, errors.Internal("failed to map session to dto")
+		logger.Errorw("Failed to map session to dto", "error", err)
+		return nil, errors.Internal()
 	}
 	return &dto, nil
 }
 
 func (s *sessionService) GetSessionBySpeechSessionID(ctx context.Context, speechSessionID string) (*res.SessionRes, *errors.AppError) {
+	logger := zapLogger.S()
 	session, err := s.sessionRepo.GetBySpeechSessionID(ctx, speechSessionID)
 	if err != nil {
-		return nil, errors.Internal("failed to get session")
+		logger.Errorw("Failed to get session by speech session id", "error", err)
+		return nil, errors.Internal()
 	}
 
 	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 	if appErr := utils.EnforceOwnership(session.UserID, requesterId); appErr != nil {
+		logger.Errorw("Failed to enforce ownership", "error", appErr)
 		return nil, appErr
 	}
 
 	var dto res.SessionRes
 	if err := utils.MapToDTO(session, &dto); err != nil {
-		return nil, errors.Internal("failed to map session to dto")
+		logger.Errorw("Failed to map session to dto", "error", err)
+		return nil, errors.Internal()
 	}
 	return &dto, nil
 }
 
 func (s *sessionService) SetSpeechSessionID(ctx context.Context, sessionID, speechSessionID string) *errors.AppError {
+	logger := zapLogger.S()
 	session, err := s.sessionRepo.Get(ctx, sessionID)
 	if err != nil {
-		return errors.Internal("failed to get session")
+		logger.Errorw("Failed to get session", "error", err)
+		return errors.Internal()
 	}
 	session.SpeechSessionID = speechSessionID
 	if err := s.sessionRepo.Update(ctx, session); err != nil {
-		return errors.Internal("failed to update speechSessionId")
+		logger.Errorw("Failed to update speechSessionId", "error", err)
+		return errors.Internal()
 	}
 	return nil
 }
 
 func (s *sessionService) MarkSessionFailed(ctx context.Context, sessionID string) *errors.AppError {
+	logger := zapLogger.S()
 	session, err := s.sessionRepo.Get(ctx, sessionID)
 	if err != nil {
-		return errors.Internal("failed to get session")
+		logger.Errorw("Failed to get session", "error", err)
+		return errors.Internal()
 	}
 	session.Status = enums.SessionStatusFailed
 	if err := s.sessionRepo.Update(ctx, session); err != nil {
-		return errors.Internal("failed to update session to failed")
+		logger.Errorw("Failed to update session to failed", "error", err)
+		return errors.Internal()
 	}
 	return nil
 }
 
 func (s *sessionService) MarkSessionActive(ctx context.Context, sessionID string) *errors.AppError {
+	logger := zapLogger.S()
 	session, err := s.sessionRepo.Get(ctx, sessionID)
 	if err != nil {
-		return errors.Internal("failed to get session")
+		logger.Errorw("Failed to get session", "error", err)
+		return errors.Internal()
 	}
 	session.StartedAt = time.Now()
 	session.Status = enums.SessionStatusActive
 	if err := s.sessionRepo.Update(ctx, session); err != nil {
+		logger.Errorw("Failed to update session to active", "error", err)
 		return errors.Internal("failed to update session to active")
 	}
 	return nil
 }
 
 func (s *sessionService) MarkSessionInactive(ctx context.Context, sessionID string) *errors.AppError {
+	logger := zapLogger.S()
 	session, err := s.sessionRepo.Get(ctx, sessionID)
 	if err != nil {
-		return errors.Internal("failed to get session")
+		logger.Errorw("Failed to get session", "error", err)
+		return errors.Internal()
 	}
 	session.Status = enums.SessionStatusInactive
 	if err := s.sessionRepo.Update(ctx, session); err != nil {
-		return errors.Internal("failed to update session")
+		logger.Errorw("Failed to update session", "error", err)
+		return errors.Internal()
 	}
 	return nil
 }

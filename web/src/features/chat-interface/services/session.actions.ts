@@ -1,10 +1,10 @@
 'use server'
 
 import { apiFetch } from "@/lib/api-fetch"
-import { ISession } from "@/lib/types/session.interface"
+import { ICreateSessionRes } from "../dtos/create-session.dto.res"
 
 export async function createSession() {
-  return apiFetch<ISession>("/model-gateway/sessions", {
+  return apiFetch<ICreateSessionRes>("/model-gateway/start", {
     method: "POST",
     withCredentials: true
   })
