@@ -4,20 +4,23 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
-	_ "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
+	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
 type ModelGatewayController struct {
-	svc services.IModelGatewayService
+	svc            services.IModelGatewayService
+	sessionService services.ISessionService
 }
 
-func NewModelGatewayController(svc services.IModelGatewayService) *ModelGatewayController {
-	return &ModelGatewayController{svc: svc}
+func NewModelGatewayController(svc services.IModelGatewayService, sessionService services.ISessionService) *ModelGatewayController {
+	return &ModelGatewayController{svc: svc, sessionService: sessionService}
 }
 
 // HandleCreateSession godoc
@@ -78,12 +81,18 @@ func (ctrl *ModelGatewayController) HandleResumeSession(c *gin.Context) {
 // @Failure      500  {object}  response.BaseResponse[any]
 // @Router       /model-gateway/sessions [get]
 func (ctrl *ModelGatewayController) HandleListSessions(c *gin.Context) {
-	sessions, appErr := ctrl.svc.ListSessions(c.Request.Context())
+	requesterID := utils.GetCtx[string](c.Request.Context(), enums.ContextKeyUserID)
+	sessions, appErr := ctrl.sessionService.FindResumableByUserID(c.Request.Context(), requesterID)
 	if appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
 	}
-	c.JSON(http.StatusOK, response.Success(sessions))
+	var dtos []*res.SessionListItemRes
+	if err := utils.MapToDTOs(sessions, &dtos); err != nil {
+		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(dtos))
 }
 
 // HandleOffer godoc

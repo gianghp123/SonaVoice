@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/stretchr/testify/mock"
 )
@@ -12,8 +13,8 @@ type SpeechProxyService struct {
 	mock.Mock
 }
 
-func (m *SpeechProxyService) StartConnection(ctx context.Context, body map[string]interface{}) (*res.WebRTCConnectionRes, *errors.AppError) {
-	args := m.Called(ctx, body)
+func (m *SpeechProxyService) StartConnection(ctx context.Context, connReq *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError) {
+	args := m.Called(ctx, connReq)
 	if args.Get(0) == nil {
 		return nil, func() *errors.AppError {
 			if args.Get(1) == nil {

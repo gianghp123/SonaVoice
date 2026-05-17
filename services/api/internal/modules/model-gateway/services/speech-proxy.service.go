@@ -9,12 +9,13 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 )
 
 type ISpeechProxyService interface {
-	StartConnection(ctx context.Context, body map[string]interface{}) (*res.WebRTCConnectionRes, *errors.AppError)
+	StartConnection(ctx context.Context, connReq *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError)
 	ProxyOffer(ctx context.Context, speechSessionID, method string, body []byte) ([]byte, int, *errors.AppError)
 }
 
@@ -26,7 +27,7 @@ func NewSpeechProxyService(httpClient httpclient.IHttpClient) ISpeechProxyServic
 	return &speechProxyService{httpClient: httpClient}
 }
 
-func (s *speechProxyService) StartConnection(ctx context.Context, body map[string]interface{}) (*res.WebRTCConnectionRes, *errors.AppError) {
+func (s *speechProxyService) StartConnection(ctx context.Context, connReq *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError) {
 	logger := zapLogger.S()
 
 	responseBody, statusCode, appErr := s.httpClient.Do(
@@ -34,7 +35,7 @@ func (s *speechProxyService) StartConnection(ctx context.Context, body map[strin
 		http.MethodPost,
 		fmt.Sprintf("%s/start", utils.GetEnv("SPEECH_SERVICE_URL", "")),
 		map[string]string{"Content-Type": "application/json"},
-		body,
+		connReq,
 	)
 	if appErr != nil {
 		return nil, appErr

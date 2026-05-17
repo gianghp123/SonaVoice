@@ -40,14 +40,14 @@ func TestGlobalConfigService_Get(t *testing.T) {
 		setupMock func(mockRepo *repoMocks.GlobalConfigRepository)
 		wantErr   bool
 		errCode   int
-		wantCfg   *dtos.GlobalConfig
+		wantCfg   *models.GlobalConfig
 	}{
 		{
 			name: "success",
 			setupMock: func(mockRepo *repoMocks.GlobalConfigRepository) {
 				mockRepo.On("Get", mock.Anything).Return(configModel, nil)
 			},
-			wantCfg: &cfg,
+			wantCfg: configModel,
 		},
 		{
 			name: "repo get error",
@@ -58,18 +58,18 @@ func TestGlobalConfigService_Get(t *testing.T) {
 			errCode: http.StatusInternalServerError,
 		},
 		{
-			name: "nil model returns empty config",
+			name: "nil model returns nil",
 			setupMock: func(mockRepo *repoMocks.GlobalConfigRepository) {
 				mockRepo.On("Get", mock.Anything).Return((*models.GlobalConfig)(nil), nil)
 			},
-			wantCfg: &dtos.GlobalConfig{},
+			wantCfg: (*models.GlobalConfig)(nil),
 		},
 		{
-			name: "empty config bytes returns empty config",
+			name: "empty config bytes",
 			setupMock: func(mockRepo *repoMocks.GlobalConfigRepository) {
 				mockRepo.On("Get", mock.Anything).Return(&models.GlobalConfig{Config: datatypes.JSON{}}, nil)
 			},
-			wantCfg: &dtos.GlobalConfig{},
+			wantCfg: &models.GlobalConfig{Config: datatypes.JSON{}},
 		},
 	}
 

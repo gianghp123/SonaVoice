@@ -9,13 +9,12 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"gorm.io/datatypes"
 )
 
 type IGlobalConfigService interface {
-	Get(ctx context.Context) (*res.GlobalConfigRes, *errors.AppError)
-	Update(ctx context.Context, cfg *dtos.GlobalConfig) (*res.GlobalConfigRes, *errors.AppError)
+	Get(ctx context.Context) (*models.GlobalConfig, *errors.AppError)
+	Update(ctx context.Context, cfg *dtos.GlobalConfig) (*models.GlobalConfig, *errors.AppError)
 }
 
 type globalConfigService struct {
@@ -28,7 +27,7 @@ func NewGlobalConfigService(repo repository_interfaces.IGlobalConfigRepository) 
 	}
 }
 
-func (s *globalConfigService) Get(ctx context.Context) (*res.GlobalConfigRes, *errors.AppError) {
+func (s *globalConfigService) Get(ctx context.Context) (*models.GlobalConfig, *errors.AppError) {
 	logger := zapLogger.S()
 
 	model, err := s.repo.Get(ctx)
@@ -37,15 +36,10 @@ func (s *globalConfigService) Get(ctx context.Context) (*res.GlobalConfigRes, *e
 		return nil, errors.Internal()
 	}
 
-	result, appErr := mapModelToDto(model)
-	if appErr != nil {
-		return nil, appErr
-	}
-
-	return result, nil
+	return model, nil
 }
 
-func (s *globalConfigService) Update(ctx context.Context, cfg *dtos.GlobalConfig) (*res.GlobalConfigRes, *errors.AppError) {
+func (s *globalConfigService) Update(ctx context.Context, cfg *dtos.GlobalConfig) (*models.GlobalConfig, *errors.AppError) {
 	logger := zapLogger.S()
 
 	if cfg == nil {
@@ -71,28 +65,7 @@ func (s *globalConfigService) Update(ctx context.Context, cfg *dtos.GlobalConfig
 		return nil, errors.Internal()
 	}
 
-	result, appErr := mapModelToDto(model)
-	if appErr != nil {
-		return nil, appErr
-	}
-
-	return result, nil
+	return model, nil
 }
 
-func mapModelToDto(model *models.GlobalConfig) (*res.GlobalConfigRes, *errors.AppError) {
-	logger := zapLogger.S()
 
-	if model == nil || len(model.Config) == 0 {
-		return &res.GlobalConfigRes{}, nil
-	}
-
-	var payload dtos.ConfigPayload
-	if err := json.Unmarshal(model.Config, &payload); err != nil {
-		logger.Errorw("Failed to unmarshal global config", "error", err)
-		return nil, errors.Internal()
-	}
-
-	return &res.GlobalConfigRes{
-		Config: payload,
-	}, nil
-}

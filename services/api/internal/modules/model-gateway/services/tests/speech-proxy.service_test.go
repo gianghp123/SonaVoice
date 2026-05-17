@@ -9,6 +9,7 @@ import (
 
 	appErrors "github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	httpclientmocks "github.com/gianghp123/SonaVoice/api/internal/http-client/mocks"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,13 @@ func TestSpeechProxyService_StartConnection(t *testing.T) {
 	}
 	webrtcBytes, _ := json.Marshal(webrtcRes)
 
-	body := map[string]interface{}{"user_id": "u1", "session_id": "s1"}
+	connReq := &req.StartConnectionReq{
+		EnableDefaultIceServers: true,
+		Body: req.StartConnectionBody{
+			UserID:    "u1",
+			SessionID: "s1",
+		},
+	}
 
 	tests := []struct {
 		name      string
@@ -85,7 +92,7 @@ func TestSpeechProxyService_StartConnection(t *testing.T) {
 			svc := services.NewSpeechProxyService(mockHTTP)
 			ctx := context.Background()
 
-			result, appErr := svc.StartConnection(ctx, body)
+			result, appErr := svc.StartConnection(ctx, connReq)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)

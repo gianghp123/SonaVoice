@@ -2,6 +2,7 @@ package modelgateway
 
 import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
+	"github.com/gianghp123/SonaVoice/api/internal/core/quota"
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/middlewares"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/controllers"
@@ -16,13 +17,14 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHt
 	sessionRepo := repositories.NewSessionRepository(db)
 	configRepo := repositories.NewGlobalConfigRepository(db)
 
-	quoteService := services.NewQuoteService(redis)
+	quotaService := quota.NewQuotaService(redis)
+	sessionLockService := services.NewSessionLockService(redis)
 	sessionService := services.NewSessionService(sessionRepo)
 	speechProxyService := services.NewSpeechProxyService(httpClient)
 	configService := services.NewGlobalConfigService(configRepo)
 
-	modelGatewayService := services.NewModelGatewayService(configService, sessionService, speechProxyService, quoteService)
-	modelGatewayController := controllers.NewModelGatewayController(modelGatewayService)
+	modelGatewayService := services.NewModelGatewayService(configService, sessionService, speechProxyService, quotaService, sessionLockService)
+	modelGatewayController := controllers.NewModelGatewayController(modelGatewayService, sessionService)
 	globalConfigController := controllers.NewGlobalConfigController(configService)
 
 	mgGroup := router.Group("/model-gateway")

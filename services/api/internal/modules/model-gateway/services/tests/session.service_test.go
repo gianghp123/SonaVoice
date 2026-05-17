@@ -57,9 +57,9 @@ func TestSessionService_CreateSession(t *testing.T) {
 			tt.setupMock(mockRepo)
 
 			svc := services.NewSessionService(mockRepo)
-			ctx := setupSessionCtx(tt.userID)
+			ctx := context.Background()
 
-			result, appErr := svc.CreateSession(ctx)
+			result, appErr := svc.Create(ctx, tt.userID)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)
@@ -123,7 +123,7 @@ func TestSessionService_GetSession(t *testing.T) {
 			svc := services.NewSessionService(mockRepo)
 			ctx := setupSessionCtx(tt.userID)
 
-			result, appErr := svc.GetSession(ctx, tt.sessionID)
+			result, appErr := svc.Get(ctx, tt.sessionID, tt.userID)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)
@@ -185,7 +185,7 @@ func TestSessionService_GetSessionBySpeechSessionID(t *testing.T) {
 			svc := services.NewSessionService(mockRepo)
 			ctx := setupSessionCtx(tt.userID)
 
-			result, appErr := svc.GetSessionBySpeechSessionID(ctx, tt.speechSessionID)
+			result, appErr := svc.GetBySpeechSessionID(ctx, tt.speechSessionID, tt.userID)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)

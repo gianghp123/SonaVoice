@@ -3,8 +3,11 @@ package controllers
 import (
 	"net/http"
 
+	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/domain"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
 	"github.com/gin-gonic/gin"
 )
@@ -26,12 +29,17 @@ func NewGlobalConfigController(svc services.IGlobalConfigService) *GlobalConfigC
 // @Failure      500  {object}  response.BaseResponse[any]
 // @Router       /global-config [get]
 func (ctrl *GlobalConfigController) HandleGet(c *gin.Context) {
-	result, appErr := ctrl.svc.Get(c.Request.Context())
+	model, appErr := ctrl.svc.Get(c.Request.Context())
 	if appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
 	}
-	c.JSON(http.StatusOK, response.Success(result))
+	configPayload, err := domain.ParseGlobalConfig(model.Config)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(&res.GlobalConfigRes{Config: *configPayload}))
 }
 
 // HandleUpdate godoc
@@ -58,10 +66,15 @@ func (ctrl *GlobalConfigController) HandleUpdate(c *gin.Context) {
 		return
 	}
 
-	result, appErr := ctrl.svc.Update(c.Request.Context(), &cfg)
+	model, appErr := ctrl.svc.Update(c.Request.Context(), &cfg)
 	if appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
 	}
-	c.JSON(http.StatusOK, response.Success(result))
+	configPayload, err := domain.ParseGlobalConfig(model.Config)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(&res.GlobalConfigRes{Config: *configPayload}))
 }

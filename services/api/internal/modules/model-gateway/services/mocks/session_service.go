@@ -5,7 +5,7 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
+	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -13,8 +13,8 @@ type SessionService struct {
 	mock.Mock
 }
 
-func (m *SessionService) CreateSession(ctx context.Context) (*res.SessionRes, *errors.AppError) {
-	args := m.Called(ctx)
+func (m *SessionService) Create(ctx context.Context, userID string) (*models.Session, *errors.AppError) {
+	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, func() *errors.AppError {
 			if args.Get(1) == nil {
@@ -23,7 +23,7 @@ func (m *SessionService) CreateSession(ctx context.Context) (*res.SessionRes, *e
 			return args.Get(1).(*errors.AppError)
 		}()
 	}
-	return args.Get(0).(*res.SessionRes), func() *errors.AppError {
+	return args.Get(0).(*models.Session), func() *errors.AppError {
 		if args.Get(1) == nil {
 			return nil
 		}
@@ -31,7 +31,25 @@ func (m *SessionService) CreateSession(ctx context.Context) (*res.SessionRes, *e
 	}()
 }
 
-func (m *SessionService) GetSession(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError) {
+func (m *SessionService) Get(ctx context.Context, sessionID, requesterID string) (*models.Session, *errors.AppError) {
+	args := m.Called(ctx, sessionID, requesterID)
+	if args.Get(0) == nil {
+		return nil, func() *errors.AppError {
+			if args.Get(1) == nil {
+				return nil
+			}
+			return args.Get(1).(*errors.AppError)
+		}()
+	}
+	return args.Get(0).(*models.Session), func() *errors.AppError {
+		if args.Get(1) == nil {
+			return nil
+		}
+		return args.Get(1).(*errors.AppError)
+	}()
+}
+
+func (m *SessionService) GetInternal(ctx context.Context, sessionID string) (*models.Session, *errors.AppError) {
 	args := m.Called(ctx, sessionID)
 	if args.Get(0) == nil {
 		return nil, func() *errors.AppError {
@@ -41,7 +59,7 @@ func (m *SessionService) GetSession(ctx context.Context, sessionID string) (*res
 			return args.Get(1).(*errors.AppError)
 		}()
 	}
-	return args.Get(0).(*res.SessionRes), func() *errors.AppError {
+	return args.Get(0).(*models.Session), func() *errors.AppError {
 		if args.Get(1) == nil {
 			return nil
 		}
@@ -49,8 +67,8 @@ func (m *SessionService) GetSession(ctx context.Context, sessionID string) (*res
 	}()
 }
 
-func (m *SessionService) GetSessionInternal(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError) {
-	args := m.Called(ctx, sessionID)
+func (m *SessionService) GetBySpeechSessionID(ctx context.Context, speechSessionID, requesterID string) (*models.Session, *errors.AppError) {
+	args := m.Called(ctx, speechSessionID, requesterID)
 	if args.Get(0) == nil {
 		return nil, func() *errors.AppError {
 			if args.Get(1) == nil {
@@ -59,25 +77,7 @@ func (m *SessionService) GetSessionInternal(ctx context.Context, sessionID strin
 			return args.Get(1).(*errors.AppError)
 		}()
 	}
-	return args.Get(0).(*res.SessionRes), func() *errors.AppError {
-		if args.Get(1) == nil {
-			return nil
-		}
-		return args.Get(1).(*errors.AppError)
-	}()
-}
-
-func (m *SessionService) GetSessionBySpeechSessionID(ctx context.Context, speechSessionID string) (*res.SessionRes, *errors.AppError) {
-	args := m.Called(ctx, speechSessionID)
-	if args.Get(0) == nil {
-		return nil, func() *errors.AppError {
-			if args.Get(1) == nil {
-				return nil
-			}
-			return args.Get(1).(*errors.AppError)
-		}()
-	}
-	return args.Get(0).(*res.SessionRes), func() *errors.AppError {
+	return args.Get(0).(*models.Session), func() *errors.AppError {
 		if args.Get(1) == nil {
 			return nil
 		}
@@ -133,7 +133,7 @@ func (m *SessionService) MarkQuotaReleased(ctx context.Context, sessionID string
 	return args.Get(0).(*errors.AppError)
 }
 
-func (m *SessionService) FindActiveByUserID(ctx context.Context, userID string) (*res.SessionRes, *errors.AppError) {
+func (m *SessionService) FindActiveByUserID(ctx context.Context, userID string) (*models.Session, *errors.AppError) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, func() *errors.AppError {
@@ -143,7 +143,7 @@ func (m *SessionService) FindActiveByUserID(ctx context.Context, userID string) 
 			return args.Get(1).(*errors.AppError)
 		}()
 	}
-	return args.Get(0).(*res.SessionRes), func() *errors.AppError {
+	return args.Get(0).(*models.Session), func() *errors.AppError {
 		if args.Get(1) == nil {
 			return nil
 		}
@@ -151,7 +151,7 @@ func (m *SessionService) FindActiveByUserID(ctx context.Context, userID string) 
 	}()
 }
 
-func (m *SessionService) FindResumableByUserID(ctx context.Context, userID string) ([]*res.SessionListItemRes, *errors.AppError) {
+func (m *SessionService) FindResumableByUserID(ctx context.Context, userID string) ([]*models.Session, *errors.AppError) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, func() *errors.AppError {
@@ -161,7 +161,7 @@ func (m *SessionService) FindResumableByUserID(ctx context.Context, userID strin
 			return args.Get(1).(*errors.AppError)
 		}()
 	}
-	return args.Get(0).([]*res.SessionListItemRes), func() *errors.AppError {
+	return args.Get(0).([]*models.Session), func() *errors.AppError {
 		if args.Get(1) == nil {
 			return nil
 		}
@@ -177,7 +177,7 @@ func (m *SessionService) UpdateStatus(ctx context.Context, sessionID string, sta
 	return args.Get(0).(*errors.AppError)
 }
 
-func (m *SessionService) FindStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*res.SessionRes, *errors.AppError) {
+func (m *SessionService) FindStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*models.Session, *errors.AppError) {
 	args := m.Called(ctx, userID, pendingTimeoutSeconds)
 	if args.Get(0) == nil {
 		return nil, func() *errors.AppError {
@@ -187,7 +187,7 @@ func (m *SessionService) FindStaleSessions(ctx context.Context, userID string, p
 			return args.Get(1).(*errors.AppError)
 		}()
 	}
-	return args.Get(0).([]*res.SessionRes), func() *errors.AppError {
+	return args.Get(0).([]*models.Session), func() *errors.AppError {
 		if args.Get(1) == nil {
 			return nil
 		}
