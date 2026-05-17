@@ -1,6 +1,6 @@
 package req
 
 type CloseSessionReq struct {
-	SessionID   string `json:"sessionId"`
-	ActualUsage int    `json:"actualUsage"`
+	SessionID   string `json:"session_id"`
+	ActualUsage int    `json:"actual_usage"`
 }

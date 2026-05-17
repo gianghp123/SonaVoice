@@ -5,14 +5,14 @@ INSERT INTO global_config (config)
 SELECT
     '{
       "enabled": true,
-      "resetTimezone": "Asia/Ho_Chi_Minh",
+      "reset_timezone": "Asia/Ho_Chi_Minh",
       "limits": {
         "user": {
-          "dailyVoiceSeconds": 300,
-          "dailyRequestCount": 50
+          "daily_voice_seconds": 300,
+          "daily_request_count": 50
         },
         "session": {
-          "maxSessionLockTTL": 5
+          "max_session_lockTTL": 5
         }
       }
     }'::jsonb

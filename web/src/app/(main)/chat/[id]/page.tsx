@@ -62,7 +62,12 @@ export default function AuthenticatedChatPage() {
   return (
     <PipecatAppBase
       transportType="smallwebrtc"
-      connectParams={connectParams}
+      connectParams={
+        {
+          ...connectParams,
+          webrtcurl: `api/proxy/webrtc/model-gateway/sessions/${sessionId}/api/offer`,
+        }
+      }
       noThemeProvider
       clientOptions={{
         enableMic: true,

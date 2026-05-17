@@ -1,12 +1,12 @@
 package res
 
 type WebRTCConnectionRes struct {
-	SessionID string     `json:"sessionId"`
-	IceConfig *IceConfig `json:"iceConfig,omitempty"` // only if enableDefaultIceServers: true
+	SessionID string     `json:"session_id"`
+	IceConfig *IceConfig `json:"ice_config,omitempty"` // only if enableDefaultIceServers: true
 }
 
 type IceConfig struct {
-	IceServers []IceServer `json:"iceServers"`
+	IceServers []IceServer `json:"ice_servers"`
 }
 
 type IceServer struct {

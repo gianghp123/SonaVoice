@@ -1,7 +1,7 @@
 package req
 
 type StartConnectionReq struct {
-	EnableDefaultIceServers bool                `json:"enableDefaultIceServers"`
+	EnableDefaultIceServers bool                `json:"enable_default_ice_servers"`
 	Body                    StartConnectionBody `json:"body"`
 }
 

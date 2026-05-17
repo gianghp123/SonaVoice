@@ -14,14 +14,16 @@ from pipecat.utils.context.llm_context_summarization import (
     LLMAutoContextSummarizationConfig,
     LLMContextSummaryConfig,
 )
-from src.pipelines.processors import FrameProcessor
 from loguru import logger
 from pipecat.frames.frames import ErrorFrame
 from src.utils.error_msg import get_custom_error_message
 import asyncio
 from pipecat.processors.frame_processor import FrameDirection
-from agents.types import SessionMessage, UserMessage, AssistantMessage
-from pipecat.frames.frames import LLMSummarizeContextFrame,EndFrame
+from src.types.messages import SessionMessage, UserMessage, AssistantMessage
+from pipecat.frames.frames import LLMSummarizeContextFrame
+import time
+from src.services.session_service import SessionService
+from src.pipelines.processors import CustomMem0Processor
 
 async def create_voice_bot_task(
     transport,
@@ -29,13 +31,16 @@ async def create_voice_bot_task(
     llm,
     tts,
     context: LLMContext,
+    session_id,
+    user_id,
     max_duration=None,
-    memory_processor: FrameProcessor = None,
-    app_resources=None,
+    memory_processor: CustomMem0Processor = None,
 ) -> PipelineTask:
     
     session_messages: list[SessionMessage] = []
-    actual_usage = max_duration
+    start_time = None
+    service = SessionService()
+
 
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
@@ -85,7 +90,11 @@ async def create_voice_bot_task(
     task = PipelineTask(
         pipeline,
         params=PipelineParams(enable_metrics=True),
-        tool_resources=app_resources,
+        tool_resources={
+            "user_id": user_id,
+            "session_id": session_id,
+            "memory_client": memory_processor.memory_client if memory_processor else None,
+        },
     )
 
     # Messages handler
@@ -129,12 +138,16 @@ async def create_voice_bot_task(
         )
         # EndFrame is queued, so the goodbye speech will complete before shutdown
         await aggregator.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
+        actual_duration = time.time() - start_time
+        logger.info(f"Session duration: {actual_duration} seconds")
+        
 
    
 
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
         logger.info(f"Client connected")
+        start_time = time.time()
         # Add a greeting message to the context
         context.add_message(
             {"role": "system", "content": "Say hello and briefly introduce yourself."}
@@ -143,10 +156,12 @@ async def create_voice_bot_task(
         await task.queue_frames([LLMRunFrame()])
         if max_duration is not None:
             asyncio.create_task(session_timer(task, user_aggregator, timeout_secs=max_duration))
+            
         
     
     
     # Finish handler
+
     @task.event_handler("on_pipeline_finished")
     async def on_pipeline_finished(task, frame):
         await task.queue_frames([
@@ -157,9 +172,14 @@ async def create_voice_bot_task(
                 )
             )
         ])
+
+        actual_usage = int(time.time() - start_time)
+
+        await service.close_session(
+            session_id=session_id,
+            actual_usage=actual_usage,
+        )
         
-
-
 
     # Error handlers
     @tts.event_handler("on_connection_error")

@@ -6,7 +6,7 @@ type GlobalConfig struct {
 
 type ConfigPayload struct {
 	Enabled       bool         `json:"enabled"`
-	ResetTimezone string       `json:"resetTimezone"`
+	ResetTimezone string       `json:"reset_timezone"`
 	Limits        LimitsConfig `json:"limits"`
 }
 
@@ -16,10 +16,10 @@ type LimitsConfig struct {
 }
 
 type UserLimitConfig struct {
-	DailyVoiceSeconds int `json:"dailyVoiceSeconds"`
-	DailyRequestCount int `json:"dailyRequestCount"`
+	DailyVoiceSeconds int `json:"daily_voice_seconds"`
+	DailyRequestCount int `json:"daily_request_count"`
 }
 
 type SessionLimitConfig struct {
-	MaxSessionLockTTL int `json:"maxSessionLockTTL"`
+	MaxSessionLockTTL int `json:"max_session_lockTTL"`
 }
