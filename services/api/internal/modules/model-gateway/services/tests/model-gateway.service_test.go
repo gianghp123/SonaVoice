@@ -28,7 +28,7 @@ func TestModelGatewayService_StartConnection(t *testing.T) {
 			},
 		},
 	}
-	sessionRes := &res.SessionRes{ID: "s1"}
+	sessionRes := &res.SessionRes{ID: "s1", UserID: "user-1"}
 	webrtcRes := &res.WebRTCConnectionRes{SessionID: "speech-s1"}
 	cleanup := func(commit bool) {}
 
@@ -47,10 +47,12 @@ func TestModelGatewayService_StartConnection(t *testing.T) {
 			name: "success",
 			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
+				sessionSvc.On("CleanupStaleSessions", mock.Anything, "user-1").Return([]*res.SessionRes{}, (*appErrors.AppError)(nil))
 				quoteSvc.On("AcquireSessionLock", mock.Anything, "user-1", 60*time.Second).Return("lock-val", nil)
 				quoteSvc.On("ReleaseSessionLock", mock.Anything, "user-1", "lock-val").Return(nil)
 				quoteSvc.On("ReserveQuota", mock.Anything, "user-1", int64(3600)).Return(int64(300), func(bool) {}, (*appErrors.AppError)(nil))
 				sessionSvc.On("CreateSession", mock.Anything).Return(sessionRes, (*appErrors.AppError)(nil))
+				sessionSvc.On("SetReservation", mock.Anything, "s1", int64(300), int64(3600)).Return((*appErrors.AppError)(nil))
 				speechSvc.On("StartConnection", mock.Anything, mock.Anything).Return(webrtcRes, (*appErrors.AppError)(nil))
 				sessionSvc.On("SetSpeechSessionID", mock.Anything, "s1", "speech-s1").Return((*appErrors.AppError)(nil))
 			},
@@ -58,6 +60,7 @@ func TestModelGatewayService_StartConnection(t *testing.T) {
 		{
 			name: "config service get error",
 			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
+				sessionSvc.On("CleanupStaleSessions", mock.Anything, "user-1").Return([]*res.SessionRes{}, (*appErrors.AppError)(nil))
 				configSvc.On("Get", mock.Anything).Return((*dtos.GlobalConfig)(nil), appErrors.Internal("config error"))
 			},
 			wantErr: true,
@@ -66,6 +69,7 @@ func TestModelGatewayService_StartConnection(t *testing.T) {
 		{
 			name: "acquire session lock error",
 			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
+				sessionSvc.On("CleanupStaleSessions", mock.Anything, "user-1").Return([]*res.SessionRes{}, (*appErrors.AppError)(nil))
 				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
 				quoteSvc.On("AcquireSessionLock", mock.Anything, "user-1", 60*time.Second).Return("", appErrors.Internal("lock error"))
 			},
@@ -76,6 +80,7 @@ func TestModelGatewayService_StartConnection(t *testing.T) {
 			name: "reserve quota error",
 			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
+				sessionSvc.On("CleanupStaleSessions", mock.Anything, "user-1").Return([]*res.SessionRes{}, (*appErrors.AppError)(nil))
 				quoteSvc.On("AcquireSessionLock", mock.Anything, "user-1", 60*time.Second).Return("lock-val", nil)
 				quoteSvc.On("ReleaseSessionLock", mock.Anything, "user-1", "lock-val").Return(nil)
 				quoteSvc.On("ReserveQuota", mock.Anything, "user-1", int64(3600)).Return(int64(0), (func(bool))(nil), appErrors.Forbidden("quota exceeded"))
@@ -87,6 +92,7 @@ func TestModelGatewayService_StartConnection(t *testing.T) {
 			name: "session create error",
 			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
+				sessionSvc.On("CleanupStaleSessions", mock.Anything, "user-1").Return([]*res.SessionRes{}, (*appErrors.AppError)(nil))
 				quoteSvc.On("AcquireSessionLock", mock.Anything, "user-1", 60*time.Second).Return("lock-val", nil)
 				quoteSvc.On("ReleaseSessionLock", mock.Anything, "user-1", "lock-val").Return(nil)
 				quoteSvc.On("ReserveQuota", mock.Anything, "user-1", int64(3600)).Return(int64(300), cleanup, (*appErrors.AppError)(nil))
@@ -96,29 +102,37 @@ func TestModelGatewayService_StartConnection(t *testing.T) {
 			errCode: http.StatusInternalServerError,
 		},
 		{
-			name: "speech proxy start error marks session failed",
+			name: "speech proxy start error marks session failed and releases quota",
 			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
+				sessionSvc.On("CleanupStaleSessions", mock.Anything, "user-1").Return([]*res.SessionRes{}, (*appErrors.AppError)(nil))
 				quoteSvc.On("AcquireSessionLock", mock.Anything, "user-1", 60*time.Second).Return("lock-val", nil)
 				quoteSvc.On("ReleaseSessionLock", mock.Anything, "user-1", "lock-val").Return(nil)
 				quoteSvc.On("ReserveQuota", mock.Anything, "user-1", int64(3600)).Return(int64(300), cleanup, (*appErrors.AppError)(nil))
 				sessionSvc.On("CreateSession", mock.Anything).Return(sessionRes, (*appErrors.AppError)(nil))
+				sessionSvc.On("SetReservation", mock.Anything, "s1", int64(300), int64(3600)).Return((*appErrors.AppError)(nil))
 				speechSvc.On("StartConnection", mock.Anything, mock.Anything).Return((*res.WebRTCConnectionRes)(nil), appErrors.Internal("speech error"))
 				sessionSvc.On("MarkSessionFailed", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+				quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(0), int64(3600)).Return(nil)
+				sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
 		},
 		{
-			name: "set speech session id error",
+			name: "set speech session id error releases quota",
 			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
+				sessionSvc.On("CleanupStaleSessions", mock.Anything, "user-1").Return([]*res.SessionRes{}, (*appErrors.AppError)(nil))
 				quoteSvc.On("AcquireSessionLock", mock.Anything, "user-1", 60*time.Second).Return("lock-val", nil)
 				quoteSvc.On("ReleaseSessionLock", mock.Anything, "user-1", "lock-val").Return(nil)
 				quoteSvc.On("ReserveQuota", mock.Anything, "user-1", int64(3600)).Return(int64(300), cleanup, (*appErrors.AppError)(nil))
 				sessionSvc.On("CreateSession", mock.Anything).Return(sessionRes, (*appErrors.AppError)(nil))
+				sessionSvc.On("SetReservation", mock.Anything, "s1", int64(300), int64(3600)).Return((*appErrors.AppError)(nil))
 				speechSvc.On("StartConnection", mock.Anything, mock.Anything).Return(webrtcRes, (*appErrors.AppError)(nil))
 				sessionSvc.On("SetSpeechSessionID", mock.Anything, "s1", "speech-s1").Return(appErrors.Internal("update error"))
+				quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(0), int64(3600)).Return(nil)
+				sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
@@ -145,13 +159,13 @@ func TestModelGatewayService_StartConnection(t *testing.T) {
 				return
 			}
 			require.Nil(t, appErr)
-			assert.Equal(t, "speech-s1", result.SessionID)
+			assert.Equal(t, "speech-s1", result.WebRTCConnectionRes.SessionID)
 		})
 	}
 }
 
 func TestModelGatewayService_ProxyOffer(t *testing.T) {
-	sessionRes := &res.SessionRes{ID: "s1", Status: "active"}
+	sessionRes := &res.SessionRes{ID: "s1", UserID: "user-1", Status: "active", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: false}
 	responseBody := []byte(`{"ok":true}`)
 	nonSuccessBody := []byte(`{"error":"gateway error"}`)
 
@@ -163,6 +177,7 @@ func TestModelGatewayService_ProxyOffer(t *testing.T) {
 		setupMock func(
 			sessionSvc *svcMocks.SessionService,
 			speechSvc *svcMocks.SpeechProxyService,
+			quoteSvc *svcMocks.QuoteService,
 		)
 		wantErr    bool
 		errCode    int
@@ -174,7 +189,7 @@ func TestModelGatewayService_ProxyOffer(t *testing.T) {
 			sessionID: "speech-s1",
 			method:    http.MethodPost,
 			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
+			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 				sessionSvc.On("GetSessionBySpeechSessionID", mock.Anything, "speech-s1").Return(sessionRes, (*appErrors.AppError)(nil))
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(responseBody, http.StatusOK, (*appErrors.AppError)(nil))
 				sessionSvc.On("MarkSessionActive", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
@@ -186,7 +201,7 @@ func TestModelGatewayService_ProxyOffer(t *testing.T) {
 			sessionID: "",
 			method:    http.MethodPost,
 			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
+			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 			},
 			wantErr: true,
 			errCode: http.StatusBadRequest,
@@ -196,34 +211,38 @@ func TestModelGatewayService_ProxyOffer(t *testing.T) {
 			sessionID: "speech-s1",
 			method:    http.MethodPost,
 			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
+			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 				sessionSvc.On("GetSessionBySpeechSessionID", mock.Anything, "speech-s1").Return((*res.SessionRes)(nil), appErrors.Internal("not found"))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
 		},
 		{
-			name:      "speech proxy error marks session failed",
+			name:      "speech proxy error releases quota",
 			sessionID: "speech-s1",
 			method:    http.MethodPost,
 			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
+			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 				sessionSvc.On("GetSessionBySpeechSessionID", mock.Anything, "speech-s1").Return(sessionRes, (*appErrors.AppError)(nil))
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return([]byte{}, 0, appErrors.Internal("proxy error"))
 				sessionSvc.On("MarkSessionFailed", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+				quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(0), int64(3600)).Return(nil)
+				sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
 		},
 		{
-			name:      "non-2xx status marks session failed",
+			name:      "non-2xx status releases quota",
 			sessionID: "speech-s1",
 			method:    http.MethodPost,
 			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
+			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 				sessionSvc.On("GetSessionBySpeechSessionID", mock.Anything, "speech-s1").Return(sessionRes, (*appErrors.AppError)(nil))
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(nonSuccessBody, http.StatusBadGateway, (*appErrors.AppError)(nil))
 				sessionSvc.On("MarkSessionFailed", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+				quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(0), int64(3600)).Return(nil)
+				sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 			},
 			wantStatus: http.StatusBadGateway,
 			wantBody:    nonSuccessBody,
@@ -233,7 +252,7 @@ func TestModelGatewayService_ProxyOffer(t *testing.T) {
 			sessionID: "speech-s1",
 			method:    http.MethodPost,
 			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
+			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, quoteSvc *svcMocks.QuoteService) {
 				sessionSvc.On("GetSessionBySpeechSessionID", mock.Anything, "speech-s1").Return(sessionRes, (*appErrors.AppError)(nil))
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(responseBody, http.StatusOK, (*appErrors.AppError)(nil))
 				sessionSvc.On("MarkSessionActive", mock.Anything, "s1").Return(appErrors.Internal("mark active error"))
@@ -250,7 +269,7 @@ func TestModelGatewayService_ProxyOffer(t *testing.T) {
 			speechSvc := new(svcMocks.SpeechProxyService)
 			quoteSvc := new(svcMocks.QuoteService)
 
-			tt.setupMock(sessionSvc, speechSvc)
+			tt.setupMock(sessionSvc, speechSvc, quoteSvc)
 
 			svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, quoteSvc)
 			ctx := context.Background()
@@ -274,20 +293,12 @@ func TestModelGatewayService_ProxyOffer(t *testing.T) {
 }
 
 func TestModelGatewayService_CloseSession(t *testing.T) {
-	activeSession := &res.SessionRes{ID: "s1", Status: "active", UserID: "user-1"}
-	defaultConfig := &dtos.GlobalConfig{
-		Config: dtos.ConfigPayload{
-			Limits: dtos.LimitsConfig{
-				User: dtos.UserLimitConfig{DailyVoiceSeconds: 3600},
-			},
-		},
-	}
+	activeSession := &res.SessionRes{ID: "s1", Status: "active", UserID: "user-1", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: false}
 
 	tests := []struct {
 		name   string
 		req    *req.CloseSessionReq
 		setupMock func(
-			configSvc *svcMocks.GlobalConfigService,
 			sessionSvc *svcMocks.SessionService,
 			quoteSvc *svcMocks.QuoteService,
 		)
@@ -296,98 +307,99 @@ func TestModelGatewayService_CloseSession(t *testing.T) {
 	}{
 		{
 			name: "success",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60, MaxDuration: 300},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
 				sessionSvc.On("GetSession", mock.Anything, "s1").Return(activeSession, (*appErrors.AppError)(nil))
-				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
 				quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(60), int64(3600)).Return(nil)
+				sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 				sessionSvc.On("MarkSessionInactive", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 			},
 		},
 		{
 			name: "nil req body",
 			req:  nil,
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
 			},
 			wantErr: true,
 			errCode: http.StatusBadRequest,
 		},
 		{
 			name: "empty session id",
-			req:  &req.CloseSessionReq{SessionID: "", ActualUsage: 60, MaxDuration: 300},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
-			},
-			wantErr: true,
-			errCode: http.StatusBadRequest,
-		},
-		{
-			name: "maxDuration <= 0",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60, MaxDuration: 0},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
-			},
-			wantErr: true,
-			errCode: http.StatusBadRequest,
-		},
-		{
-			name: "negative maxDuration",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60, MaxDuration: -1},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+			req:  &req.CloseSessionReq{SessionID: "", ActualUsage: 60},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
 			},
 			wantErr: true,
 			errCode: http.StatusBadRequest,
 		},
 		{
 			name: "negative actualUsage",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: -1, MaxDuration: 300},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: -1},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
 			},
 			wantErr: true,
 			errCode: http.StatusBadRequest,
 		},
 		{
 			name: "session get error",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60, MaxDuration: 300},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
 				sessionSvc.On("GetSession", mock.Anything, "s1").Return((*res.SessionRes)(nil), appErrors.Internal("not found"))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
 		},
 		{
-			name: "session not active",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60, MaxDuration: 300},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
-				sessionSvc.On("GetSession", mock.Anything, "s1").Return(&res.SessionRes{ID: "s1", Status: "inactive", UserID: "user-1"}, (*appErrors.AppError)(nil))
+			name: "session already inactive",
+			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+				sessionSvc.On("GetSession", mock.Anything, "s1").Return(&res.SessionRes{ID: "s1", Status: "inactive", UserID: "user-1", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: true}, (*appErrors.AppError)(nil))
 			},
 			wantErr: true,
 			errCode: http.StatusBadRequest,
 		},
 		{
-			name: "config get error",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60, MaxDuration: 300},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
-				sessionSvc.On("GetSession", mock.Anything, "s1").Return(activeSession, (*appErrors.AppError)(nil))
-				configSvc.On("Get", mock.Anything).Return((*dtos.GlobalConfig)(nil), appErrors.Internal("config error"))
+			name: "pending session succeeds with actualUsage 0",
+			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 0},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+				sessionSvc.On("GetSession", mock.Anything, "s1").Return(&res.SessionRes{ID: "s1", Status: "pending", UserID: "user-1", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: false}, (*appErrors.AppError)(nil))
+				quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(0), int64(3600)).Return(nil)
+				sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+				sessionSvc.On("MarkSessionInactive", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 			},
-			wantErr: true,
-			errCode: http.StatusInternalServerError,
 		},
 		{
-			name: "actualUsage exceeds maxDuration gets clamped",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 500, MaxDuration: 300},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+			name: "failed session succeeds with actualUsage 0",
+			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 0},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+				sessionSvc.On("GetSession", mock.Anything, "s1").Return(&res.SessionRes{ID: "s1", Status: "failed", UserID: "user-1", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: false}, (*appErrors.AppError)(nil))
+				quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(0), int64(3600)).Return(nil)
+				sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+				sessionSvc.On("MarkSessionInactive", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+			},
+		},
+		{
+			name: "quota already released skips release",
+			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+				sessionSvc.On("GetSession", mock.Anything, "s1").Return(&res.SessionRes{ID: "s1", Status: "active", UserID: "user-1", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: true}, (*appErrors.AppError)(nil))
+				sessionSvc.On("MarkSessionInactive", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+			},
+		},
+		{
+			name: "actualUsage exceeds reservedAmount gets clamped",
+			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 500},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
 				sessionSvc.On("GetSession", mock.Anything, "s1").Return(activeSession, (*appErrors.AppError)(nil))
-				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
 				quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(300), int64(3600)).Return(nil)
+				sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 				sessionSvc.On("MarkSessionInactive", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 			},
 		},
 		{
 			name: "quote release error",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60, MaxDuration: 300},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
 				sessionSvc.On("GetSession", mock.Anything, "s1").Return(activeSession, (*appErrors.AppError)(nil))
-				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
 				quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(60), int64(3600)).Return(appErrors.Internal("release error"))
 			},
 			wantErr: true,
@@ -395,11 +407,11 @@ func TestModelGatewayService_CloseSession(t *testing.T) {
 		},
 		{
 			name: "mark session inactive error",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60, MaxDuration: 300},
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
+			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
+			setupMock: func(sessionSvc *svcMocks.SessionService, quoteSvc *svcMocks.QuoteService) {
 				sessionSvc.On("GetSession", mock.Anything, "s1").Return(activeSession, (*appErrors.AppError)(nil))
-				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
 				quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(60), int64(3600)).Return(nil)
+				sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 				sessionSvc.On("MarkSessionInactive", mock.Anything, "s1").Return(appErrors.Internal("inactive error"))
 			},
 			wantErr: true,
@@ -414,7 +426,7 @@ func TestModelGatewayService_CloseSession(t *testing.T) {
 			speechSvc := new(svcMocks.SpeechProxyService)
 			quoteSvc := new(svcMocks.QuoteService)
 
-			tt.setupMock(configSvc, sessionSvc, quoteSvc)
+			tt.setupMock(sessionSvc, quoteSvc)
 
 			svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, quoteSvc)
 			ctx := context.Background()
@@ -432,29 +444,22 @@ func TestModelGatewayService_CloseSession(t *testing.T) {
 }
 
 func TestModelGatewayService_CloseSession_ActualUsageClampedJSON(t *testing.T) {
-	activeSession := &res.SessionRes{ID: "s1", Status: "active", UserID: "user-1"}
-	defaultConfig := &dtos.GlobalConfig{
-		Config: dtos.ConfigPayload{
-			Limits: dtos.LimitsConfig{
-				User: dtos.UserLimitConfig{DailyVoiceSeconds: 3600},
-			},
-		},
-	}
+	activeSession := &res.SessionRes{ID: "s1", Status: "active", UserID: "user-1", ReservedAmount: 200, DailyQuota: 3600, QuotaReleased: false}
 
-	configSvc := new(svcMocks.GlobalConfigService)
 	sessionSvc := new(svcMocks.SessionService)
 	speechSvc := new(svcMocks.SpeechProxyService)
+	configSvc := new(svcMocks.GlobalConfigService)
 	quoteSvc := new(svcMocks.QuoteService)
 
 	sessionSvc.On("GetSession", mock.Anything, "s1").Return(activeSession, (*appErrors.AppError)(nil))
-	configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
-	quoteSvc.On("Release", mock.Anything, "user-1", int64(100), int64(100), int64(3600)).Return(nil)
+	quoteSvc.On("Release", mock.Anything, "user-1", int64(200), int64(200), int64(3600)).Return(nil)
+	sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 	sessionSvc.On("MarkSessionInactive", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 
 	svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, quoteSvc)
 	ctx := context.Background()
 
-	appErr := svc.CloseSession(ctx, &req.CloseSessionReq{SessionID: "s1", ActualUsage: 500, MaxDuration: 100})
+	appErr := svc.CloseSession(ctx, &req.CloseSessionReq{SessionID: "s1", ActualUsage: 500})
 	require.Nil(t, appErr)
 }
 
@@ -467,7 +472,7 @@ func TestModelGatewayService_StartConnection_PanicOnCleanup(t *testing.T) {
 			},
 		},
 	}
-	sessionRes := &res.SessionRes{ID: "s1"}
+	sessionRes := &res.SessionRes{ID: "s1", UserID: "user-1"}
 
 	configSvc := new(svcMocks.GlobalConfigService)
 	sessionSvc := new(svcMocks.SessionService)
@@ -475,12 +480,16 @@ func TestModelGatewayService_StartConnection_PanicOnCleanup(t *testing.T) {
 	quoteSvc := new(svcMocks.QuoteService)
 
 	configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
+	sessionSvc.On("CleanupStaleSessions", mock.Anything, "user-1").Return([]*res.SessionRes{}, (*appErrors.AppError)(nil))
 	quoteSvc.On("AcquireSessionLock", mock.Anything, "user-1", 60*time.Second).Return("lock-val", nil)
 	quoteSvc.On("ReleaseSessionLock", mock.Anything, "user-1", "lock-val").Return(nil)
 	quoteSvc.On("ReserveQuota", mock.Anything, "user-1", int64(3600)).Return(int64(300), func(bool) {}, (*appErrors.AppError)(nil))
 	sessionSvc.On("CreateSession", mock.Anything).Return(sessionRes, (*appErrors.AppError)(nil))
+	sessionSvc.On("SetReservation", mock.Anything, "s1", int64(300), int64(3600)).Return((*appErrors.AppError)(nil))
 	speechSvc.On("StartConnection", mock.Anything, mock.Anything).Return((*res.WebRTCConnectionRes)(nil), appErrors.Internal("speech error"))
 	sessionSvc.On("MarkSessionFailed", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+	quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(0), int64(3600)).Return(nil)
+	sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 
 	svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, quoteSvc)
 	ctx := setupSessionCtx("user-1")
@@ -512,6 +521,7 @@ func TestModelGatewayService_StartConnection_CleanupOnSessionCreateError(t *test
 	quoteSvc := new(svcMocks.QuoteService)
 
 	configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
+	sessionSvc.On("CleanupStaleSessions", mock.Anything, "user-1").Return([]*res.SessionRes{}, (*appErrors.AppError)(nil))
 	quoteSvc.On("AcquireSessionLock", mock.Anything, "user-1", 60*time.Second).Return("lock-val", nil)
 	quoteSvc.On("ReleaseSessionLock", mock.Anything, "user-1", "lock-val").Return(nil)
 	quoteSvc.On("ReserveQuota", mock.Anything, "user-1", int64(3600)).Return(int64(300), cleanup, (*appErrors.AppError)(nil))
@@ -527,7 +537,7 @@ func TestModelGatewayService_StartConnection_CleanupOnSessionCreateError(t *test
 }
 
 func TestModelGatewayService_ProxyOffer_NonJSONBody(t *testing.T) {
-	sessionRes := &res.SessionRes{ID: "s1", Status: "active"}
+	sessionRes := &res.SessionRes{ID: "s1", UserID: "user-1", Status: "active", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: false}
 	rawBody := []byte(`raw body`)
 
 	sessionSvc := new(svcMocks.SessionService)
@@ -549,8 +559,7 @@ func TestModelGatewayService_ProxyOffer_NonJSONBody(t *testing.T) {
 }
 
 func TestModelGatewayService_ProxyOffer_NonSuccessWithFailedMark(t *testing.T) {
-	sessionRes := &res.SessionRes{ID: "s1", Status: "active"}
-
+	sessionRes := &res.SessionRes{ID: "s1", UserID: "user-1", Status: "active", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: false}
 	sessionSvc := new(svcMocks.SessionService)
 	speechSvc := new(svcMocks.SpeechProxyService)
 	configSvc := new(svcMocks.GlobalConfigService)
@@ -559,6 +568,8 @@ func TestModelGatewayService_ProxyOffer_NonSuccessWithFailedMark(t *testing.T) {
 	sessionSvc.On("GetSessionBySpeechSessionID", mock.Anything, "speech-s1").Return(sessionRes, (*appErrors.AppError)(nil))
 	speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return([]byte("err"), http.StatusBadRequest, (*appErrors.AppError)(nil))
 	sessionSvc.On("MarkSessionFailed", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+	quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(0), int64(3600)).Return(nil)
+	sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 
 	svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, quoteSvc)
 	ctx := context.Background()
@@ -570,7 +581,7 @@ func TestModelGatewayService_ProxyOffer_NonSuccessWithFailedMark(t *testing.T) {
 }
 
 func TestModelGatewayService_ProxyOffer_2xxStatusCodes(t *testing.T) {
-	sessionRes := &res.SessionRes{ID: "s1", Status: "active"}
+	sessionRes := &res.SessionRes{ID: "s1", Status: "active", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: false}
 
 	tests := []struct {
 		name       string
@@ -604,7 +615,7 @@ func TestModelGatewayService_ProxyOffer_2xxStatusCodes(t *testing.T) {
 }
 
 func TestModelGatewayService_ProxyOffer_Non200StatusCodes(t *testing.T) {
-	sessionRes := &res.SessionRes{ID: "s1", Status: "active"}
+	sessionRes := &res.SessionRes{ID: "s1", UserID: "user-1", Status: "active", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: false}
 
 	tests := []struct {
 		name       string
@@ -626,6 +637,8 @@ func TestModelGatewayService_ProxyOffer_Non200StatusCodes(t *testing.T) {
 			sessionSvc.On("GetSessionBySpeechSessionID", mock.Anything, "speech-s1").Return(sessionRes, (*appErrors.AppError)(nil))
 			speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return([]byte("body"), tt.statusCode, (*appErrors.AppError)(nil))
 			sessionSvc.On("MarkSessionFailed", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+			quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(0), int64(3600)).Return(nil)
+			sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 
 			svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, quoteSvc)
 			ctx := context.Background()
@@ -638,8 +651,8 @@ func TestModelGatewayService_ProxyOffer_Non200StatusCodes(t *testing.T) {
 	}
 }
 
-func TestModelGatewayService_CloseSession_PanicWithSessionPending(t *testing.T) {
-	pendingSession := &res.SessionRes{ID: "s1", Status: "pending", UserID: "user-1"}
+func TestModelGatewayService_CloseSession_PendingSessionSucceeds(t *testing.T) {
+	pendingSession := &res.SessionRes{ID: "s1", Status: "pending", UserID: "user-1", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: false}
 
 	sessionSvc := new(svcMocks.SessionService)
 	configSvc := new(svcMocks.GlobalConfigService)
@@ -647,18 +660,37 @@ func TestModelGatewayService_CloseSession_PanicWithSessionPending(t *testing.T) 
 	quoteSvc := new(svcMocks.QuoteService)
 
 	sessionSvc.On("GetSession", mock.Anything, "s1").Return(pendingSession, (*appErrors.AppError)(nil))
+	quoteSvc.On("Release", mock.Anything, "user-1", int64(300), int64(0), int64(3600)).Return(nil)
+	sessionSvc.On("MarkQuotaReleased", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+	sessionSvc.On("MarkSessionInactive", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
 
 	svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, quoteSvc)
 	ctx := context.Background()
 
-	appErr := svc.CloseSession(ctx, &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60, MaxDuration: 300})
-	require.NotNil(t, appErr)
-	assert.Equal(t, http.StatusBadRequest, appErr.Code)
-	assert.Contains(t, appErr.Message, "session is not active")
+	appErr := svc.CloseSession(ctx, &req.CloseSessionReq{SessionID: "s1", ActualUsage: 0})
+	require.Nil(t, appErr)
+}
+
+func TestModelGatewayService_CloseSession_AlreadyReleased(t *testing.T) {
+	releasedSession := &res.SessionRes{ID: "s1", Status: "active", UserID: "user-1", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: true}
+
+	sessionSvc := new(svcMocks.SessionService)
+	configSvc := new(svcMocks.GlobalConfigService)
+	speechSvc := new(svcMocks.SpeechProxyService)
+	quoteSvc := new(svcMocks.QuoteService)
+
+	sessionSvc.On("GetSession", mock.Anything, "s1").Return(releasedSession, (*appErrors.AppError)(nil))
+	sessionSvc.On("MarkSessionInactive", mock.Anything, "s1").Return((*appErrors.AppError)(nil))
+
+	svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, quoteSvc)
+	ctx := context.Background()
+
+	appErr := svc.CloseSession(ctx, &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60})
+	require.Nil(t, appErr)
 }
 
 func TestModelGatewayService_ProxyOffer_ContextPropagation(t *testing.T) {
-	sessionRes := &res.SessionRes{ID: "s1", Status: "active"}
+	sessionRes := &res.SessionRes{ID: "s1", Status: "active", ReservedAmount: 300, DailyQuota: 3600, QuotaReleased: false}
 	type ctxKey string
 	testKey := ctxKey("test-key")
 	ctx := context.WithValue(context.Background(), testKey, "test-value")
@@ -689,7 +721,7 @@ func TestModelGatewayService_StartConnection_JSONSerializable(t *testing.T) {
 			},
 		},
 	}
-	sessionRes := &res.SessionRes{ID: "s1"}
+	sessionRes := &res.SessionRes{ID: "s1", UserID: "user-1"}
 	webrtcRes := &res.WebRTCConnectionRes{
 		SessionID: "speech-s1",
 		IceConfig: &res.IceConfig{
@@ -705,10 +737,12 @@ func TestModelGatewayService_StartConnection_JSONSerializable(t *testing.T) {
 	quoteSvc := new(svcMocks.QuoteService)
 
 	configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
+	sessionSvc.On("CleanupStaleSessions", mock.Anything, "user-1").Return([]*res.SessionRes{}, (*appErrors.AppError)(nil))
 	quoteSvc.On("AcquireSessionLock", mock.Anything, "user-1", 60*time.Second).Return("lock-val", nil)
 	quoteSvc.On("ReleaseSessionLock", mock.Anything, "user-1", "lock-val").Return(nil)
 	quoteSvc.On("ReserveQuota", mock.Anything, "user-1", int64(3600)).Return(int64(100), func(bool) {}, (*appErrors.AppError)(nil))
 	sessionSvc.On("CreateSession", mock.Anything).Return(sessionRes, (*appErrors.AppError)(nil))
+	sessionSvc.On("SetReservation", mock.Anything, "s1", int64(100), int64(3600)).Return((*appErrors.AppError)(nil))
 	speechSvc.On("StartConnection", mock.Anything, mock.Anything).Return(webrtcRes, (*appErrors.AppError)(nil))
 	sessionSvc.On("SetSpeechSessionID", mock.Anything, "s1", "speech-s1").Return((*appErrors.AppError)(nil))
 

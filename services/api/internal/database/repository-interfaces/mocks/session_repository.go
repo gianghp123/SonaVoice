@@ -36,3 +36,11 @@ func (m *SessionRepository) GetBySpeechSessionID(ctx context.Context, speechSess
 	}
 	return args.Get(0).(*models.Session), args.Error(1)
 }
+
+func (m *SessionRepository) FindStaleByUserID(ctx context.Context, userID string) ([]*models.Session, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*models.Session), args.Error(1)
+}

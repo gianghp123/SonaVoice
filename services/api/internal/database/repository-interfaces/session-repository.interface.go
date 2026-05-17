@@ -11,4 +11,5 @@ type ISessionRepository interface {
 	Get(ctx context.Context, sessionId string) (*models.Session, error)
 	Update(ctx context.Context, model *models.Session) error
 	GetBySpeechSessionID(ctx context.Context, speechSessionId string) (*models.Session, error)
+	FindStaleByUserID(ctx context.Context, userID string) ([]*models.Session, error)
 }

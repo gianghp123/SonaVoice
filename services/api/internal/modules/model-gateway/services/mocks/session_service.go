@@ -74,6 +74,14 @@ func (m *SessionService) SetSpeechSessionID(ctx context.Context, sessionID, spee
 	return args.Get(0).(*errors.AppError)
 }
 
+func (m *SessionService) SetReservation(ctx context.Context, sessionID string, reservedAmount, dailyQuota int64) *errors.AppError {
+	args := m.Called(ctx, sessionID, reservedAmount, dailyQuota)
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(*errors.AppError)
+}
+
 func (m *SessionService) MarkSessionFailed(ctx context.Context, sessionID string) *errors.AppError {
 	args := m.Called(ctx, sessionID)
 	if args.Get(0) == nil {
@@ -96,4 +104,30 @@ func (m *SessionService) MarkSessionInactive(ctx context.Context, sessionID stri
 		return nil
 	}
 	return args.Get(0).(*errors.AppError)
+}
+
+func (m *SessionService) MarkQuotaReleased(ctx context.Context, sessionID string) *errors.AppError {
+	args := m.Called(ctx, sessionID)
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(*errors.AppError)
+}
+
+func (m *SessionService) CleanupStaleSessions(ctx context.Context, userID string) ([]*res.SessionRes, *errors.AppError) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, func() *errors.AppError {
+			if args.Get(1) == nil {
+				return nil
+			}
+			return args.Get(1).(*errors.AppError)
+		}()
+	}
+	return args.Get(0).([]*res.SessionRes), func() *errors.AppError {
+		if args.Get(1) == nil {
+			return nil
+		}
+		return args.Get(1).(*errors.AppError)
+	}()
 }

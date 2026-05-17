@@ -18,9 +18,12 @@ type ISessionService interface {
 	GetSession(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError)
 	GetSessionBySpeechSessionID(ctx context.Context, speechSessionID string) (*res.SessionRes, *errors.AppError)
 	SetSpeechSessionID(ctx context.Context, sessionID, speechSessionID string) *errors.AppError
+	SetReservation(ctx context.Context, sessionID string, reservedAmount, dailyQuota int64) *errors.AppError
 	MarkSessionFailed(ctx context.Context, sessionID string) *errors.AppError
 	MarkSessionActive(ctx context.Context, sessionID string) *errors.AppError
 	MarkSessionInactive(ctx context.Context, sessionID string) *errors.AppError
+	MarkQuotaReleased(ctx context.Context, sessionID string) *errors.AppError
+	CleanupStaleSessions(ctx context.Context, userID string) ([]*res.SessionRes, *errors.AppError)
 }
 
 type sessionService struct {
@@ -39,7 +42,8 @@ func (s *sessionService) CreateSession(ctx context.Context) (*res.SessionRes, *e
 		Status: enums.SessionStatusPending,
 	}
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
-		return nil, errors.MapRepoError(err)
+		logger.Errorw("Failed to create session", "error", err)
+		return nil, errors.Internal()
 	}
 	var dto res.SessionRes
 	if err := utils.MapToDTO(session, &dto); err != nil {
@@ -109,6 +113,22 @@ func (s *sessionService) SetSpeechSessionID(ctx context.Context, sessionID, spee
 	return nil
 }
 
+func (s *sessionService) SetReservation(ctx context.Context, sessionID string, reservedAmount, dailyQuota int64) *errors.AppError {
+	logger := zapLogger.S()
+	session, err := s.sessionRepo.Get(ctx, sessionID)
+	if err != nil {
+		logger.Errorw("Failed to get session", "error", err)
+		return errors.Internal()
+	}
+	session.ReservedAmount = reservedAmount
+	session.DailyQuota = dailyQuota
+	if err := s.sessionRepo.Update(ctx, session); err != nil {
+		logger.Errorw("Failed to update session reservation", "error", err)
+		return errors.Internal()
+	}
+	return nil
+}
+
 func (s *sessionService) MarkSessionFailed(ctx context.Context, sessionID string) *errors.AppError {
 	logger := zapLogger.S()
 	session, err := s.sessionRepo.Get(ctx, sessionID)
@@ -153,4 +173,39 @@ func (s *sessionService) MarkSessionInactive(ctx context.Context, sessionID stri
 		return errors.Internal()
 	}
 	return nil
+}
+
+func (s *sessionService) MarkQuotaReleased(ctx context.Context, sessionID string) *errors.AppError {
+	logger := zapLogger.S()
+	session, err := s.sessionRepo.Get(ctx, sessionID)
+	if err != nil {
+		logger.Errorw("Failed to get session", "error", err)
+		return errors.Internal()
+	}
+	session.QuotaReleased = true
+	if err := s.sessionRepo.Update(ctx, session); err != nil {
+		logger.Errorw("Failed to mark quota released", "error", err)
+		return errors.Internal()
+	}
+	return nil
+}
+
+func (s *sessionService) CleanupStaleSessions(ctx context.Context, userID string) ([]*res.SessionRes, *errors.AppError) {
+	logger := zapLogger.S()
+	sessions, err := s.sessionRepo.FindStaleByUserID(ctx, userID)
+	if err != nil {
+		logger.Errorw("Failed to find stale sessions", "error", err)
+		return nil, errors.Internal()
+	}
+
+	var results []*res.SessionRes
+	for _, session := range sessions {
+		var dto res.SessionRes
+		if err := utils.MapToDTO(session, &dto); err != nil {
+			logger.Errorw("Failed to map session to dto", "sessionId", session.ID, "error", err)
+			continue
+		}
+		results = append(results, &dto)
+	}
+	return results, nil
 }

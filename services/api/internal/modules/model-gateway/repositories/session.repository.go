@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 
+	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	"gorm.io/gorm"
@@ -44,4 +45,12 @@ func (s *sessionRepository) GetBySpeechSessionID(ctx context.Context, speechSess
 	}
 
 	return &model, nil
+}
+
+func (s *sessionRepository) FindStaleByUserID(ctx context.Context, userID string) ([]*models.Session, error) {
+	var sessions []*models.Session
+	if err := s.db.Where("user_id = ? AND status IN (?, ?) AND quota_released = ?", userID, enums.SessionStatusPending, enums.SessionStatusActive, false).Find(&sessions).Error; err != nil {
+		return nil, err
+	}
+	return sessions, nil
 }
