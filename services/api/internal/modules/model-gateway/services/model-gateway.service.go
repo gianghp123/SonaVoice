@@ -64,7 +64,12 @@ func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.CreateS
 	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 	logger.Debugw("Starting connect to speech engine", "userId", requesterId)
 
-	staleSessions, appErr := s.sessionService.CleanupStaleSessions(ctx, requesterId)
+	globalconfig, appErr := s.configService.Get(ctx)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	staleSessions, appErr := s.sessionService.CleanupStaleSessions(ctx, requesterId, int64(globalconfig.Config.Limits.Session.MaxSessionLockTTL))
 	if appErr != nil {
 		logger.Errorw("Failed to cleanup stale sessions", "error", appErr)
 	}
@@ -76,11 +81,6 @@ func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.CreateS
 				logger.Errorw("Failed to mark stale session inactive", "sessionId", ss.ID, "error", markErr)
 			}
 		}
-	}
-
-	globalconfig, appErr := s.configService.Get(ctx)
-	if appErr != nil {
-		return nil, appErr
 	}
 
 	lockValue, err := s.quoteService.AcquireSessionLock(ctx, requesterId, time.Duration(globalconfig.Config.Limits.Session.MaxSessionLockTTL)*time.Second)
@@ -142,6 +142,7 @@ func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.CreateS
 
 	var response res.CreateSessionRes
 	response.ID = session.ID
+	response.MaxDuration = reservedAmount
 	response.WebRTCConnectionRes = result
 	return &response, nil
 }
@@ -202,7 +203,7 @@ func (s *modelGatewayService) CloseSession(ctx context.Context, reqBody *req.Clo
 		return errors.BadRequest("actualUsage cannot be negative")
 	}
 
-	session, appErr := s.sessionService.GetSession(ctx, sessionId)
+	session, appErr := s.sessionService.GetSessionInternal(ctx, sessionId)
 	if appErr != nil {
 		logger.Errorw("Failed to get session", "sessionId", sessionId, "error", appErr)
 		return appErr

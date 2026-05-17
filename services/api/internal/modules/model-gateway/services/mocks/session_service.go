@@ -48,6 +48,24 @@ func (m *SessionService) GetSession(ctx context.Context, sessionID string) (*res
 	}()
 }
 
+func (m *SessionService) GetSessionInternal(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError) {
+	args := m.Called(ctx, sessionID)
+	if args.Get(0) == nil {
+		return nil, func() *errors.AppError {
+			if args.Get(1) == nil {
+				return nil
+			}
+			return args.Get(1).(*errors.AppError)
+		}()
+	}
+	return args.Get(0).(*res.SessionRes), func() *errors.AppError {
+		if args.Get(1) == nil {
+			return nil
+		}
+		return args.Get(1).(*errors.AppError)
+	}()
+}
+
 func (m *SessionService) GetSessionBySpeechSessionID(ctx context.Context, speechSessionID string) (*res.SessionRes, *errors.AppError) {
 	args := m.Called(ctx, speechSessionID)
 	if args.Get(0) == nil {
@@ -114,8 +132,8 @@ func (m *SessionService) MarkQuotaReleased(ctx context.Context, sessionID string
 	return args.Get(0).(*errors.AppError)
 }
 
-func (m *SessionService) CleanupStaleSessions(ctx context.Context, userID string) ([]*res.SessionRes, *errors.AppError) {
-	args := m.Called(ctx, userID)
+func (m *SessionService) CleanupStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*res.SessionRes, *errors.AppError) {
+	args := m.Called(ctx, userID, pendingTimeoutSeconds)
 	if args.Get(0) == nil {
 		return nil, func() *errors.AppError {
 			if args.Get(1) == nil {

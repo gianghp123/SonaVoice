@@ -6,6 +6,7 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	_ "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
 	"github.com/gin-gonic/gin"
@@ -70,4 +71,24 @@ func (ctrl *ModelGatewayController) HandleOffer(c *gin.Context) {
 	}
 
 	c.Data(statusCode, "application/json", respBody)
+}
+
+// HandleCloseSession handles internal session close callbacks from the speech engine.
+// No user auth — this is an internal endpoint on a private network.
+func (ctrl *ModelGatewayController) HandleCloseSession(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+
+	var reqBody req.CloseSessionReq
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
+		c.JSON(http.StatusBadRequest, response.Fail(errors.BadRequest("invalid request body")))
+		return
+	}
+	reqBody.SessionID = sessionID
+
+	if appErr := ctrl.svc.CloseSession(c.Request.Context(), &reqBody); appErr != nil {
+		c.JSON(appErr.Code, response.Fail(appErr))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success[any](nil))
 }

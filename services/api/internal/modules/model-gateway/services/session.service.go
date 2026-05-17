@@ -16,6 +16,7 @@ import (
 type ISessionService interface {
 	CreateSession(ctx context.Context) (*res.SessionRes, *errors.AppError)
 	GetSession(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError)
+	GetSessionInternal(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError)
 	GetSessionBySpeechSessionID(ctx context.Context, speechSessionID string) (*res.SessionRes, *errors.AppError)
 	SetSpeechSessionID(ctx context.Context, sessionID, speechSessionID string) *errors.AppError
 	SetReservation(ctx context.Context, sessionID string, reservedAmount, dailyQuota int64) *errors.AppError
@@ -23,7 +24,7 @@ type ISessionService interface {
 	MarkSessionActive(ctx context.Context, sessionID string) *errors.AppError
 	MarkSessionInactive(ctx context.Context, sessionID string) *errors.AppError
 	MarkQuotaReleased(ctx context.Context, sessionID string) *errors.AppError
-	CleanupStaleSessions(ctx context.Context, userID string) ([]*res.SessionRes, *errors.AppError)
+CleanupStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*res.SessionRes, *errors.AppError)
 }
 
 type sessionService struct {
@@ -66,6 +67,22 @@ func (s *sessionService) GetSession(ctx context.Context, sessionID string) (*res
 	if appErr := utils.EnforceOwnership(session.UserID, requesterId); appErr != nil {
 		logger.Errorw("Failed to enforce ownership", "error", appErr)
 		return nil, appErr
+	}
+
+	var dto res.SessionRes
+	if err := utils.MapToDTO(session, &dto); err != nil {
+		logger.Errorw("Failed to map session to dto", "error", err)
+		return nil, errors.Internal()
+	}
+	return &dto, nil
+}
+
+func (s *sessionService) GetSessionInternal(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError) {
+	logger := zapLogger.S()
+	session, err := s.sessionRepo.Get(ctx, sessionID)
+	if err != nil {
+		logger.Errorw("Failed to get session", "error", err)
+		return nil, errors.Internal()
 	}
 
 	var dto res.SessionRes
@@ -152,9 +169,9 @@ func (s *sessionService) MarkQuotaReleased(ctx context.Context, sessionID string
 	return nil
 }
 
-func (s *sessionService) CleanupStaleSessions(ctx context.Context, userID string) ([]*res.SessionRes, *errors.AppError) {
+func (s *sessionService) CleanupStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*res.SessionRes, *errors.AppError) {
 	logger := zapLogger.S()
-	sessions, err := s.sessionRepo.FindStaleByUserID(ctx, userID)
+	sessions, err := s.sessionRepo.FindStaleByUserID(ctx, userID, pendingTimeoutSeconds)
 	if err != nil {
 		logger.Errorw("Failed to find stale sessions", "error", err)
 		return nil, errors.Internal()

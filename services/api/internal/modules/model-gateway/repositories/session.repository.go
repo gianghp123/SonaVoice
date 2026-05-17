@@ -48,9 +48,14 @@ func (s *sessionRepository) GetBySpeechSessionID(ctx context.Context, speechSess
 	return &model, nil
 }
 
-func (s *sessionRepository) FindStaleByUserID(ctx context.Context, userID string) ([]*models.Session, error) {
+func (s *sessionRepository) FindStaleByUserID(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*models.Session, error) {
 	var sessions []*models.Session
-	if err := s.db.Where("user_id = ? AND status IN (?, ?) AND quota_released = ?", userID, enums.SessionStatusPending, enums.SessionStatusActive, false).Find(&sessions).Error; err != nil {
+	if err := s.db.Where(
+		"user_id = ? AND quota_released = ? AND ((status = ? AND EXTRACT(EPOCH FROM (now() - created_at)) > ?) OR (status = ? AND started_at IS NOT NULL AND EXTRACT(EPOCH FROM (now() - started_at)) > reserved_amount))",
+		userID, false,
+		enums.SessionStatusPending, pendingTimeoutSeconds,
+		enums.SessionStatusActive,
+	).Find(&sessions).Error; err != nil {
 		return nil, err
 	}
 	return sessions, nil
