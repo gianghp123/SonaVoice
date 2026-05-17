@@ -11,9 +11,9 @@ async function webrtcProxy(
   const path = pathParts.join("/");
   const { searchParams } = new URL(req.url);
 
-  const PIPECAT_API_URL = process.env.API_URL;
+  const API_URL = process.env.API_URL;
 
-  if (!PIPECAT_API_URL) {
+  if (!API_URL) {
     return Response.json(
       { error: "Missing PIPECAT_API_URL" },
       { status: 500 }
@@ -21,7 +21,7 @@ async function webrtcProxy(
   }
 
   const query = searchParams.toString();
-  const targetUrl = `${PIPECAT_API_URL}/${path}${query ? `?${query}` : ""}`;
+  const targetUrl = `${API_URL}/${path}${query ? `?${query}` : ""}`;
 
   const forwardedHeaders = new Headers();
   const contentType = req.headers.get("content-type");

@@ -42,6 +42,7 @@ func NewModelGatewayService(
 
 func (s *modelGatewayService) releaseQuotaIfNotReleased(ctx context.Context, session *res.SessionRes, actualUsage int64) *errors.AppError {
 	logger := zapLogger.S()
+	logger.Debugw("Releasing quota", "sessionId", session.ID, "actualUsage", actualUsage)
 	if session.QuotaReleased {
 		logger.Debugw("Quota already released, skipping", "sessionId", session.ID)
 		return nil
@@ -69,7 +70,7 @@ func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.CreateS
 		return nil, appErr
 	}
 
-	staleSessions, appErr := s.sessionService.CleanupStaleSessions(ctx, requesterId, int64(globalconfig.Config.Limits.Session.MaxSessionLockTTL))
+	staleSessions, appErr := s.sessionService.FindStaleSessions(ctx, requesterId, int64(globalconfig.Config.Limits.Session.MaxSessionLockTTL))
 	if appErr != nil {
 		logger.Errorw("Failed to cleanup stale sessions", "error", appErr)
 	}

@@ -24,7 +24,7 @@ type ISessionService interface {
 	MarkSessionActive(ctx context.Context, sessionID string) *errors.AppError
 	MarkSessionInactive(ctx context.Context, sessionID string) *errors.AppError
 	MarkQuotaReleased(ctx context.Context, sessionID string) *errors.AppError
-CleanupStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*res.SessionRes, *errors.AppError)
+	FindStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*res.SessionRes, *errors.AppError)
 }
 
 type sessionService struct {
@@ -135,6 +135,7 @@ func (s *sessionService) SetReservation(ctx context.Context, sessionID string, r
 
 func (s *sessionService) MarkSessionFailed(ctx context.Context, sessionID string) *errors.AppError {
 	logger := zapLogger.S()
+	logger.Debugw("Marking session as failed", "sessionId", sessionID)
 	if err := s.sessionRepo.UpdateStatus(ctx, sessionID, enums.SessionStatusFailed); err != nil {
 		logger.Errorw("Failed to update session to failed", "error", err)
 		return errors.Internal()
@@ -169,8 +170,9 @@ func (s *sessionService) MarkQuotaReleased(ctx context.Context, sessionID string
 	return nil
 }
 
-func (s *sessionService) CleanupStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*res.SessionRes, *errors.AppError) {
+func (s *sessionService) FindStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*res.SessionRes, *errors.AppError) {
 	logger := zapLogger.S()
+	logger.Debugw("Finding up stale sessions", "userId", userID, "pendingTimeoutSeconds", pendingTimeoutSeconds)
 	sessions, err := s.sessionRepo.FindStaleByUserID(ctx, userID, pendingTimeoutSeconds)
 	if err != nil {
 		logger.Errorw("Failed to find stale sessions", "error", err)
@@ -186,5 +188,6 @@ func (s *sessionService) CleanupStaleSessions(ctx context.Context, userID string
 		}
 		results = append(results, &dto)
 	}
+	logger.Debugw("Found up stale sessions", "count", len(results))
 	return results, nil
 }
