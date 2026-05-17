@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { ConnectNow } from "@/features/landing/components/ConnectNow"
+import { Show, SignInButton } from "@clerk/nextjs"
 
 export default function HomePage() {
   return (
@@ -18,7 +19,13 @@ export default function HomePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ConnectNow />
+          <Show when="signed-in">
+            <ConnectNow />
+          </Show>
+          <Show when="signed-out">
+            <p>Please sign in to start a conversation.</p>
+            <SignInButton />
+          </Show>
         </CardContent>
       </Card>
     </div>

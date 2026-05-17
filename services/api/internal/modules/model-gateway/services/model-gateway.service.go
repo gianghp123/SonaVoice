@@ -56,11 +56,6 @@ func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.WebRTCC
 	}
 	defer s.quoteService.ReleaseSessionLock(ctx, requesterId, lockValue)
 
-	session, appErr := s.sessionService.CreateSession(ctx)
-	if appErr != nil {
-		return nil, appErr
-	}
-
 	dailyQuota := globalconfig.Config.Limits.User.DailyVoiceSeconds
 
 	reservedAmount, cleanup, appErr := s.quoteService.ReserveQuota(ctx, requesterId, int64(dailyQuota))
@@ -68,6 +63,11 @@ func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.WebRTCC
 		return nil, appErr
 	}
 	defer cleanup(false)
+
+	session, appErr := s.sessionService.CreateSession(ctx)
+	if appErr != nil {
+		return nil, appErr
+	}
 
 	maxDuration := reservedAmount
 
