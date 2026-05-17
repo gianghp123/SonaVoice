@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
@@ -81,6 +82,25 @@ func (s *sessionRepository) UpdateActiveSession(ctx context.Context, sessionID s
 		"status":     enums.SessionStatusActive,
 		"started_at": startedAt,
 	}).Error
+}
+
+func (s *sessionRepository) FindActiveByUserID(ctx context.Context, userID string) (*models.Session, error) {
+	var model models.Session
+	if err := s.db.Where("user_id = ? AND status IN ?", userID, []enums.SessionStatus{enums.SessionStatusActive, enums.SessionStatusPending}).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &model, nil
+}
+
+func (s *sessionRepository) FindResumableByUserID(ctx context.Context, userID string) ([]*models.Session, error) {
+	var sessions []*models.Session
+	if err := s.db.Where("user_id = ? AND status = ?", userID, enums.SessionStatusInactive).Find(&sessions).Error; err != nil {
+		return nil, err
+	}
+	return sessions, nil
 }
 
 func (s *sessionRepository) UpdateQuotaReleased(ctx context.Context, sessionID string) error {

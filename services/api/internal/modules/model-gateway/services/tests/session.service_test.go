@@ -389,3 +389,39 @@ func TestSessionService_MarkSessionInactive(t *testing.T) {
 		})
 	}
 }
+
+func TestSessionService_FindActiveByUserID_Found(t *testing.T) {
+	mockRepo := new(repoMocks.SessionRepository)
+	svc := services.NewSessionService(mockRepo)
+
+	mockRepo.On("FindActiveByUserID", mock.Anything, "user-1").Return(&models.Session{UserID: "user-1", Status: enums.SessionStatusActive}, nil)
+
+	result, appErr := svc.FindActiveByUserID(context.Background(), "user-1")
+	assert.Nil(t, appErr)
+	assert.NotNil(t, result)
+	assert.Equal(t, "user-1", result.UserID)
+}
+
+func TestSessionService_FindActiveByUserID_NotFound(t *testing.T) {
+	mockRepo := new(repoMocks.SessionRepository)
+	svc := services.NewSessionService(mockRepo)
+
+	mockRepo.On("FindActiveByUserID", mock.Anything, "user-1").Return(nil, nil)
+
+	result, appErr := svc.FindActiveByUserID(context.Background(), "user-1")
+	assert.Nil(t, appErr)
+	assert.Nil(t, result)
+}
+
+func TestSessionService_FindResumableByUserID(t *testing.T) {
+	mockRepo := new(repoMocks.SessionRepository)
+	svc := services.NewSessionService(mockRepo)
+
+	mockRepo.On("FindResumableByUserID", mock.Anything, "user-1").Return([]*models.Session{
+		{UserID: "user-1", Status: enums.SessionStatusInactive},
+	}, nil)
+
+	result, appErr := svc.FindResumableByUserID(context.Background(), "user-1")
+	assert.Nil(t, appErr)
+	assert.Len(t, result, 1)
+}

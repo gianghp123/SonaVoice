@@ -26,7 +26,9 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHt
 	globalConfigController := controllers.NewGlobalConfigController(configService)
 
 	mgGroup := router.Group("/model-gateway")
-	mgGroup.POST("/start", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleStart)
+	mgGroup.POST("/sessions", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleCreateSession)
+	mgGroup.GET("/sessions", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleListSessions)
+	mgGroup.POST("/sessions/:sessionId/resume", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleResumeSession)
 	mgGroup.POST("/sessions/:sessionId/api/offer", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleOffer)
 	mgGroup.PATCH("/sessions/:sessionId/api/offer", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleOffer)
 	mgGroup.POST("/sessions/:sessionId/close", modelGatewayController.HandleCloseSession)

@@ -20,25 +20,70 @@ func NewModelGatewayController(svc services.IModelGatewayService) *ModelGatewayC
 	return &ModelGatewayController{svc: svc}
 }
 
-// HandleStart godoc
-// @Summary      Create WebRTC connection
+// HandleCreateSession godoc
+// @Summary      Create new session
 // @Description  Create a new session and start a WebRTC connection with the speech service
 // @Security     Bearer
 // @Tags         model-gateway
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  response.BaseResponse[res.WebRTCConnectionRes]
+// @Success      200  {object}  response.BaseResponse[res.CreateSessionRes]
 // @Failure      401  {object}  response.BaseResponse[any]
 // @Failure      403  {object}  response.BaseResponse[any]
+// @Failure      409  {object}  response.BaseResponse[any]
 // @Failure      500  {object}  response.BaseResponse[any]
-// @Router       /model-gateway/start [post]
-func (ctrl *ModelGatewayController) HandleStart(c *gin.Context) {
-	offer, appErr := ctrl.svc.StartConnection(c.Request.Context())
+// @Router       /model-gateway/sessions [post]
+func (ctrl *ModelGatewayController) HandleCreateSession(c *gin.Context) {
+	offer, appErr := ctrl.svc.CreateSession(c.Request.Context())
 	if appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
 	}
 	c.JSON(http.StatusOK, response.Success(offer))
+}
+
+// HandleResumeSession godoc
+// @Summary      Resume an existing session
+// @Description  Resume an inactive session with a new speech engine connection
+// @Security     Bearer
+// @Tags         model-gateway
+// @Accept       json
+// @Produce      json
+// @Param        sessionId  path      string  true  "Session ID"
+// @Success      200  {object}  response.BaseResponse[res.CreateSessionRes]
+// @Failure      400  {object}  response.BaseResponse[any]
+// @Failure      403  {object}  response.BaseResponse[any]
+// @Failure      409  {object}  response.BaseResponse[any]
+// @Failure      500  {object}  response.BaseResponse[any]
+// @Router       /model-gateway/sessions/{sessionId}/resume [post]
+func (ctrl *ModelGatewayController) HandleResumeSession(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+	offer, appErr := ctrl.svc.ResumeSession(c.Request.Context(), sessionID)
+	if appErr != nil {
+		c.JSON(appErr.Code, response.Fail(appErr))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(offer))
+}
+
+// HandleListSessions godoc
+// @Summary      List resumable sessions
+// @Description  List all resumable (inactive) sessions for the authenticated user
+// @Security     Bearer
+// @Tags         model-gateway
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  response.BaseResponse[[]res.SessionListItemRes]
+// @Failure      401  {object}  response.BaseResponse[any]
+// @Failure      500  {object}  response.BaseResponse[any]
+// @Router       /model-gateway/sessions [get]
+func (ctrl *ModelGatewayController) HandleListSessions(c *gin.Context) {
+	sessions, appErr := ctrl.svc.ListSessions(c.Request.Context())
+	if appErr != nil {
+		c.JSON(appErr.Code, response.Fail(appErr))
+		return
+	}
+	c.JSON(http.StatusOK, response.Success(sessions))
 }
 
 // HandleOffer godoc

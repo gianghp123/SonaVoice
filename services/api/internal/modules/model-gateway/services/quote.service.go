@@ -14,16 +14,16 @@ import (
 type IQuoteService interface {
 	// ReserveAllRemaining reserves all currently remaining quota for a live session.
 	// It returns the amount reserved, which should be used as maxDuration.
-	ReserveAllRemaining(ctx context.Context, userID string, dailyQuota int64) (int64, error)
+	ReserveAllRemaining(ctx context.Context, userID string, dailyQuota int64) (int64, *errors.AppError)
 
 	// Release returns the unused portion of a previous reservation.
-	Release(ctx context.Context, userID string, reservedAmount, actualUsage, dailyQuota int64) error
+	Release(ctx context.Context, userID string, reservedAmount, actualUsage, dailyQuota int64) *errors.AppError
 
 	// AcquireSessionLock returns a lock value that must be passed to ReleaseSessionLock.
-	AcquireSessionLock(ctx context.Context, userID string, ttl time.Duration) (string, error)
+	AcquireSessionLock(ctx context.Context, userID string, ttl time.Duration) (string, *errors.AppError)
 
 	// ReleaseSessionLock safely releases the lock only if lockValue matches.
-	ReleaseSessionLock(ctx context.Context, userID, lockValue string) error
+	ReleaseSessionLock(ctx context.Context, userID, lockValue string) *errors.AppError
 
 	ReserveQuota(ctx context.Context, userID string, dailyQuota int64) (reserved int64, cleanup func(bool), err *errors.AppError)
 }
@@ -74,7 +74,7 @@ func (s *quoteService) ReserveAllRemaining(
 	ctx context.Context,
 	userID string,
 	dailyQuota int64,
-) (int64, error) {
+) (int64, *errors.AppError) {
 	logger := zapLogger.S()
 
 	logger.Debugw(
@@ -111,7 +111,7 @@ func (s *quoteService) ReserveAllRemaining(
 		logger.Errorw(
 			"Failed to reserve all remaining quota",
 			"userId", userID,
-			"error", err,
+			"*errors.AppError", err,
 		)
 		return 0, errors.Internal()
 	}
@@ -135,7 +135,7 @@ func (s *quoteService) Release(
 	reservedAmount,
 	actualUsage,
 	dailyQuota int64,
-) error {
+) *errors.AppError {
 	logger := zapLogger.S()
 
 	logger.Debugw(
@@ -191,7 +191,7 @@ func (s *quoteService) Release(
 			"userId", userID,
 			"reservedAmount", reservedAmount,
 			"actualUsage", actualUsage,
-			"error", err,
+			"*errors.AppError", err,
 		)
 		return errors.Internal()
 	}
@@ -203,7 +203,7 @@ func (s *quoteService) AcquireSessionLock(
 	ctx context.Context,
 	userID string,
 	ttl time.Duration,
-) (string, error) {
+) (string, *errors.AppError) {
 	logger := zapLogger.S()
 
 	logger.Debugw(
@@ -234,7 +234,7 @@ func (s *quoteService) AcquireSessionLock(
 		logger.Errorw(
 			"Failed to acquire session lock",
 			"userId", userID,
-			"error", err,
+			"*errors.AppError", err,
 		)
 		return "", errors.Internal()
 	}
@@ -253,7 +253,7 @@ func (s *quoteService) AcquireSessionLock(
 func (s *quoteService) ReleaseSessionLock(
 	ctx context.Context,
 	userID, lockValue string,
-) error {
+) *errors.AppError {
 	logger := zapLogger.S()
 
 	logger.Debugw(
@@ -284,7 +284,7 @@ func (s *quoteService) ReleaseSessionLock(
 		logger.Errorw(
 			"Failed to release session lock",
 			"userId", userID,
-			"error", err,
+			"*errors.AppError", err,
 		)
 		return errors.Internal()
 	}
@@ -325,7 +325,7 @@ func (s *quoteService) ReserveQuota(
 				"Failed to rollback reserved quota",
 				"userId", userID,
 				"reservedAmount", reservedAmount,
-				"error", err,
+				"*errors.AppError", err,
 			)
 		}
 	}

@@ -12,7 +12,7 @@ SELECT
           "dailyRequestCount": 50
         },
         "session": {
-          "maxSessionLockTTL": 300
+          "maxSessionLockTTL": 5
         }
       }
     }'::jsonb
@@ -38,7 +38,7 @@ WHERE config = '{
       "dailyRequestCount": 50
     },
     "session": {
-      "maxSessionLockTTL": 300
+      "maxSessionLockTTL": 5
     }
   }
 }'::jsonb;

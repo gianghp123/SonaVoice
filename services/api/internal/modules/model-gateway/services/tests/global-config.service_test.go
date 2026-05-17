@@ -19,7 +19,7 @@ import (
 
 func makeConfigJSON(t *testing.T, cfg dtos.GlobalConfig) datatypes.JSON {
 	t.Helper()
-	b, err := json.Marshal(cfg)
+	b, err := json.Marshal(cfg.Config)
 	require.NoError(t, err)
 	return datatypes.JSON(b)
 }

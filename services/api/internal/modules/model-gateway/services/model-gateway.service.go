@@ -14,8 +14,10 @@ import (
 )
 
 type IModelGatewayService interface {
-	StartConnection(ctx context.Context) (*res.CreateSessionRes, *errors.AppError)
+	CreateSession(ctx context.Context) (*res.CreateSessionRes, *errors.AppError)
+	ResumeSession(ctx context.Context, sessionID string) (*res.CreateSessionRes, *errors.AppError)
 	CloseSession(ctx context.Context, reqBody *req.CloseSessionReq) *errors.AppError
+	ListSessions(ctx context.Context) ([]*res.SessionListItemRes, *errors.AppError)
 	ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
 }
 
@@ -60,92 +62,151 @@ func (s *modelGatewayService) releaseQuotaIfNotReleased(ctx context.Context, ses
 	return nil
 }
 
-func (s *modelGatewayService) StartConnection(ctx context.Context) (*res.CreateSessionRes, *errors.AppError) {
+func (s *modelGatewayService) ensureNoActiveSession(ctx context.Context, userID string) *errors.AppError {
+	active, appErr := s.sessionService.FindActiveByUserID(ctx, userID)
+	if appErr != nil {
+		return appErr
+	}
+	if active != nil {
+		return errors.Conflict("close current session before starting a new one")
+	}
+	return nil
+}
+
+func (s *modelGatewayService) cleanupStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) *errors.AppError {
 	logger := zapLogger.S()
-	requesterId := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
-	logger.Debugw("Starting connect to speech engine", "userId", requesterId)
+	staleSessions, appErr := s.sessionService.FindStaleSessions(ctx, userID, pendingTimeoutSeconds)
+	if appErr != nil {
+		logger.Errorw("Failed to find stale sessions", "error", appErr)
+		return appErr
+	}
+	for _, ss := range staleSessions {
+		if releaseErr := s.releaseQuotaIfNotReleased(ctx, ss, 0); releaseErr != nil {
+			logger.Errorw("Failed to release quota for stale session", "sessionId", ss.ID, "error", releaseErr)
+			return releaseErr
+		}
+		if markErr := s.sessionService.MarkSessionInactive(ctx, ss.ID); markErr != nil {
+			logger.Errorw("Failed to mark stale session inactive", "sessionId", ss.ID, "error", markErr)
+			return markErr
+		}
+	}
+	return nil
+}
+
+func (s *modelGatewayService) connectToSpeech(ctx context.Context, session *res.SessionRes, requesterID string) (*res.WebRTCConnectionRes, *errors.AppError) {
+	body := map[string]interface{}{
+		"enableDefaultIceServers": true,
+		"body": map[string]interface{}{
+			"user_id":      requesterID,
+			"session_id":   session.ID,
+			"max_duration": session.ReservedAmount,
+		},
+	}
+
+	result, appErr := s.speechProxyService.StartConnection(ctx, body)
+	if appErr != nil {
+		_ = s.sessionService.MarkSessionFailed(ctx, session.ID)
+		return nil, appErr
+	}
+
+	if appErr := s.sessionService.SetSpeechSessionID(ctx, session.ID, result.SessionID); appErr != nil {
+		return nil, appErr
+	}
+
+	return result, nil
+}
+
+func (s *modelGatewayService) startOrResume(ctx context.Context, session *res.SessionRes) (*res.CreateSessionRes, *errors.AppError) {
+	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 
 	globalconfig, appErr := s.configService.Get(ctx)
 	if appErr != nil {
 		return nil, appErr
 	}
 
-	staleSessions, appErr := s.sessionService.FindStaleSessions(ctx, requesterId, int64(globalconfig.Config.Limits.Session.MaxSessionLockTTL))
-	if appErr != nil {
-		logger.Errorw("Failed to cleanup stale sessions", "error", appErr)
-	}
-	for _, ss := range staleSessions {
-		if releaseErr := s.releaseQuotaIfNotReleased(ctx, ss, 0); releaseErr != nil {
-			logger.Errorw("Failed to release quota for stale session", "sessionId", ss.ID, "error", releaseErr)
-		} else {
-			if markErr := s.sessionService.MarkSessionInactive(ctx, ss.ID); markErr != nil {
-				logger.Errorw("Failed to mark stale session inactive", "sessionId", ss.ID, "error", markErr)
-			}
-		}
+	if appErr := s.ensureNoActiveSession(ctx, requesterID); appErr != nil {
+		return nil, appErr
 	}
 
-	lockValue, err := s.quoteService.AcquireSessionLock(ctx, requesterId, time.Duration(globalconfig.Config.Limits.Session.MaxSessionLockTTL)*time.Second)
-	if err != nil {
-		return nil, errors.Internal("failed to acquire session lock")
+	if appErr := s.cleanupStaleSessions(ctx, requesterID, int64(globalconfig.Config.Limits.Session.MaxSessionLockTTL)); appErr != nil {
+		return nil, appErr
 	}
-	defer s.quoteService.ReleaseSessionLock(ctx, requesterId, lockValue)
+
+	lockValue, appErr := s.quoteService.AcquireSessionLock(ctx, requesterID, time.Duration(globalconfig.Config.Limits.Session.MaxSessionLockTTL)*time.Second)
+	if appErr != nil {
+		return nil, appErr
+	}
+	defer s.quoteService.ReleaseSessionLock(ctx, requesterID, lockValue)
 
 	dailyQuota := globalconfig.Config.Limits.User.DailyVoiceSeconds
-
-	reservedAmount, cleanup, appErr := s.quoteService.ReserveQuota(ctx, requesterId, int64(dailyQuota))
+	reservedAmount, cleanup, appErr := s.quoteService.ReserveQuota(ctx, requesterID, int64(dailyQuota))
 	if appErr != nil {
 		return nil, appErr
 	}
 	defer cleanup(false)
 
-	session, appErr := s.sessionService.CreateSession(ctx)
-	if appErr != nil {
-		return nil, appErr
-	}
-
 	if appErr := s.sessionService.SetReservation(ctx, session.ID, reservedAmount, int64(dailyQuota)); appErr != nil {
-		logger.Errorw("Failed to set reservation on session", "sessionId", session.ID, "error", appErr)
-		if markErr := s.sessionService.MarkSessionFailed(ctx, session.ID); markErr != nil {
-			logger.Errorw("Failed to mark session as failed after SetReservation error", "error", markErr)
-		}
 		return nil, appErr
 	}
 
 	session.ReservedAmount = reservedAmount
 	session.DailyQuota = int64(dailyQuota)
 
-	maxDuration := reservedAmount
-
-	body := map[string]interface{}{
-		"enableDefaultIceServers": true,
-		"body": map[string]interface{}{
-			"user_id":      requesterId,
-			"session_id":   session.ID,
-			"max_duration": maxDuration,
-		},
-	}
-
-	result, appErr := s.speechProxyService.StartConnection(ctx, body)
+	webrtcRes, appErr := s.connectToSpeech(ctx, session, requesterID)
 	if appErr != nil {
-		if err := s.sessionService.MarkSessionFailed(ctx, session.ID); err != nil {
-			logger.Errorw("Failed to mark session as failed", "error", err)
-		}
 		_ = s.releaseQuotaIfNotReleased(ctx, session, 0)
 		return nil, appErr
 	}
 
-	if err := s.sessionService.SetSpeechSessionID(ctx, session.ID, result.SessionID); err != nil {
-		_ = s.releaseQuotaIfNotReleased(ctx, session, 0)
-		return nil, err
-	}
-
 	cleanup(true)
 
-	var response res.CreateSessionRes
-	response.ID = session.ID
-	response.MaxDuration = reservedAmount
-	response.WebRTCConnectionRes = result
-	return &response, nil
+	return &res.CreateSessionRes{
+		ID:                  session.ID,
+		MaxDuration:         reservedAmount,
+		WebRTCConnectionRes: webrtcRes,
+	}, nil
+}
+
+func (s *modelGatewayService) CreateSession(ctx context.Context) (*res.CreateSessionRes, *errors.AppError) {
+	logger := zapLogger.S()
+	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	logger.Debugw("Creating session", "userId", requesterID)
+
+	session, appErr := s.sessionService.CreateSession(ctx)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	return s.startOrResume(ctx, session)
+}
+
+func (s *modelGatewayService) ResumeSession(ctx context.Context, sessionID string) (*res.CreateSessionRes, *errors.AppError) {
+	logger := zapLogger.S()
+	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	logger.Debugw("Resuming session", "userId", requesterID, "sessionId", sessionID)
+
+	session, appErr := s.sessionService.GetSessionInternal(ctx, sessionID)
+	if appErr != nil {
+		return nil, appErr
+	}
+	if session.UserID != requesterID {
+		return nil, errors.Forbidden()
+	}
+	if session.Status != enums.SessionStatusInactive {
+		return nil, errors.BadRequest("session is not resumable")
+	}
+
+	if appErr := s.sessionService.UpdateStatus(ctx, session.ID, enums.SessionStatusPending); appErr != nil {
+		return nil, appErr
+	}
+	session.Status = enums.SessionStatusPending
+
+	return s.startOrResume(ctx, session)
+}
+
+func (s *modelGatewayService) ListSessions(ctx context.Context) ([]*res.SessionListItemRes, *errors.AppError) {
+	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	return s.sessionService.FindResumableByUserID(ctx, requesterID)
 }
 
 func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError) {

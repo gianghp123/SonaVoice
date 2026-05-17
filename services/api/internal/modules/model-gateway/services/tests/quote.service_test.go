@@ -8,8 +8,8 @@ import (
 	"time"
 
 	appErrors "github.com/gianghp123/SonaVoice/api/internal/core/errors"
-	redisMocks "github.com/gianghp123/SonaVoice/api/internal/redis-client/mocks"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
+	redisMocks "github.com/gianghp123/SonaVoice/api/internal/redis-client/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -43,14 +43,14 @@ func TestQuoteService_ReserveAllRemaining(t *testing.T) {
 			wantReserve: 300,
 		},
 		{
-			name:        "empty userID",
-			userID:      "",
-			dailyQuota:  3600,
+			name:       "empty userID",
+			userID:     "",
+			dailyQuota: 3600,
 			setupMock: func(mockRedis *redisMocks.RedisClient) {
 				mockRedis.On("LoadScript", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr:     true,
-			errContains: "missing user id",
+			errContains: "Internal server error",
 		},
 		{
 			name:       "non-positive dailyQuota returns 0 without error",
@@ -150,7 +150,7 @@ func TestQuoteService_Release(t *testing.T) {
 				mockRedis.On("LoadScript", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr:     true,
-			errContains: "missing user id",
+			errContains: "Internal server error",
 		},
 		{
 			name:           "negative reservedAmount clamped to 0",
@@ -249,14 +249,14 @@ func TestQuoteService_AcquireSessionLock(t *testing.T) {
 			},
 		},
 		{
-			name:        "empty userID",
-			userID:      "",
-			ttl:         30 * time.Second,
+			name:   "empty userID",
+			userID: "",
+			ttl:    30 * time.Second,
 			setupMock: func(mockRedis *redisMocks.RedisClient) {
 				mockRedis.On("LoadScript", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr:     true,
-			errContains: "missing user id",
+			errContains: "Internal server error",
 		},
 		{
 			name:   "non-positive ttl",
@@ -266,7 +266,7 @@ func TestQuoteService_AcquireSessionLock(t *testing.T) {
 				mockRedis.On("LoadScript", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr:     true,
-			errContains: "invalid lock ttl",
+			errContains: "Internal server error",
 		},
 		{
 			name:   "negative ttl",
@@ -276,7 +276,7 @@ func TestQuoteService_AcquireSessionLock(t *testing.T) {
 				mockRedis.On("LoadScript", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr:     true,
-			errContains: "invalid lock ttl",
+			errContains: "Internal server error",
 		},
 		{
 			name:   "redis SetNX error",
@@ -352,24 +352,24 @@ func TestQuoteService_ReleaseSessionLock(t *testing.T) {
 			},
 		},
 		{
-			name:        "empty userID",
-			userID:      "",
-			lockValue:   "lock:val",
+			name:      "empty userID",
+			userID:    "",
+			lockValue: "lock:val",
 			setupMock: func(mockRedis *redisMocks.RedisClient) {
 				mockRedis.On("LoadScript", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr:     true,
-			errContains: "missing user id",
+			errContains: "Internal server error",
 		},
 		{
-			name:        "empty lockValue",
-			userID:      "user-1",
-			lockValue:   "",
+			name:      "empty lockValue",
+			userID:    "user-1",
+			lockValue: "",
 			setupMock: func(mockRedis *redisMocks.RedisClient) {
 				mockRedis.On("LoadScript", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr:     true,
-			errContains: "missing lock value",
+			errContains: "Internal server error",
 		},
 		{
 			name:      "redis RunScript error",

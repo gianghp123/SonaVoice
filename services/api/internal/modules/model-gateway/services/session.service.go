@@ -25,6 +25,9 @@ type ISessionService interface {
 	MarkSessionInactive(ctx context.Context, sessionID string) *errors.AppError
 	MarkQuotaReleased(ctx context.Context, sessionID string) *errors.AppError
 	FindStaleSessions(ctx context.Context, userID string, pendingTimeoutSeconds int64) ([]*res.SessionRes, *errors.AppError)
+	FindActiveByUserID(ctx context.Context, userID string) (*res.SessionRes, *errors.AppError)
+	FindResumableByUserID(ctx context.Context, userID string) ([]*res.SessionListItemRes, *errors.AppError)
+	UpdateStatus(ctx context.Context, sessionID string, status enums.SessionStatus) *errors.AppError
 }
 
 type sessionService struct {
@@ -190,4 +193,50 @@ func (s *sessionService) FindStaleSessions(ctx context.Context, userID string, p
 	}
 	logger.Debugw("Found up stale sessions", "count", len(results))
 	return results, nil
+}
+
+func (s *sessionService) FindActiveByUserID(ctx context.Context, userID string) (*res.SessionRes, *errors.AppError) {
+	logger := zapLogger.S()
+	session, err := s.sessionRepo.FindActiveByUserID(ctx, userID)
+	if err != nil {
+		logger.Errorw("Failed to find active session by user ID", "userId", userID, "error", err)
+		return nil, errors.Internal()
+	}
+	if session == nil {
+		return nil, nil
+	}
+	var dto res.SessionRes
+	if err := utils.MapToDTO(session, &dto); err != nil {
+		logger.Errorw("Failed to map session to dto", "error", err)
+		return nil, errors.Internal()
+	}
+	return &dto, nil
+}
+
+func (s *sessionService) FindResumableByUserID(ctx context.Context, userID string) ([]*res.SessionListItemRes, *errors.AppError) {
+	logger := zapLogger.S()
+	sessions, err := s.sessionRepo.FindResumableByUserID(ctx, userID)
+	if err != nil {
+		logger.Errorw("Failed to find resumable sessions", "userId", userID, "error", err)
+		return nil, errors.Internal()
+	}
+	var results []*res.SessionListItemRes
+	for _, session := range sessions {
+		var dto res.SessionListItemRes
+		if err := utils.MapToDTO(session, &dto); err != nil {
+			logger.Errorw("Failed to map session to dto", "sessionId", session.ID, "error", err)
+			continue
+		}
+		results = append(results, &dto)
+	}
+	return results, nil
+}
+
+func (s *sessionService) UpdateStatus(ctx context.Context, sessionID string, status enums.SessionStatus) *errors.AppError {
+	logger := zapLogger.S()
+	if err := s.sessionRepo.UpdateStatus(ctx, sessionID, status); err != nil {
+		logger.Errorw("Failed to update session status", "sessionId", sessionID, "status", status, "error", err)
+		return errors.Internal()
+	}
+	return nil
 }
