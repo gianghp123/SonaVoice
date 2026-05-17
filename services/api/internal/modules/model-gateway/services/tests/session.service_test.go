@@ -200,7 +200,6 @@ func TestSessionService_GetSessionBySpeechSessionID(t *testing.T) {
 }
 
 func TestSessionService_SetSpeechSessionID(t *testing.T) {
-	session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1"}
 	tests := []struct {
 		name            string
 		sessionID       string
@@ -214,29 +213,15 @@ func TestSessionService_SetSpeechSessionID(t *testing.T) {
 			sessionID:       "s1",
 			speechSessionID: "speech-new",
 			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(session, nil)
-				mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(m *models.Session) bool {
-					return m.SpeechSessionID == "speech-new"
-				})).Return(nil)
+				mockRepo.On("UpdateSpeechSessionID", mock.Anything, "s1", "speech-new").Return(nil)
 			},
-		},
-		{
-			name:            "repo get error",
-			sessionID:       "s1",
-			speechSessionID: "speech-new",
-			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(nil, errors.New("not found"))
-			},
-			wantErr: true,
-			errCode: http.StatusInternalServerError,
 		},
 		{
 			name:            "repo update error",
 			sessionID:       "s1",
 			speechSessionID: "speech-new",
 			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(session, nil)
-				mockRepo.On("Update", mock.Anything, mock.Anything).Return(errors.New("update failed"))
+				mockRepo.On("UpdateSpeechSessionID", mock.Anything, "s1", "speech-new").Return(errors.New("update failed"))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
@@ -265,7 +250,6 @@ func TestSessionService_SetSpeechSessionID(t *testing.T) {
 }
 
 func TestSessionService_MarkSessionFailed(t *testing.T) {
-	session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, Status: enums.SessionStatusPending}
 	tests := []struct {
 		name      string
 		sessionID string
@@ -277,27 +261,14 @@ func TestSessionService_MarkSessionFailed(t *testing.T) {
 			name:      "success",
 			sessionID: "s1",
 			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(session, nil)
-				mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(m *models.Session) bool {
-					return m.Status == enums.SessionStatusFailed
-				})).Return(nil)
+				mockRepo.On("UpdateStatus", mock.Anything, "s1", enums.SessionStatusFailed).Return(nil)
 			},
-		},
-		{
-			name:      "repo get error",
-			sessionID: "s1",
-			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(nil, errors.New("not found"))
-			},
-			wantErr: true,
-			errCode: http.StatusInternalServerError,
 		},
 		{
 			name:      "repo update error",
 			sessionID: "s1",
 			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(session, nil)
-				mockRepo.On("Update", mock.Anything, mock.Anything).Return(errors.New("update failed"))
+				mockRepo.On("UpdateStatus", mock.Anything, "s1", enums.SessionStatusFailed).Return(errors.New("update failed"))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
@@ -326,7 +297,6 @@ func TestSessionService_MarkSessionFailed(t *testing.T) {
 }
 
 func TestSessionService_MarkSessionActive(t *testing.T) {
-	session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, Status: enums.SessionStatusPending}
 	tests := []struct {
 		name      string
 		sessionID string
@@ -338,27 +308,14 @@ func TestSessionService_MarkSessionActive(t *testing.T) {
 			name:      "success",
 			sessionID: "s1",
 			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(session, nil)
-				mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(m *models.Session) bool {
-					return m.Status == enums.SessionStatusActive
-				})).Return(nil)
+				mockRepo.On("UpdateActiveSession", mock.Anything, "s1", mock.AnythingOfType("time.Time")).Return(nil)
 			},
-		},
-		{
-			name:      "repo get error",
-			sessionID: "s1",
-			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(nil, errors.New("not found"))
-			},
-			wantErr: true,
-			errCode: http.StatusInternalServerError,
 		},
 		{
 			name:      "repo update error",
 			sessionID: "s1",
 			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(session, nil)
-				mockRepo.On("Update", mock.Anything, mock.Anything).Return(errors.New("update failed"))
+				mockRepo.On("UpdateActiveSession", mock.Anything, "s1", mock.AnythingOfType("time.Time")).Return(errors.New("update failed"))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
@@ -387,7 +344,6 @@ func TestSessionService_MarkSessionActive(t *testing.T) {
 }
 
 func TestSessionService_MarkSessionInactive(t *testing.T) {
-	session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, Status: enums.SessionStatusActive}
 	tests := []struct {
 		name      string
 		sessionID string
@@ -399,27 +355,14 @@ func TestSessionService_MarkSessionInactive(t *testing.T) {
 			name:      "success",
 			sessionID: "s1",
 			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(session, nil)
-				mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(m *models.Session) bool {
-					return m.Status == enums.SessionStatusInactive
-				})).Return(nil)
+				mockRepo.On("UpdateStatus", mock.Anything, "s1", enums.SessionStatusInactive).Return(nil)
 			},
-		},
-		{
-			name:      "repo get error",
-			sessionID: "s1",
-			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(nil, errors.New("not found"))
-			},
-			wantErr: true,
-			errCode: http.StatusInternalServerError,
 		},
 		{
 			name:      "repo update error",
 			sessionID: "s1",
 			setupMock: func(mockRepo *repoMocks.SessionRepository) {
-				mockRepo.On("Get", mock.Anything, "s1").Return(session, nil)
-				mockRepo.On("Update", mock.Anything, mock.Anything).Return(errors.New("update failed"))
+				mockRepo.On("UpdateStatus", mock.Anything, "s1", enums.SessionStatusInactive).Return(errors.New("update failed"))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,

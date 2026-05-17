@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"time"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
@@ -53,4 +54,30 @@ func (s *sessionRepository) FindStaleByUserID(ctx context.Context, userID string
 		return nil, err
 	}
 	return sessions, nil
+}
+
+func (s *sessionRepository) UpdateSpeechSessionID(ctx context.Context, sessionID, speechSessionID string) error {
+	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("speech_session_id", speechSessionID).Error
+}
+
+func (s *sessionRepository) UpdateReservation(ctx context.Context, sessionID string, reservedAmount, dailyQuota int64) error {
+	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Updates(map[string]interface{}{
+		"reserved_amount": reservedAmount,
+		"daily_quota":     dailyQuota,
+	}).Error
+}
+
+func (s *sessionRepository) UpdateStatus(ctx context.Context, sessionID string, status enums.SessionStatus) error {
+	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("status", status).Error
+}
+
+func (s *sessionRepository) UpdateActiveSession(ctx context.Context, sessionID string, startedAt time.Time) error {
+	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Updates(map[string]interface{}{
+		"status":     enums.SessionStatusActive,
+		"started_at": startedAt,
+	}).Error
+}
+
+func (s *sessionRepository) UpdateQuotaReleased(ctx context.Context, sessionID string) error {
+	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("quota_released", true).Error
 }

@@ -100,13 +100,7 @@ func (s *sessionService) GetSessionBySpeechSessionID(ctx context.Context, speech
 
 func (s *sessionService) SetSpeechSessionID(ctx context.Context, sessionID, speechSessionID string) *errors.AppError {
 	logger := zapLogger.S()
-	session, err := s.sessionRepo.Get(ctx, sessionID)
-	if err != nil {
-		logger.Errorw("Failed to get session", "error", err)
-		return errors.Internal()
-	}
-	session.SpeechSessionID = speechSessionID
-	if err := s.sessionRepo.Update(ctx, session); err != nil {
+	if err := s.sessionRepo.UpdateSpeechSessionID(ctx, sessionID, speechSessionID); err != nil {
 		logger.Errorw("Failed to update speechSessionId", "error", err)
 		return errors.Internal()
 	}
@@ -115,14 +109,7 @@ func (s *sessionService) SetSpeechSessionID(ctx context.Context, sessionID, spee
 
 func (s *sessionService) SetReservation(ctx context.Context, sessionID string, reservedAmount, dailyQuota int64) *errors.AppError {
 	logger := zapLogger.S()
-	session, err := s.sessionRepo.Get(ctx, sessionID)
-	if err != nil {
-		logger.Errorw("Failed to get session", "error", err)
-		return errors.Internal()
-	}
-	session.ReservedAmount = reservedAmount
-	session.DailyQuota = dailyQuota
-	if err := s.sessionRepo.Update(ctx, session); err != nil {
+	if err := s.sessionRepo.UpdateReservation(ctx, sessionID, reservedAmount, dailyQuota); err != nil {
 		logger.Errorw("Failed to update session reservation", "error", err)
 		return errors.Internal()
 	}
@@ -131,13 +118,7 @@ func (s *sessionService) SetReservation(ctx context.Context, sessionID string, r
 
 func (s *sessionService) MarkSessionFailed(ctx context.Context, sessionID string) *errors.AppError {
 	logger := zapLogger.S()
-	session, err := s.sessionRepo.Get(ctx, sessionID)
-	if err != nil {
-		logger.Errorw("Failed to get session", "error", err)
-		return errors.Internal()
-	}
-	session.Status = enums.SessionStatusFailed
-	if err := s.sessionRepo.Update(ctx, session); err != nil {
+	if err := s.sessionRepo.UpdateStatus(ctx, sessionID, enums.SessionStatusFailed); err != nil {
 		logger.Errorw("Failed to update session to failed", "error", err)
 		return errors.Internal()
 	}
@@ -146,14 +127,7 @@ func (s *sessionService) MarkSessionFailed(ctx context.Context, sessionID string
 
 func (s *sessionService) MarkSessionActive(ctx context.Context, sessionID string) *errors.AppError {
 	logger := zapLogger.S()
-	session, err := s.sessionRepo.Get(ctx, sessionID)
-	if err != nil {
-		logger.Errorw("Failed to get session", "error", err)
-		return errors.Internal()
-	}
-	session.StartedAt = time.Now()
-	session.Status = enums.SessionStatusActive
-	if err := s.sessionRepo.Update(ctx, session); err != nil {
+	if err := s.sessionRepo.UpdateActiveSession(ctx, sessionID, time.Now()); err != nil {
 		logger.Errorw("Failed to update session to active", "error", err)
 		return errors.Internal("failed to update session to active")
 	}
@@ -162,13 +136,7 @@ func (s *sessionService) MarkSessionActive(ctx context.Context, sessionID string
 
 func (s *sessionService) MarkSessionInactive(ctx context.Context, sessionID string) *errors.AppError {
 	logger := zapLogger.S()
-	session, err := s.sessionRepo.Get(ctx, sessionID)
-	if err != nil {
-		logger.Errorw("Failed to get session", "error", err)
-		return errors.Internal()
-	}
-	session.Status = enums.SessionStatusInactive
-	if err := s.sessionRepo.Update(ctx, session); err != nil {
+	if err := s.sessionRepo.UpdateStatus(ctx, sessionID, enums.SessionStatusInactive); err != nil {
 		logger.Errorw("Failed to update session", "error", err)
 		return errors.Internal()
 	}
@@ -177,13 +145,7 @@ func (s *sessionService) MarkSessionInactive(ctx context.Context, sessionID stri
 
 func (s *sessionService) MarkQuotaReleased(ctx context.Context, sessionID string) *errors.AppError {
 	logger := zapLogger.S()
-	session, err := s.sessionRepo.Get(ctx, sessionID)
-	if err != nil {
-		logger.Errorw("Failed to get session", "error", err)
-		return errors.Internal()
-	}
-	session.QuotaReleased = true
-	if err := s.sessionRepo.Update(ctx, session); err != nil {
+	if err := s.sessionRepo.UpdateQuotaReleased(ctx, sessionID); err != nil {
 		logger.Errorw("Failed to mark quota released", "error", err)
 		return errors.Internal()
 	}
