@@ -15,25 +15,21 @@ import (
 func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHttpClient) {
 	sessionRepo := repositories.NewSessionRepository(db)
 	configRepo := repositories.NewGlobalConfigRepository(db)
-	quotaRepo := repositories.NewUserQuotaRepository(db)
+
 	uow := transaction.NewUnitOfWork(db)
 
 	sessionService := services.NewSessionService(sessionRepo)
 	speechProxyService := services.NewSpeechProxyService(httpClient)
 	configService := services.NewGlobalConfigService(configRepo)
+	startConnectionSvc := services.NewStartConnectionService(speechProxyService, uow)
 
-	quotaService := services.NewSessionQuotaService(quotaRepo)
-	janitorService := services.NewSessionJanitorService(quotaService)
-	starterService := services.NewSessionStarterService(quotaService, sessionService, speechProxyService)
-
-	modelGatewayService := services.NewModelGatewayService(configService, sessionService, speechProxyService, quotaService, janitorService, starterService, uow)
-	modelGatewayController := controllers.NewModelGatewayController(modelGatewayService, sessionService)
+	modelGatewayService := services.NewModelGatewayService(configService, sessionService, speechProxyService, startConnectionSvc, uow)
+	modelGatewayController := controllers.NewModelGatewayController(modelGatewayService)
 	globalConfigController := controllers.NewGlobalConfigController(configService)
 
 	mgGroup := router.Group("/model-gateway")
 	mgGroup.POST("/sessions", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleCreateSession)
-	mgGroup.GET("/sessions", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleListSessions)
-	mgGroup.POST("/sessions/:sessionId/resume", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleResumeSession)
+	mgGroup.POST("/sessions/:sessionId/start", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleStartConnection)
 	mgGroup.POST("/sessions/:sessionId/api/offer", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleOffer)
 	mgGroup.PATCH("/sessions/:sessionId/api/offer", middlewares.ClerkAuthMiddleware(), modelGatewayController.HandleOffer)
 	mgGroup.POST("/sessions/:sessionId/close", modelGatewayController.HandleCloseSession)

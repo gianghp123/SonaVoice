@@ -2,30 +2,29 @@ package domain
 
 import (
 	"testing"
+	"time"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSession_CanBeResumedBy(t *testing.T) {
+func TestSession_CanBeStarted(t *testing.T) {
 	tests := []struct {
 		name    string
-		userID  string
 		status  enums.SessionStatus
 		wantErr bool
 		errCode int
 	}{
-		{"owner can resume inactive", "user-1", enums.SessionStatusInactive, false, 0},
-		{"different user cannot resume", "user-2", enums.SessionStatusInactive, true, 403},
-		{"cannot resume active session", "user-1", enums.SessionStatusActive, true, 400},
-		{"cannot resume pending session", "user-1", enums.SessionStatusPending, true, 400},
-		{"cannot resume failed session", "user-1", enums.SessionStatusFailed, true, 400},
+		{"can start pending", enums.SessionStatusPending, false, 0},
+		{"cannot start active", enums.SessionStatusActive, true, 400},
+		{"cannot start inactive", enums.SessionStatusInactive, true, 400},
+		{"cannot start failed", enums.SessionStatusFailed, true, 400},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Session{UserID: "user-1", Status: tt.status}
-			err := s.CanBeResumedBy(tt.userID)
+			s := &Session{Status: tt.status}
+			err := s.CanBeStarted()
 			if tt.wantErr {
 				assert.NotNil(t, err)
 				assert.Equal(t, tt.errCode, err.Code)
@@ -72,11 +71,12 @@ func TestSession_ClampActualUsage(t *testing.T) {
 	assert.Equal(t, int64(300), s.ClampActualUsage(500))
 }
 
-func TestSession_ShouldReleaseQuota(t *testing.T) {
-	s := &Session{QuotaReleased: false}
-	assert.True(t, s.ShouldReleaseQuota())
-	s.QuotaReleased = true
-	assert.False(t, s.ShouldReleaseQuota())
+func TestSession_WantsQuotaRelease(t *testing.T) {
+	s := &Session{QuotaDate: nil}
+	assert.False(t, s.WantsQuotaRelease())
+	now := time.Now()
+	s.QuotaDate = &now
+	assert.True(t, s.WantsQuotaRelease())
 }
 
 func TestSession_IsOwnedBy(t *testing.T) {

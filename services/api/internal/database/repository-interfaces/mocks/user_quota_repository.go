@@ -11,7 +11,7 @@ type UserQuotaRepository struct {
 	mock.Mock
 }
 
-func (m *UserQuotaRepository) ReserveAll(ctx context.Context, userID string, quotaKey string, quotaDate time.Time, dailyLimit int64) (int64, error) {
+func (m *UserQuotaRepository) Reserve(ctx context.Context, userID string, quotaKey string, quotaDate time.Time, dailyLimit int64) (int64, error) {
 	args := m.Called(ctx, userID, quotaKey, quotaDate, dailyLimit)
 	return args.Get(0).(int64), args.Error(1)
 }

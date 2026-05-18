@@ -4,27 +4,23 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
-	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
 type ModelGatewayController struct {
-	svc            services.IModelGatewayService
-	sessionService services.ISessionService
+	svc services.IModelGatewayService
 }
 
-func NewModelGatewayController(svc services.IModelGatewayService, sessionService services.ISessionService) *ModelGatewayController {
-	return &ModelGatewayController{svc: svc, sessionService: sessionService}
+func NewModelGatewayController(svc services.IModelGatewayService) *ModelGatewayController {
+	return &ModelGatewayController{svc: svc}
 }
 
 // HandleCreateSession godoc
-// @Summary      Create new session
+// @Summary      Create new session and start connection
 // @Description  Create a new session and start a WebRTC connection with the speech service
 // @Security     Bearer
 // @Tags         model-gateway
@@ -45,9 +41,9 @@ func (ctrl *ModelGatewayController) HandleCreateSession(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success(offer))
 }
 
-// HandleResumeSession godoc
-// @Summary      Resume an existing session
-// @Description  Resume an inactive session with a new speech engine connection
+// HandleStartConnection godoc
+// @Summary      Start connection for an existing session
+// @Description  Start a WebRTC connection for a pending session
 // @Security     Bearer
 // @Tags         model-gateway
 // @Accept       json
@@ -58,41 +54,15 @@ func (ctrl *ModelGatewayController) HandleCreateSession(c *gin.Context) {
 // @Failure      403  {object}  response.BaseResponse[any]
 // @Failure      409  {object}  response.BaseResponse[any]
 // @Failure      500  {object}  response.BaseResponse[any]
-// @Router       /model-gateway/sessions/{sessionId}/resume [post]
-func (ctrl *ModelGatewayController) HandleResumeSession(c *gin.Context) {
+// @Router       /model-gateway/sessions/{sessionId}/start [post]
+func (ctrl *ModelGatewayController) HandleStartConnection(c *gin.Context) {
 	sessionID := c.Param("sessionId")
-	offer, appErr := ctrl.svc.ResumeSession(c.Request.Context(), sessionID)
+	offer, appErr := ctrl.svc.StartConnection(c.Request.Context(), sessionID)
 	if appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
 	}
 	c.JSON(http.StatusOK, response.Success(offer))
-}
-
-// HandleListSessions godoc
-// @Summary      List resumable sessions
-// @Description  List all resumable (inactive) sessions for the authenticated user
-// @Security     Bearer
-// @Tags         model-gateway
-// @Accept       json
-// @Produce      json
-// @Success      200  {object}  response.BaseResponse[[]res.SessionListItemRes]
-// @Failure      401  {object}  response.BaseResponse[any]
-// @Failure      500  {object}  response.BaseResponse[any]
-// @Router       /model-gateway/sessions [get]
-func (ctrl *ModelGatewayController) HandleListSessions(c *gin.Context) {
-	requesterID := utils.GetCtx[string](c.Request.Context(), enums.ContextKeyUserID)
-	sessions, appErr := ctrl.sessionService.FindResumableByUserID(c.Request.Context(), requesterID)
-	if appErr != nil {
-		c.JSON(appErr.Code, response.Fail(appErr))
-		return
-	}
-	var dtos []*res.SessionListItemRes
-	if err := utils.MapToDTOs(sessions, &dtos); err != nil {
-		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
-		return
-	}
-	c.JSON(http.StatusOK, response.Success(dtos))
 }
 
 // HandleOffer godoc

@@ -10,7 +10,6 @@ type SessionListItemRes struct {
 	ID             string              `json:"id"`
 	Status         enums.SessionStatus `json:"status"`
 	ReservedAmount int64               `json:"reserved_amount"`
-	DailyQuota     int64               `json:"daily_quota"`
 	CreatedAt      time.Time           `json:"created_at"`
 }
 
@@ -19,7 +18,5 @@ type SessionRes struct {
 	UserID         string              `json:"user_id"`
 	Status         enums.SessionStatus `json:"status"`
 	ReservedAmount int64               `json:"reserved_amount"`
-	DailyQuota     int64               `json:"daily_quota"`
-	QuotaReleased  bool                `json:"quota_released"`
 	CreatedAt      time.Time           `json:"created_at"`
 }

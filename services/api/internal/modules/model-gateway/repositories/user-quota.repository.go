@@ -7,7 +7,6 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type userQuotaRepository struct {
@@ -18,44 +17,35 @@ func NewUserQuotaRepository(db *gorm.DB) repository_interfaces.IUserQuotaReposit
 	return &userQuotaRepository{db: db}
 }
 
-func (r *userQuotaRepository) ReserveAll(ctx context.Context, userID string, quotaKey string, quotaDate time.Time, dailyLimit int64) (int64, error) {
-	quota := &models.UserQuota{
-		UserID:    userID,
-		QuotaKey:  quotaKey,
-		QuotaDate: quotaDate,
-		Remaining: dailyLimit,
-	}
-	if err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "user_id"}, {Name: "quota_key"}, {Name: "quota_date"}},
-		DoUpdates: clause.AssignmentColumns([]string{"updated_at"}),
-	}).Create(quota).Error; err != nil {
+func (r *userQuotaRepository) Reserve(ctx context.Context, userID string, quotaKey string, quotaDate time.Time, dailyLimit int64) (int64, error) {
+	var reserved int64
+	err := r.db.WithContext(ctx).Raw(`
+		WITH upsert AS (
+			INSERT INTO user_quotas (user_id, quota_key, quota_date, remaining, created_at, updated_at)
+			VALUES (?, ?, ?, ?, NOW(), NOW())
+			ON CONFLICT (user_id, quota_key, quota_date)
+			DO UPDATE SET remaining = user_quotas.remaining, updated_at = NOW()
+			RETURNING remaining
+		)
+		SELECT remaining FROM upsert
+	`, userID, quotaKey, quotaDate, dailyLimit).Scan(&reserved).Error
+	if err != nil {
 		return 0, err
 	}
-
-	var current int64
-	if err := r.db.WithContext(ctx).
-		Model(&models.UserQuota{}).
-		Where("user_id = ? AND quota_key = ? AND quota_date = ?", userID, quotaKey, quotaDate).
-		Select("remaining").
-		Scan(&current).Error; err != nil {
-		return 0, err
-	}
-	if current <= 0 {
+	if reserved <= 0 {
 		return 0, nil
 	}
-
-	reserve := current
-	if reserve > dailyLimit {
-		reserve = dailyLimit
+	if reserved > dailyLimit {
+		reserved = dailyLimit
 	}
-
-	if err := r.db.WithContext(ctx).
+	err = r.db.WithContext(ctx).
 		Model(&models.UserQuota{}).
 		Where("user_id = ? AND quota_key = ? AND quota_date = ?", userID, quotaKey, quotaDate).
-		Update("remaining", gorm.Expr("remaining - ?", reserve)).Error; err != nil {
+		Update("remaining", gorm.Expr("remaining - ?", reserved)).Error
+	if err != nil {
 		return 0, err
 	}
-	return reserve, nil
+	return reserved, nil
 }
 
 func (r *userQuotaRepository) Release(ctx context.Context, userID string, quotaKey string, quotaDate time.Time, amount int64) error {

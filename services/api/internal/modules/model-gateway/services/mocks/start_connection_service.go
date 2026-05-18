@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type SessionStarterService struct {
+type StartConnectionService struct {
 	mock.Mock
 }
 
-func (m *SessionStarterService) StartOrResume(ctx context.Context, session *models.Session, requesterID string, dailyQuota int) (*res.CreateSessionRes, *errors.AppError) {
-	args := m.Called(ctx, session, requesterID, dailyQuota)
+func (m *StartConnectionService) Start(ctx context.Context, session *models.Session, userID string, dailyQuota int) (*res.CreateSessionRes, *errors.AppError) {
+	args := m.Called(ctx, session, userID, dailyQuota)
 	if args.Get(0) == nil {
 		return nil, func() *errors.AppError {
 			if args.Get(1) == nil {

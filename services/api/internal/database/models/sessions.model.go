@@ -11,8 +11,7 @@ type Session struct {
 	UserID          string              `gorm:"type:varchar(255);not null"`
 	SpeechSessionID string              `gorm:"type:varchar(255);"`
 	ReservedAmount  int64               `gorm:"type:bigint;not null;default:0"`
-	DailyQuota      int64               `gorm:"type:bigint;not null;default:0"`
-	QuotaReleased   bool                `gorm:"type:boolean;not null;default:false"`
+	QuotaDate       *time.Time          `gorm:"type:date;"`
 	StartedAt       time.Time
 	EndedAt         time.Time
 	Messages        []Message           `gorm:"foreignKey:SessionID"`

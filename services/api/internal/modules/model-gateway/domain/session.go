@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"time"
+
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
@@ -11,20 +13,16 @@ type Session struct {
 	UserID         string
 	Status         enums.SessionStatus
 	ReservedAmount int64
-	DailyQuota     int64
-	QuotaReleased  bool
+	QuotaDate      *time.Time
 }
 
 func (s *Session) IsOwnedBy(userID string) bool {
 	return s.UserID == userID
 }
 
-func (s *Session) CanBeResumedBy(userID string) *errors.AppError {
-	if !s.IsOwnedBy(userID) {
-		return errors.Forbidden()
-	}
-	if s.Status != enums.SessionStatusInactive {
-		return errors.BadRequest("session is not resumable")
+func (s *Session) CanBeStarted() *errors.AppError {
+	if s.Status != enums.SessionStatusPending {
+		return errors.BadRequest("session is not startable")
 	}
 	return nil
 }
@@ -36,8 +34,8 @@ func (s *Session) CanBeClosed() *errors.AppError {
 	return nil
 }
 
-func (s *Session) ShouldReleaseQuota() bool {
-	return !s.QuotaReleased
+func (s *Session) WantsQuotaRelease() bool {
+	return s.QuotaDate != nil
 }
 
 func (s *Session) ClampActualUsage(actual int64) int64 {
@@ -59,7 +57,6 @@ func NewSessionFromModel(m *models.Session) *Session {
 		UserID:         m.UserID,
 		Status:         m.Status,
 		ReservedAmount: m.ReservedAmount,
-		DailyQuota:     m.DailyQuota,
-		QuotaReleased:  m.QuotaReleased,
+		QuotaDate:      m.QuotaDate,
 	}
 }
