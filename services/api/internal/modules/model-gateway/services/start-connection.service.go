@@ -4,17 +4,17 @@ import (
 	"context"
 	"time"
 
-	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	"github.com/gianghp123/SonaVoice/api/internal/database/transaction"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/domain"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 )
 
 type IStartConnectionService interface {
-	Start(ctx context.Context, session *models.Session, userID string, dailyQuota int) (*res.CreateSessionRes, *errors.AppError)
+	Start(ctx context.Context, session *models.Session, userID string, dailyQuota int) (*res.WebRTCConnectionRes, *errors.AppError)
 }
 
 type startConnectionService struct {
@@ -29,8 +29,10 @@ func NewStartConnectionService(speechSvc ISpeechProxyService, uow transaction.Un
 	}
 }
 
-func (s *startConnectionService) Start(ctx context.Context, session *models.Session, userID string, dailyQuota int) (*res.CreateSessionRes, *errors.AppError) {
+func (s *startConnectionService) Start(ctx context.Context, session *models.Session, userID string, dailyQuota int) (*res.WebRTCConnectionRes, *errors.AppError) {
 	logger := zapLogger.S()
+
+	logger.Debugw("starting connection", "sessionId", session.ID, "userId", userID, "dailyQuota", dailyQuota)
 
 	var reservedAmount int64
 	var quotaDate time.Time
@@ -40,6 +42,15 @@ func (s *startConnectionService) Start(ctx context.Context, session *models.Sess
 		quotaRepo := p.UserQuota()
 		sessionRepo := p.Session()
 
+		sess, err := sessionRepo.GetForUpdate(ctx, session.ID)
+		if err != nil {
+			return err
+		}
+		domainSession := domain.NewSessionFromModel(sess)
+		if appErr := domainSession.CanBeStarted(); appErr != nil {
+			return appErr
+		}
+
 		quotaDate = time.Now().Truncate(24 * time.Hour)
 		var err error
 		reservedAmount, err = quotaRepo.Reserve(ctx, userID, "voice", quotaDate, int64(dailyQuota))
@@ -47,10 +58,14 @@ func (s *startConnectionService) Start(ctx context.Context, session *models.Sess
 			return err
 		}
 		if reservedAmount <= 0 {
+			logger.Errorw("Reserved amount is less than or equal to 0", "sessionId", session.ID, "userId", userID, "dailyQuota", dailyQuota)
 			return errors.Forbidden("quota exceeded")
 		}
 
 		if err := sessionRepo.SetQuotaDate(ctx, session.ID, quotaDate); err != nil {
+			return err
+		}
+		if err := sessionRepo.SetReservedAmount(ctx, session.ID, reservedAmount); err != nil {
 			return err
 		}
 
@@ -80,35 +95,11 @@ func (s *startConnectionService) Start(ctx context.Context, session *models.Sess
 		if appErr, ok := err.(*errors.AppError); ok {
 			return nil, appErr
 		}
-		if reservedAmount > 0 {
-			s.cleanupFailedSession(ctx, session.ID, userID, reservedAmount, quotaDate)
-		}
 		logger.Errorw("Failed to start connection", "sessionId", session.ID, "error", err)
 		return nil, errors.Internal()
 	}
 
-	return &res.CreateSessionRes{
-		ID:                  session.ID,
-		MaxDuration:         reservedAmount,
-		WebRTCConnectionRes: webrtcRes,
-	}, nil
+	return webrtcRes, nil
 }
 
-func (s *startConnectionService) cleanupFailedSession(ctx context.Context, sessionID string, userID string, reservedAmount int64, quotaDate time.Time) {
-	logger := zapLogger.S()
-	err := s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
-		quotaRepo := p.UserQuota()
-		sessionRepo := p.Session()
 
-		if err := quotaRepo.Release(ctx, userID, "voice", quotaDate, reservedAmount); err != nil {
-			return err
-		}
-		if err := sessionRepo.UpdateStatus(ctx, sessionID, enums.SessionStatusFailed); err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		logger.Errorw("Failed to cleanup failed session", "sessionId", sessionID, "error", err)
-	}
-}

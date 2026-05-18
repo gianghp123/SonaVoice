@@ -73,3 +73,11 @@ func (m *SessionService) MarkSessionActive(ctx context.Context, sessionID string
 	}
 	return args.Get(0).(*errors.AppError)
 }
+
+func (m *SessionService) MarkSessionFailed(ctx context.Context, sessionID string) *errors.AppError {
+	args := m.Called(ctx, sessionID)
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(*errors.AppError)
+}

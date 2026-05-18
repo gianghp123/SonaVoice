@@ -20,3 +20,8 @@ func (m *UserQuotaRepository) Release(ctx context.Context, userID string, quotaK
 	args := m.Called(ctx, userID, quotaKey, quotaDate, amount)
 	return args.Error(0)
 }
+
+func (m *UserQuotaRepository) GetRemaining(ctx context.Context, userID string, quotaKey string, quotaDate time.Time) (int64, error) {
+	args := m.Called(ctx, userID, quotaKey, quotaDate)
+	return args.Get(0).(int64), args.Error(1)
+}

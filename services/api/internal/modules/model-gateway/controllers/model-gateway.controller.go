@@ -116,3 +116,16 @@ func (ctrl *ModelGatewayController) HandleCloseSession(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response.Success[any](nil))
 }
+
+// HandleCancelSession allows a user to cancel their own pending or active session.
+// This releases all reserved quota and marks the session inactive.
+func (ctrl *ModelGatewayController) HandleCancelSession(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+
+	if appErr := ctrl.svc.CancelSession(c.Request.Context(), sessionID); appErr != nil {
+		c.JSON(appErr.Code, response.Fail(appErr))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success[any](nil))
+}

@@ -7,14 +7,14 @@
 
 ## Overview
 
-`modelGatewayService` is the orchestrator for the voice session lifecycle. It coordinates 4 sub-services:
+`modelGatewayService` orchestrates the voice session lifecycle. It coordinates 4 services:
 
 | Service | Role |
 |---|---|
 | `IGlobalConfigService` | Reads the JSONB global config payload |
-| `ISessionService` | CRUD + state transitions on `Session` DB model |
+| `ISessionService` | Create + Get + GetBySpeechSessionID + MarkSessionActive |
 | `ISpeechProxyService` | HTTP proxy to external speech engine |
-| `IUserQuotaRepository` | Daily voice-second quota (reserve/release via Postgres) |
+| `IStartConnectionService` | Atomic quota reserve + speech connection + DB updates in one UoW |
 | `UnitOfWork` | Transactional boundary for atomic DB operations |
 
 ---
@@ -22,30 +22,38 @@
 ## Session State Machine
 
 ```
-         CreateSession / ResumeSession
-                    │
-                    ▼
-              ┌──────────┐
-              │  PENDING  │
-              └────┬─────┘
-                   │
-            ProxyOffer (success)
-                   │
-                   ▼
-              ┌──────────┐
-              │  ACTIVE   │
-              └────┬─────┘
-                   │
-            CloseSession / ProxyOffer (fail)
-                   │
-                   ▼
-              ┌──────────┐
-              │ INACTIVE │
-              └──────────┘
-
-   PENDING ──(timeout/error)──► FAILED
-   ACTIVE  ──(error)─────────► FAILED
+         CreateSession
+              │
+              ▼
+        ┌──────────┐
+        │  PENDING  │
+        └────┬─────┘
+             │
+      ProxyOffer (2xx + PENDING)
+             │
+             ▼
+        ┌──────────┐
+        │  ACTIVE   │
+        └────┬─────┘
+             │
+      CloseSession / CancelSession
+             │
+             ▼
+        ┌──────────┐
+        │ INACTIVE │
+        └──────────┘
+             ▲
+             │
+      ProxyOffer failure ──► transactional: release quota + mark FAILED
+             │
+             ▼
+        ┌──────────┐
+        │  FAILED   │
+        └──────────┘
 ```
+```
+
+**Note:** Sessions enter PENDING on creation. The first successful ProxyOffer transitions PENDING→ACTIVE. Failed ProxyOffer calls release reserved quota and mark the session FAILED atomically within the transaction. CloseSession and CancelSession transition any non-terminal session to INACTIVE.
 
 ---
 
@@ -57,46 +65,33 @@ Entry point: `POST /sessions`
 
 ```
 1. Extract requesterID from context (JWT/Clerk)
-2. GlobalConfigService.Get()                     → typed config (daily quota, TTL)
-3. UnitOfWork.Do() [transaction]:
-   a. AcquireLock(requesterID)                   → PG advisory lock (prevent race)
-   b. FindStaleByUserID(requesterID, TTL)        → stale pending/active sessions
-      For each stale session:
-        i.   domain.NewSessionFromModel()
-        ii.  ShouldReleaseQuota()? → releaseQuotaInTx() + mark QuotaReleased
-        iii. UpdateStatus() → INACTIVE
-   c. FindActiveByUserID(requesterID)            → conflict check
-      If active exists → return Conflict error
-   d. Create(&Session{UserID, Status=PENDING})  → new DB row
-4. startOrResume(session, requesterID, dailyQuota):
-   a. QuotaRepo.ReserveAll(requesterID, "voice", today, dailyQuota)
-      └─ if 0 returned → Forbidden("quota exceeded")
-   b. SessionService.SetReservation(reservedAmount, dailyQuota)
-      └─ on fail → releaseQuota() (rollback)
-   c. connectToSpeech(sessionID, reservedAmount, requesterID):
-        i.   SpeechProxyService.StartConnection({UserID, SessionID, MaxDuration=reserved})
-        ii.  SessionService.SetSpeechSessionID(speechSessionID)
-        └─ on fail → releaseQuota() + MarkSessionFailed() + MarkQuotaReleased()
-   d. Return CreateSessionRes{ID, MaxDuration, WebRTCConnectionRes}
+
+   └─ 1b. Opportunistic stale PENDING cleanup:
+   └─     └─ Check if user has an existing PENDING session older than 2 minutes
+   └─     └─ If stale: release reserved quota + mark INACTIVE (within UoW with FOR UPDATE)
+   └─     └─ If cleanup fails: log warning, proceed with creation anyway
+
+2. SessionService.Create(requesterID)         → INSERT with Status=PENDING
+   └─ on unique_violation (active/pending exists) → Conflict error
+
+3. Return CreateSessionRes{ID, MaxDuration: 0, WebRTCConnectionRes: nil}
+   └─ Client must call StartConnection separately to reserve quota and start WebRTC
 ```
 
-### 2. `ResumeSession(ctx, sessionID) → (*res.CreateSessionRes, error)`
+**Note:** CreateSession only creates the session record. Quota reservation and WebRTC connection establishment happen in the separate `StartConnection` call.
 
-Entry point: `POST /sessions/:sessionId/resume`
+### 2. `StartConnection(ctx, sessionID) → (*res.WebRTCConnectionRes, error)`
+
+Entry point: `POST /sessions/:sessionId/start`
 
 ```
 1. Extract requesterID from context
-2. SessionService.GetInternal(sessionID)           → raw session (no ownership check)
-3. domain.NewSessionFromModel(session).CanBeResumedBy(requesterID)
-   └─ validates: owner match + Status == INACTIVE
-4. GlobalConfigService.Get()                       → typed config
-5. UnitOfWork.Do() [transaction]:
-   a. AcquireLock(requesterID)
-   b. FindStaleByUserID + cleanup (same as CreateSession)
-   c. FindActiveByUserID → conflict if active.ID != sessionID
-   d. UpdateStatus(session.ID) → PENDING
-6. startOrResume(session, requesterID, dailyQuota)
-   └─ (same as CreateSession — reserves quota, connects to speech engine)
+2. SessionService.Get(sessionID, requesterID)  → ownership check
+3. domain.NewSessionFromModel() → CanBeStarted()
+   └─ validates Status == PENDING
+4. GlobalConfigService.Get()                    → typed config
+5. StartConnectionService.Start(session)        → same as CreateSession step 4
+6. Return WebRTCConnectionRes{SessionID, MaxDuration, ...}
 ```
 
 ### 3. `ProxyOffer(ctx, sessionId, method, body) → ([]byte, int, error)`
@@ -107,17 +102,24 @@ Entry point: `POST|PATCH /sessions/:sessionId/api/offer`
 1. Validate sessionId is not empty
 2. Extract requesterID from context
 3. SessionService.GetBySpeechSessionID(speechSessionID, requesterID)
-   └─ ownership enforced
-4. SpeechProxyService.ProxyOffer(speechSessionID, method, body)
-   └─ forwards HTTP request to speech engine
-5. On failure OR non-2xx response:
-   a. MarkSessionFailed()
-   b. releaseQuota(session.UserID, reservedAmount, 0)
-   c. MarkQuotaReleased()
-6. On success (2xx):
-   a. MarkSessionActive() → Status = ACTIVE, set started_at
-7. Return (responseBody, statusCode, nil)
+   └─ ownership check via speech_session_id
+4. UnitOfWork.Do() [transaction]:
+   a. SessionRepo.GetForUpdate(sessionID)       ── row-level lock for duration of offer
+   b. domain.NewSessionFromModel() → CanBeStarted()
+      └─ validates Status == PENDING
+   c. SpeechProxyService.ProxyOffer(speechSessionID, method, body)
+      └─ forwards HTTP request to speech engine, returns raw response
+      └─ on speech error OR non-2xx:
+         └─ QuotaRepo.Release(userID, "voice", QuotaDate, ReservedAmount) if applicable
+         └─ SessionRepo.SetSessionFailed(sessionID) ── WHERE status IN ('pending','active')
+         └─ tx commits (quota released, session marked FAILED)
+   d. On 2xx response:
+      └─ SessionRepo.SetSessionActive(sessionID) ── WHERE status = 'pending'
+      └─ on fail: release quota + mark FAILED (same as 4c)
+5. Return response body and status code
 ```
+
+**Note:** ProxyOffer is now fully transactional. The row lock prevents concurrent offers for the same session. There are no compensations — success or failure is determined atomically within the transaction.
 
 ### 4. `CloseSession(ctx, reqBody) → error`
 
@@ -126,34 +128,68 @@ Entry point: `POST /sessions/:sessionId/close`
 ```
 1. Validate reqBody (not nil, sessionId non-empty, actualUsage >= 0)
 2. UnitOfWork.Do() [transaction]:
-   a. SessionRepo.Get(sessionId)
-   b. domain.NewSessionFromModel(session).CanBeClosed()
+   a. SessionRepo.GetForUpdate(sessionId)       ── row-level lock
+   b. domain.NewSessionFromModel(session) → CanBeClosed()
       └─ validates Status != INACTIVE
-   c. ShouldReleaseQuota()?
-        └─ reserveAmount/dailyQuota fallback (load config if both <= 0)
-        └─ quotaRepo.Release(UserID, "voice", today, unused)
-           └─ unused = max(0, reserved - clampedActualUsage)
-        └─ sessionRepo.UpdateQuotaReleased()
-   d. sessionRepo.UpdateStatus() → INACTIVE
+   c. domain.WantsQuotaRelease()?
+      └─ true when quota_date IS NOT NULL (quota was reserved)
+      └─ quotaRepo.Release(UserID, "voice", session.QuotaDate, unused)
+         └─ unused = max(0, reserved - ClampActualUsage(actualUsage))
+         └─ ClampActualUsage: [0, reservedAmount]
+      └─ false when quota_date IS NULL (no quota reserved, e.g. test sessions)
+   d. SessionRepo.SetSessionInactive() → INACTIVE + ended_at
 ```
+
+### 5. `CancelSession(ctx, sessionID) → error`
+
+Entry point: `POST /sessions/:sessionId/cancel`
+
+```
+1. Validate sessionID is not empty
+2. Extract requesterID from context
+3. UnitOfWork.Do() [transaction]:
+   a. SessionRepo.GetForUpdate(sessionID)       ── row-level lock
+   b. EnforceOwnership(session.UserID, requesterID)
+   c. domain.NewSessionFromModel(session) → CanBeCancelled()
+      └─ validates Status != INACTIVE and != FAILED
+   d. domain.WantsQuotaRelease()?
+      └─ true when quota_date IS NOT NULL
+      └─ quotaRepo.Release(UserID, "voice", session.QuotaDate, session.ReservedAmount)
+         └─ releases ALL reserved quota (not just unused)
+   e. SessionRepo.SetSessionInactive() → INACTIVE + ended_at
+```
+
+**Key difference from CloseSession:**
+- Client-facing endpoint (requires Clerk auth)
+- Releases ALL reserved quota (not just unused), since actual usage is unknown
+- Can cancel both PENDING and ACTIVE sessions
 
 ---
 
 ## Quota Lifecycle
 
 ```
-Reserve (startOrResume)
+Reserve (in StartConnectionService.Start)
    │
-   ├── Success ──► Connect to speech engine
+   ├── Success ──► quota_date stored on session
    │                  │
-   │                  ├── Offer success ──► Active session (quota consumed)
+   │                  ├── Offer success ──► session becomes ACTIVE
+   │                  │                    └─ SetSessionActive clears nothing (quota stays reserved)
    │                  │
-   │                  ├── Offer failure ──► Release all quota
+   │                  ├── Offer failure ──► SetSessionFailed releases all quota + clears quota_date/reserved_amount
    │                  │
    │                  └── Close session ──► Release unused = max(0, reserved - actualUsed)
+   │                                       └─ SetSessionInactive clears quota_date/reserved_amount
    │
-   └── Failure ──► Return error, quota not reserved
+   ├── Speech connection fails ──► UoW rolls back automatically, no cleanup needed
+   │
+   └── Reserve returns 0 ──► Forbidden("quota exceeded"), nothing to clean up
 ```
+
+**Key differences from previous flow:**
+- Reserve is a single atomic CTE query (no 3-query race condition)
+- `quota_date` is stored on the session at reserve time (not computed on release)
+- Release uses the stored `quota_date` — fixes day-boundary bug (quota reserved on day N, released on day N+1)
 
 ---
 
@@ -162,17 +198,24 @@ Reserve (startOrResume)
 | Situation | Response |
 |---|---|
 | Quota exhausted | `Forbidden("quota exceeded")` |
-| Active session exists | `Conflict("close current session...")` |
-| Session not resumable | `BadRequest("session is not resumable")` |
+| Active/pending session exists | `Conflict()` (from unique partial index violation) |
+| Session not startable (not PENDING) | `BadRequest("session is not startable")` |
 | Session already inactive | `BadRequest("session is already inactive")` |
 | Not session owner | `Forbidden()` |
+| Session not cancellable (already inactive/failed) | `BadRequest("session is already closed")` |
 | DB/Infra error | `Internal()` (logged with details) |
 
 ---
 
 ## Key Design Decisions
 
-- **Advisory lock** (`AcquireLock`): Uses `pg_advisory_xact_lock(hashtext(userID))` to serialize session creation per user — prevents race conditions when two create requests arrive simultaneously.
-- **Stale session cleanup**: Runs inside every CreateSession/ResumeSession transaction. Sessions past `maxSessionLockTTL` in PENDING, or past their duration in ACTIVE, are force-closed.
-- **Quota in transaction vs out**: `startOrResume` runs quota outside the transaction (it calls the speech engine), so `releaseQuota` is needed as rollback on failure. `CloseSession` runs quota release *inside* the transaction for atomicity.
-- **ID as `speechSessionID`**: The external speech engine's session ID is stored on the `Session` model. `ProxyOffer` looks up by this ID, not by the internal session ID.
+- **No advisory locks**: The unique partial index `uq_one_active_session_per_user ON sessions(user_id) WHERE status IN ('active','pending')` enforces one active/pending session per user at the DB level, replacing the old `pg_advisory_xact_lock` approach.
+- **No stale session cleanup**: Removed `SessionJanitor` entirely. Stale sessions are handled implicitly — if a session is stuck in PENDING, the next `CreateSession` call gets a unique constraint violation and the client must close the stale session first. This is simpler and serverless-friendly (no background cron).
+- **Atomic quota reserve**: Single CTE query (`INSERT ... ON CONFLICT ... RETURNING remaining`) eliminates the race between check-and-update in the old 3-query approach.
+- **quota_date on session**: The date is captured at reserve time and stored on the session row, fixing the day-boundary bug where `today()` at reserve time differs from `today()` at release time.
+- **ProxyOffer is fully transactional**: Uses UoW.Do() with GetForUpdate row-level locking. Quota release and session status change happen atomically — no compensations needed.
+- **CloseSession uses GetForUpdate**: Row-level locking prevents double quota release from concurrent close callbacks.
+- **No `cleanupFailedSession` after StartConnection UoW failure**: The UoW transaction is atomic. If it fails, PostgreSQL rolls back everything including the quota reserve. Running external cleanup would inflate quota by releasing what was never deducted.
+- **ProxyOffer failure releases quota**: Failed offers release reserved quota and mark the session FAILED within the same transaction.
+- **CloseSession is strictly transactional**: If quota release fails, the entire transaction rolls back. The speech engine can retry CloseSession.
+- **Stale PENDING cleanup in CreateSession**: Serverless-friendly approach. No background cron needed — stale sessions are cleaned up opportunistically when the user tries to create a new session.

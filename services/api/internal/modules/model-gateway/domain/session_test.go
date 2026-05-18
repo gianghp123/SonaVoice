@@ -62,6 +62,31 @@ func TestSession_CanBeClosed(t *testing.T) {
 	}
 }
 
+
+func TestSession_CanBeCancelled(t *testing.T) {
+	tests := []struct {
+		name    string
+		status  enums.SessionStatus
+		wantErr bool
+	}{
+		{"pending", enums.SessionStatusPending, false},
+		{"active", enums.SessionStatusActive, false},
+		{"inactive", enums.SessionStatusInactive, true},
+		{"failed", enums.SessionStatusFailed, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Session{Status: tt.status}
+			err := s.CanBeCancelled()
+			if tt.wantErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
 func TestSession_ClampActualUsage(t *testing.T) {
 	s := &Session{ReservedAmount: 300}
 	assert.Equal(t, int64(0), s.ClampActualUsage(-10))

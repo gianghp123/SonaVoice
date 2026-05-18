@@ -30,6 +30,7 @@ func NewSpeechProxyService(httpClient httpclient.IHttpClient) ISpeechProxyServic
 func (s *speechProxyService) StartConnection(ctx context.Context, connReq *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError) {
 	logger := zapLogger.S()
 
+	logger.Debugw("Starting connection at speech service")
 	responseBody, statusCode, appErr := s.httpClient.Do(
 		ctx,
 		http.MethodPost,
@@ -58,6 +59,7 @@ func (s *speechProxyService) StartConnection(ctx context.Context, connReq *req.S
 func (s *speechProxyService) ProxyOffer(ctx context.Context, speechSessionID, method string, body []byte) ([]byte, int, *errors.AppError) {
 	logger := zapLogger.S()
 
+	logger.Debugw("Proxying offer to speech service")
 	responseBody, statusCode, appErr := s.httpClient.Do(
 		ctx,
 		method,

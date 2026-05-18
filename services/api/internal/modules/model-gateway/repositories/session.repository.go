@@ -58,12 +58,75 @@ func (s *sessionRepository) UpdateStatus(ctx context.Context, sessionID string, 
 }
 
 func (s *sessionRepository) SetSessionActive(ctx context.Context, sessionID string, startedAt time.Time) error {
-	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Updates(map[string]interface{}{
+	result := s.db.Model(&models.Session{}).Where("id = ? AND status = ?", sessionID, enums.SessionStatusPending).Updates(map[string]interface{}{
 		"status":     enums.SessionStatusActive,
 		"started_at": startedAt,
-	}).Error
+	})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (s *sessionRepository) SetQuotaDate(ctx context.Context, sessionID string, quotaDate time.Time) error {
 	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("quota_date", quotaDate).Error
+}
+
+func (s *sessionRepository) SetReservedAmount(ctx context.Context, sessionID string, amount int64) error {
+	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("reserved_amount", amount).Error
+}
+
+func (s *sessionRepository) SetQuotaDateToNil(ctx context.Context, sessionID string) error {
+	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("quota_date", nil).Error
+}
+
+func (s *sessionRepository) SetSessionFailed(ctx context.Context, sessionID string) error {
+	result := s.db.Model(&models.Session{}).Where("id = ? AND status IN ?", sessionID, []enums.SessionStatus{enums.SessionStatusPending, enums.SessionStatusActive}).Updates(map[string]interface{}{
+		"status":          enums.SessionStatusFailed,
+		"ended_at":        time.Now(),
+		"quota_date":      nil,
+		"reserved_amount": 0,
+	})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (s *sessionRepository) GetPendingByUserID(ctx context.Context, userID string) (*models.Session, error) {
+	var model models.Session
+	if err := s.db.First(&model, "user_id = ? AND status = ?", userID, enums.SessionStatusPending).Error; err != nil {
+		return nil, err
+	}
+	return &model, nil
+}
+
+func (s *sessionRepository) GetPendingByUserIDForUpdate(ctx context.Context, userID string) (*models.Session, error) {
+	var model models.Session
+	if err := s.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&model, "user_id = ? AND status = ?", userID, enums.SessionStatusPending).Error; err != nil {
+		return nil, err
+	}
+	return &model, nil
+}
+
+func (s *sessionRepository) SetSessionInactive(ctx context.Context, sessionID string, endedAt time.Time) error {
+	result := s.db.Model(&models.Session{}).Where("id = ? AND status != ?", sessionID, enums.SessionStatusInactive).Updates(map[string]interface{}{
+		"status":          enums.SessionStatusInactive,
+		"ended_at":        endedAt,
+		"quota_date":      nil,
+		"reserved_amount": 0,
+	})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

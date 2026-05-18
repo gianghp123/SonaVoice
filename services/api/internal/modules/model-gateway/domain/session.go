@@ -29,7 +29,17 @@ func (s *Session) CanBeStarted() *errors.AppError {
 
 func (s *Session) CanBeClosed() *errors.AppError {
 	if s.Status == enums.SessionStatusInactive {
-		return errors.BadRequest("session is already inactive")
+		return errors.BadRequest("session is already closed")
+	}
+	if s.Status == enums.SessionStatusFailed {
+		return errors.BadRequest("session has already failed")
+	}
+	return nil
+}
+
+func (s *Session) CanBeCancelled() *errors.AppError {
+	if s.Status == enums.SessionStatusInactive || s.Status == enums.SessionStatusFailed {
+		return errors.BadRequest("session is already closed")
 	}
 	return nil
 }

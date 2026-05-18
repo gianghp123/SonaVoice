@@ -17,6 +17,7 @@ type ISessionService interface {
 	Get(ctx context.Context, sessionID, requesterID string) (*models.Session, *errors.AppError)
 	GetBySpeechSessionID(ctx context.Context, speechSessionID, requesterID string) (*models.Session, *errors.AppError)
 	MarkSessionActive(ctx context.Context, sessionID string) *errors.AppError
+	MarkSessionFailed(ctx context.Context, sessionID string) *errors.AppError
 }
 
 type sessionService struct {
@@ -77,6 +78,15 @@ func (s *sessionService) MarkSessionActive(ctx context.Context, sessionID string
 	if err := s.sessionRepo.SetSessionActive(ctx, sessionID, time.Now()); err != nil {
 		logger.Errorw("Failed to mark session active", "error", err)
 		return errors.Internal("failed to mark session active")
+	}
+	return nil
+}
+
+func (s *sessionService) MarkSessionFailed(ctx context.Context, sessionID string) *errors.AppError {
+	logger := zapLogger.S()
+	if err := s.sessionRepo.SetSessionFailed(ctx, sessionID); err != nil {
+		logger.Errorw("Failed to mark session failed", "error", err)
+		return errors.Internal("failed to mark session failed")
 	}
 	return nil
 }

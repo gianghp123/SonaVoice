@@ -61,3 +61,39 @@ func (m *SessionRepository) SetQuotaDate(ctx context.Context, sessionID string, 
 	args := m.Called(ctx, sessionID, quotaDate)
 	return args.Error(0)
 }
+
+func (m *SessionRepository) SetReservedAmount(ctx context.Context, sessionID string, amount int64) error {
+	args := m.Called(ctx, sessionID, amount)
+	return args.Error(0)
+}
+
+func (m *SessionRepository) SetQuotaDateToNil(ctx context.Context, sessionID string) error {
+	args := m.Called(ctx, sessionID)
+	return args.Error(0)
+}
+
+func (m *SessionRepository) SetSessionFailed(ctx context.Context, sessionID string) error {
+	args := m.Called(ctx, sessionID)
+	return args.Error(0)
+}
+
+func (m *SessionRepository) GetPendingByUserID(ctx context.Context, userID string) (*models.Session, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Session), args.Error(1)
+}
+
+func (m *SessionRepository) GetPendingByUserIDForUpdate(ctx context.Context, userID string) (*models.Session, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Session), args.Error(1)
+}
+
+func (m *SessionRepository) SetSessionInactive(ctx context.Context, sessionID string, endedAt time.Time) error {
+	args := m.Called(ctx, sessionID, endedAt)
+	return args.Error(0)
+}
