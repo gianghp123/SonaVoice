@@ -11,6 +11,7 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/domain"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
+	"github.com/gianghp123/SonaVoice/api/internal/utils"
 )
 
 type IStartConnectionService interface {
@@ -51,14 +52,16 @@ func (s *startConnectionService) Start(ctx context.Context, session *models.Sess
 			return appErr
 		}
 
-		quotaDate = time.Now().Truncate(24 * time.Hour)
-		var err error
+		quotaDate = utils.QuotaDate()
 		reservedAmount, err = quotaRepo.Reserve(ctx, userID, "voice", quotaDate, int64(dailyQuota))
 		if err != nil {
 			return err
 		}
 		if reservedAmount <= 0 {
 			logger.Errorw("Reserved amount is less than or equal to 0", "sessionId", session.ID, "userId", userID, "dailyQuota", dailyQuota)
+			if dailyQuota <= 0 {
+				return errors.Internal("voice service is not configured")
+			}
 			return errors.Forbidden("quota exceeded")
 		}
 
@@ -79,7 +82,9 @@ func (s *startConnectionService) Start(ctx context.Context, session *models.Sess
 		}
 
 		var appErr *errors.AppError
-		webrtcRes, appErr = s.speechSvc.StartConnection(ctx, connReq)
+		speechCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		webrtcRes, appErr = s.speechSvc.StartConnection(speechCtx, connReq)
 		if appErr != nil {
 			return appErr
 		}

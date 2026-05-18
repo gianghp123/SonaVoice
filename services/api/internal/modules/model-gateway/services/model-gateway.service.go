@@ -22,7 +22,7 @@ type IModelGatewayService interface {
 	StartConnection(ctx context.Context, sessionID string) (*res.WebRTCConnectionRes, *errors.AppError)
 	CloseSession(ctx context.Context, reqBody *req.CloseSessionReq) *errors.AppError
 	CancelSession(ctx context.Context, sessionID string) *errors.AppError
-	ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
+	ProxyOffer(ctx context.Context, speechSessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
 }
 
 type modelGatewayService struct {
@@ -90,20 +90,20 @@ func (s *modelGatewayService) markSessionFailedAndReleaseQuota(ctx context.Conte
 	return sessionRepo.SetSessionFailed(ctx, session.ID)
 }
 
-func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError) {
+func (s *modelGatewayService) ProxyOffer(ctx context.Context, speechSessionId string, method string, body []byte) ([]byte, int, *errors.AppError) {
 	logger := zapLogger.S()
 	logger.Debug("Proxying offer to speech engine")
 
-	if sessionId == "" {
+	if speechSessionId == "" {
 		return nil, 0, errors.BadRequest("missing session id")
 	}
 
 	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 
 	// Pre-validation: get session by speech session ID (outside tx, cheap)
-	session, appErr := s.sessionService.GetBySpeechSessionID(ctx, sessionId, requesterID)
+	session, appErr := s.sessionService.GetBySpeechSessionID(ctx, speechSessionId, requesterID)
 	if appErr != nil {
-		logger.Errorw("Failed to get app session by speech session id", "speechSessionId", sessionId, "error", appErr)
+		logger.Errorw("Failed to get app session by speech session id", "speechSessionId", speechSessionId, "error", appErr)
 		return nil, 0, appErr
 	}
 
@@ -127,8 +127,11 @@ func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, 
 		}
 
 		// 3. Forward to speech engine (lock held during HTTP call)
-		responseBody, statusCode, appErr = s.speechService.ProxyOffer(ctx, sessionId, method, body)
+		speechCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		responseBody, statusCode, appErr = s.speechService.ProxyOffer(speechCtx, speechSessionId, method, body)
 		if appErr != nil {
+			logger.Errorw("Speech engine error during offer", "sessionId", sess.ID, "speechSessionId", speechSessionId, "error", appErr)
 			// 4a. Speech engine error → mark FAILED, release quota, capture error
 			if failErr := s.markSessionFailedAndReleaseQuota(ctx, p, sess); failErr != nil {
 				logger.Errorw("Failed to mark session failed after speech error", "sessionId", sess.ID, "error", failErr)
@@ -139,6 +142,7 @@ func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, 
 		}
 
 		if statusCode < 200 || statusCode >= 300 {
+			logger.Errorw("Speech engine returned non-2xx", "sessionId", sess.ID, "speechSessionId", speechSessionId, "statusCode", statusCode)
 			// 4b. Non-2xx from speech engine → same as error
 			if failErr := s.markSessionFailedAndReleaseQuota(ctx, p, sess); failErr != nil {
 				logger.Errorw("Failed to mark session failed after non-2xx", "sessionId", sess.ID, "statusCode", statusCode, "error", failErr)
@@ -148,7 +152,7 @@ func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, 
 		}
 
 		// 5. Success → mark ACTIVE (status precondition ensures no race)
-		if err := sessionRepo.SetSessionActive(ctx, sess.ID, time.Now().UTC()); err != nil {
+		if err := sessionRepo.SetSessionActive(ctx, sess.ID, utils.NowUTC()); err != nil {
 			logger.Errorw("Failed to mark session active", "sessionId", sess.ID, "error", err)
 			// If activation fails, roll back by marking failed + releasing quota
 			if failErr := s.markSessionFailedAndReleaseQuota(ctx, p, sess); failErr != nil {
@@ -166,7 +170,7 @@ func (s *modelGatewayService) ProxyOffer(ctx context.Context, sessionId string, 
 		if appErr, ok := err.(*errors.AppError); ok {
 			return nil, 0, appErr
 		}
-		logger.Errorw("ProxyOffer transaction failed", "sessionId", sessionId, "error", err)
+		logger.Errorw("ProxyOffer transaction failed", "speechSessionId", speechSessionId, "error", err)
 		return nil, 0, errors.Internal()
 	}
 
@@ -220,7 +224,7 @@ func (s *modelGatewayService) CloseSession(ctx context.Context, reqBody *req.Clo
 			}
 		}
 
-		return sessionRepo.SetSessionInactive(ctx, session.ID, time.Now().UTC())
+		return sessionRepo.SetSessionInactive(ctx, session.ID, utils.NowUTC())
 	})
 
 	if err != nil {
@@ -265,7 +269,7 @@ func (s *modelGatewayService) CancelSession(ctx context.Context, sessionID strin
 			}
 		}
 
-		return sessionRepo.SetSessionInactive(ctx, session.ID, time.Now().UTC())
+		return sessionRepo.SetSessionInactive(ctx, session.ID, utils.NowUTC())
 	})
 
 	if err != nil {
@@ -291,8 +295,7 @@ func (s *modelGatewayService) cancelStalePendingSession(ctx context.Context, use
 			return err // Real DB error — will be logged by caller
 		}
 
-		staleThreshold := time.Now().UTC().Add(-2 * time.Minute)
-		if staleSession.CreatedAt.After(staleThreshold) {
+		if !utils.IsStale(staleSession.CreatedAt, 2*time.Minute) {
 			return nil // Not stale enough
 		}
 
@@ -302,7 +305,7 @@ func (s *modelGatewayService) cancelStalePendingSession(ctx context.Context, use
 			}
 		}
 
-		return sessionRepo.SetSessionInactive(ctx, staleSession.ID, time.Now().UTC())
+		return sessionRepo.SetSessionInactive(ctx, staleSession.ID, utils.NowUTC())
 	})
 }
 

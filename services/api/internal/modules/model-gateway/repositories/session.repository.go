@@ -7,6 +7,7 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
+	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -86,7 +87,7 @@ func (s *sessionRepository) SetQuotaDateToNil(ctx context.Context, sessionID str
 func (s *sessionRepository) SetSessionFailed(ctx context.Context, sessionID string) error {
 	result := s.db.Model(&models.Session{}).Where("id = ? AND status IN ?", sessionID, []enums.SessionStatus{enums.SessionStatusPending, enums.SessionStatusActive}).Updates(map[string]interface{}{
 		"status":          enums.SessionStatusFailed,
-		"ended_at":        time.Now(),
+		"ended_at":        utils.NowUTC(),
 		"quota_date":      nil,
 		"reserved_amount": 0,
 	})

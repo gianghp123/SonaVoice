@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"time"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
@@ -46,7 +45,7 @@ func (s *sessionService) Get(ctx context.Context, sessionID, requesterID string)
 	session, err := s.sessionRepo.Get(ctx, sessionID)
 	if err != nil {
 		logger.Errorw("Failed to get session", "error", err)
-		return nil, errors.Internal()
+		return nil, errors.MapRepoError(err)
 	}
 
 	if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
@@ -62,7 +61,7 @@ func (s *sessionService) GetBySpeechSessionID(ctx context.Context, speechSession
 	session, err := s.sessionRepo.GetBySpeechSessionID(ctx, speechSessionID)
 	if err != nil {
 		logger.Errorw("Failed to get session by speech session id", "error", err)
-		return nil, errors.Internal()
+		return nil, errors.MapRepoError(err)
 	}
 
 	if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
@@ -75,7 +74,7 @@ func (s *sessionService) GetBySpeechSessionID(ctx context.Context, speechSession
 
 func (s *sessionService) MarkSessionActive(ctx context.Context, sessionID string) *errors.AppError {
 	logger := zapLogger.S()
-	if err := s.sessionRepo.SetSessionActive(ctx, sessionID, time.Now()); err != nil {
+	if err := s.sessionRepo.SetSessionActive(ctx, sessionID, utils.NowUTC()); err != nil {
 		logger.Errorw("Failed to mark session active", "error", err)
 		return errors.Internal("failed to mark session active")
 	}
