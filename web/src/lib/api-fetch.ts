@@ -76,7 +76,6 @@ export async function apiFetch<T = any>(
         message = errorData.error.message || errorData.message || message;
       } catch (_) { }
       return {
-        data: null,
         error: {
           code: response.status,
           message,
@@ -100,7 +99,6 @@ export async function apiFetch<T = any>(
     if (data.pagination || data.meta) {
       return {
         data: data.data ? (data.data as T) : ([] as T),
-        error: null,
         meta: {
           pagination: data.pagination,
           ...data.meta,
@@ -109,12 +107,10 @@ export async function apiFetch<T = any>(
     }
     return {
       data: data.data !== undefined ? (data.data as T) : (data as T),
-      error: null,
     } as BaseResponse<T>;
   } catch (error: any) {
     console.error(error);
     return {
-      data: null,
       error: {
         code: error.code || 500,
         message: error.message || "Unknown error",

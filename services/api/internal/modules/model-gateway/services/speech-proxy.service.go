@@ -73,7 +73,7 @@ func (s *speechProxyService) ProxyOffer(ctx context.Context, speechSessionID, me
 
 	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
 		logger.Errorw("Speech service returned non-success status while proxying offer", "speechSessionId", speechSessionID, "statusCode", statusCode, "responseBody", string(responseBody))
-		return responseBody, statusCode, nil
+		return responseBody, statusCode, errors.Internal()
 	}
 
 	return responseBody, statusCode, nil

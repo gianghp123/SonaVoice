@@ -11,11 +11,10 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/domain"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
-	"github.com/gianghp123/SonaVoice/api/internal/utils"
 )
 
 type IStartConnectionService interface {
-	Start(ctx context.Context, session *models.Session, userID string, dailyQuota int) (*res.WebRTCConnectionRes, *errors.AppError)
+	Start(ctx context.Context, session *models.Session, userID string) (*res.WebRTCConnectionRes, *errors.AppError)
 }
 
 type startConnectionService struct {
@@ -30,17 +29,23 @@ func NewStartConnectionService(speechSvc ISpeechProxyService, uow transaction.Un
 	}
 }
 
-func (s *startConnectionService) Start(ctx context.Context, session *models.Session, userID string, dailyQuota int) (*res.WebRTCConnectionRes, *errors.AppError) {
+func (s *startConnectionService) Start(ctx context.Context, session *models.Session, userID string) (*res.WebRTCConnectionRes, *errors.AppError) {
 	logger := zapLogger.S()
 
-	logger.Debugw("starting connection", "sessionId", session.ID, "userId", userID, "dailyQuota", dailyQuota)
+	logger.Debugw("starting connection", "sessionId", session.ID, "userId", userID)
 
-	var reservedAmount int64
-	var quotaDate time.Time
+	connReq := &req.StartConnectionReq{
+		EnableDefaultIceServers: true,
+		Body: req.StartConnectionBody{
+			UserID:      userID,
+			SessionID:   session.ID,
+			MaxDuration: session.MaxDuration,
+		},
+	}
+
 	var webrtcRes *res.WebRTCConnectionRes
 
 	err := s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
-		quotaRepo := p.UserQuota()
 		sessionRepo := p.Session()
 
 		sess, err := sessionRepo.GetForUpdate(ctx, session.ID)
@@ -50,35 +55,6 @@ func (s *startConnectionService) Start(ctx context.Context, session *models.Sess
 		domainSession := domain.NewSessionFromModel(sess)
 		if appErr := domainSession.CanBeStarted(); appErr != nil {
 			return appErr
-		}
-
-		quotaDate = utils.QuotaDate()
-		reservedAmount, err = quotaRepo.Reserve(ctx, userID, "voice", quotaDate, int64(dailyQuota))
-		if err != nil {
-			return err
-		}
-		if reservedAmount <= 0 {
-			logger.Errorw("Reserved amount is less than or equal to 0", "sessionId", session.ID, "userId", userID, "dailyQuota", dailyQuota)
-			if dailyQuota <= 0 {
-				return errors.Internal("voice service is not configured")
-			}
-			return errors.Forbidden("quota exceeded")
-		}
-
-		if err := sessionRepo.SetQuotaDate(ctx, session.ID, quotaDate); err != nil {
-			return err
-		}
-		if err := sessionRepo.SetReservedAmount(ctx, session.ID, reservedAmount); err != nil {
-			return err
-		}
-
-		connReq := &req.StartConnectionReq{
-			EnableDefaultIceServers: true,
-			Body: req.StartConnectionBody{
-				UserID:      userID,
-				SessionID:   session.ID,
-				MaxDuration: reservedAmount,
-			},
 		}
 
 		var appErr *errors.AppError
@@ -97,14 +73,9 @@ func (s *startConnectionService) Start(ctx context.Context, session *models.Sess
 	})
 
 	if err != nil {
-		if appErr, ok := err.(*errors.AppError); ok {
-			return nil, appErr
-		}
 		logger.Errorw("Failed to start connection", "sessionId", session.ID, "error", err)
-		return nil, errors.Internal()
+		return nil, errors.MapRepoError(err)
 	}
 
 	return webrtcRes, nil
 }
-
-

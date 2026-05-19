@@ -54,11 +54,15 @@ func AlreadyExists(msg ...string) *AppError {
 }
 
 // MapRepoError maps ORM/database errors to sentinel errors.
-// Extend with your ORM-specific error checks (GORM, SQLx, etc.).
+// If the error is already an AppError, it passes through directly.
 func MapRepoError(err error) *AppError {
 	var pgErr *pgconn.PgError
 	if err == nil {
 		return nil
+	}
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		return appErr
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return NotFound()

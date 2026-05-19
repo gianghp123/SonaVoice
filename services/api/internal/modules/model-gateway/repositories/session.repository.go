@@ -54,6 +54,14 @@ func (s *sessionRepository) UpdateSpeechSessionID(ctx context.Context, sessionID
 	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("speech_session_id", speechSessionID).Error
 }
 
+func (s *sessionRepository) SetMaxDuration(ctx context.Context, sessionID string, maxDuration int64) error {
+	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("max_duration", maxDuration).Error
+}
+
+func (s *sessionRepository) SetActualUsage(ctx context.Context, sessionID string, actualUsage int64) error {
+	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("actual_usage", actualUsage).Error
+}
+
 func (s *sessionRepository) UpdateStatus(ctx context.Context, sessionID string, status enums.SessionStatus) error {
 	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("status", status).Error
 }
@@ -76,20 +84,10 @@ func (s *sessionRepository) SetQuotaDate(ctx context.Context, sessionID string, 
 	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("quota_date", quotaDate).Error
 }
 
-func (s *sessionRepository) SetReservedAmount(ctx context.Context, sessionID string, amount int64) error {
-	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("reserved_amount", amount).Error
-}
-
-func (s *sessionRepository) SetQuotaDateToNil(ctx context.Context, sessionID string) error {
-	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("quota_date", nil).Error
-}
-
 func (s *sessionRepository) SetSessionFailed(ctx context.Context, sessionID string) error {
-	result := s.db.Model(&models.Session{}).Where("id = ? AND status IN ?", sessionID, []enums.SessionStatus{enums.SessionStatusPending, enums.SessionStatusActive}).Updates(map[string]interface{}{
-		"status":          enums.SessionStatusFailed,
-		"ended_at":        utils.NowUTC(),
-		"quota_date":      nil,
-		"reserved_amount": 0,
+	result := s.db.Model(&models.Session{}).Where("id = ? AND status IN ?", sessionID, []enums.SessionStatus{enums.SessionStatusPending, enums.SessionStatusActive}).	Updates(map[string]interface{}{
+		"status":   enums.SessionStatusFailed,
+		"ended_at": utils.NowUTC(),
 	})
 	if result.Error != nil {
 		return result.Error
@@ -117,11 +115,9 @@ func (s *sessionRepository) GetPendingByUserIDForUpdate(ctx context.Context, use
 }
 
 func (s *sessionRepository) SetSessionInactive(ctx context.Context, sessionID string, endedAt time.Time) error {
-	result := s.db.Model(&models.Session{}).Where("id = ? AND status != ?", sessionID, enums.SessionStatusInactive).Updates(map[string]interface{}{
-		"status":          enums.SessionStatusInactive,
-		"ended_at":        endedAt,
-		"quota_date":      nil,
-		"reserved_amount": 0,
+	result := s.db.Model(&models.Session{}).Where("id = ? AND status != ?", sessionID, enums.SessionStatusInactive).	Updates(map[string]interface{}{
+		"status":   enums.SessionStatusInactive,
+		"ended_at": endedAt,
 	})
 	if result.Error != nil {
 		return result.Error

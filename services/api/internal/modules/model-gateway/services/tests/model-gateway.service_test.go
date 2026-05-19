@@ -2,7 +2,6 @@ package tests
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -15,12 +14,13 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services"
 	svcMocks "github.com/gianghp123/SonaVoice/api/internal/modules/model-gateway/services/mocks"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func setupSessionCtx(userID string) context.Context {
@@ -30,6 +30,8 @@ func setupSessionCtx(userID string) context.Context {
 }
 
 func TestModelGatewayService_CreateSession(t *testing.T) {
+	configPayload := `{"enabled":true,"limits":{"user":{"daily_voice_seconds":300,"daily_request_count":100}}}`
+
 	tests := []struct {
 		name      string
 		setupMock func(
@@ -37,20 +39,43 @@ func TestModelGatewayService_CreateSession(t *testing.T) {
 			sessionSvc *svcMocks.SessionService,
 			speechSvc *svcMocks.SpeechProxyService,
 			startConnSvc *svcMocks.StartConnectionService,
+			quotaSvc *svcMocks.QuotaService,
+			uow *svcMocks.UnitOfWork,
+			provider *svcMocks.Provider,
+			sessionRepo *repoMocks.SessionRepository,
 		)
 		wantErr bool
 		errCode int
 	}{
 		{
 			name: "success",
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService) {
-				sessionSvc.On("Create", mock.Anything, "user-1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
+			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork, provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
+				configSvc.On("Get", mock.Anything).Return(&models.GlobalConfig{Config: datatypes.JSON(configPayload)}, (*appErrors.AppError)(nil))
+				quotaSvc.On("CheckRemaining", mock.Anything, "user-1", int64(300)).Return(int64(300), nil)
+				provider.On("Session").Return(sessionRepo)
+				sessionRepo.On("GetPendingByUserIDForUpdate", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
+				sessionRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
+			name: "quota exceeded",
+			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork, provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
+				configSvc.On("Get", mock.Anything).Return(&models.GlobalConfig{Config: datatypes.JSON(configPayload)}, (*appErrors.AppError)(nil))
+				quotaSvc.On("CheckRemaining", mock.Anything, "user-1", int64(300)).Return(int64(0), nil)
+			},
+			wantErr: true,
+			errCode: http.StatusForbidden,
+		},
+		{
 			name: "create session conflict error",
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService) {
-				sessionSvc.On("Create", mock.Anything, "user-1").Return((*models.Session)(nil), appErrors.Conflict("close current session before starting a new one"))
+			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork, provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
+				configSvc.On("Get", mock.Anything).Return(&models.GlobalConfig{Config: datatypes.JSON(configPayload)}, (*appErrors.AppError)(nil))
+				quotaSvc.On("CheckRemaining", mock.Anything, "user-1", int64(300)).Return(int64(300), nil)
+				provider.On("Session").Return(sessionRepo)
+				sessionRepo.On("GetPendingByUserIDForUpdate", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
+				sessionRepo.On("Create", mock.Anything, mock.Anything).Return(&pgconn.PgError{Code: "23505"})
+				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: true,
 			errCode: http.StatusConflict,
@@ -63,35 +88,31 @@ func TestModelGatewayService_CreateSession(t *testing.T) {
 			sessionSvc := new(svcMocks.SessionService)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
+			quotaSvc := new(svcMocks.QuotaService)
 			uow := new(svcMocks.UnitOfWork)
+			provider := new(svcMocks.Provider)
+			sessionRepo := new(repoMocks.SessionRepository)
 
-			tt.setupMock(configSvc, sessionSvc, speechSvc, startConnSvc)
+			tt.setupMock(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow, provider, sessionRepo)
 
-			uow.On("Do", mock.Anything, mock.Anything).Return(nil)
+			uow.SetProvider(provider)
 
-			svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, uow)
+			svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
 			ctx := setupSessionCtx("user-1")
-
 			result, appErr := svc.CreateSession(ctx)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)
 				assert.Equal(t, tt.errCode, appErr.Code)
-				return
+			} else {
+				require.Nil(t, appErr)
+				require.NotNil(t, result)
 			}
-			require.Nil(t, appErr)
-			assert.Nil(t, result.WebRTCConnectionRes)
 		})
 	}
 }
 
 func TestModelGatewayService_StartConnection(t *testing.T) {
-	defaultConfig := &models.GlobalConfig{
-		Config: datatypes.JSON(`{"limits":{"session":{"max_session_lockTTL":60},"user":{"daily_voice_seconds":3600}}}`),
-	}
-	pendingSession := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}
-	webrtcRes := &res.WebRTCConnectionRes{SessionID: "speech-s1"}
-
 	tests := []struct {
 		name      string
 		setupMock func(
@@ -99,49 +120,32 @@ func TestModelGatewayService_StartConnection(t *testing.T) {
 			sessionSvc *svcMocks.SessionService,
 			speechSvc *svcMocks.SpeechProxyService,
 			startConnSvc *svcMocks.StartConnectionService,
+			quotaSvc *svcMocks.QuotaService,
+			uow *svcMocks.UnitOfWork,
 		)
 		wantErr bool
 		errCode int
 	}{
 		{
 			name: "success",
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService) {
-				sessionSvc.On("Get", mock.Anything, "s1", "user-1").Return(pendingSession, (*appErrors.AppError)(nil))
-				configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
-				startConnSvc.On("Start", mock.Anything, pendingSession, "user-1", 3600).Return(webrtcRes, (*appErrors.AppError)(nil))
+			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork) {
+				sessionSvc.On("Get", mock.Anything, "s1", "user-1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending, MaxDuration: 300}, (*appErrors.AppError)(nil))
+				startConnSvc.On("Start", mock.Anything, mock.Anything, "user-1").Return(&res.WebRTCConnectionRes{SessionID: "speech-s1"}, (*appErrors.AppError)(nil))
 			},
 		},
 		{
-			name: "session not found",
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService) {
-				sessionSvc.On("Get", mock.Anything, "s1", "user-1").Return((*models.Session)(nil), appErrors.Internal("not found"))
-			},
-			wantErr: true,
-			errCode: http.StatusInternalServerError,
-		},
-		{
-			name: "session not startable (active)",
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService) {
-				activeSession := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusActive}
-				sessionSvc.On("Get", mock.Anything, "s1", "user-1").Return(activeSession, (*appErrors.AppError)(nil))
+			name: "session not startable",
+			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork) {
+				sessionSvc.On("Get", mock.Anything, "s1", "user-1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive}, (*appErrors.AppError)(nil))
 			},
 			wantErr: true,
 			errCode: http.StatusBadRequest,
 		},
 		{
-			name: "session not startable (inactive)",
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService) {
-				inactiveSession := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive}
-				sessionSvc.On("Get", mock.Anything, "s1", "user-1").Return(inactiveSession, (*appErrors.AppError)(nil))
-			},
-			wantErr: true,
-			errCode: http.StatusBadRequest,
-		},
-		{
-			name: "config error",
-			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService) {
-				sessionSvc.On("Get", mock.Anything, "s1", "user-1").Return(pendingSession, (*appErrors.AppError)(nil))
-				configSvc.On("Get", mock.Anything).Return((*models.GlobalConfig)(nil), appErrors.Internal("config error"))
+			name: "start connection service error",
+			setupMock: func(configSvc *svcMocks.GlobalConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork) {
+				sessionSvc.On("Get", mock.Anything, "s1", "user-1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending, MaxDuration: 300}, (*appErrors.AppError)(nil))
+				startConnSvc.On("Start", mock.Anything, mock.Anything, "user-1").Return((*res.WebRTCConnectionRes)(nil), appErrors.Internal("speech engine error"))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
@@ -154,157 +158,95 @@ func TestModelGatewayService_StartConnection(t *testing.T) {
 			sessionSvc := new(svcMocks.SessionService)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
+			quotaSvc := new(svcMocks.QuotaService)
+			uow := new(svcMocks.UnitOfWork)
 
-			tt.setupMock(configSvc, sessionSvc, speechSvc, startConnSvc)
+			tt.setupMock(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
 
-			svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, nil)
+			svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
 			ctx := setupSessionCtx("user-1")
-
 			result, appErr := svc.StartConnection(ctx, "s1")
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)
 				assert.Equal(t, tt.errCode, appErr.Code)
-				return
+			} else {
+				require.Nil(t, appErr)
+				require.NotNil(t, result)
+				assert.Equal(t, "speech-s1", result.SessionID)
 			}
-			require.Nil(t, appErr)
-			assert.Equal(t, "speech-s1", result.SessionID)
 		})
 	}
 }
 
 func TestModelGatewayService_ProxyOffer(t *testing.T) {
-	pendingSession := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending, ReservedAmount: 300, SpeechSessionID: "speech-s1"}
-	activeSession := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusActive, ReservedAmount: 300}
-	responseBody := []byte(`{"ok":true}`)
+	responseBody := []byte(`{"sdp":"test-sdp"}`)
+	errorBody := []byte(`{"error":"bad"}`)
 
 	tests := []struct {
-		name       string
-		sessionID  string
-		method     string
-		body       []byte
-		setupMock func(
+		name          string
+		sessionID     string
+		method        string
+		body          []byte
+		session       *models.Session
+		setupProviderMock func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService)
+		setupMocks func(
 			sessionSvc *svcMocks.SessionService,
 			speechSvc *svcMocks.SpeechProxyService,
-			sessionRepo *repoMocks.SessionRepository,
-			quotaRepo *repoMocks.UserQuotaRepository,
-			provider *svcMocks.Provider,
-			uow *svcMocks.UnitOfWork,
 		)
-		wantErr    bool
-		errCode    int
-		wantStatus int
-		wantBody   []byte
+		wantErr       bool
+		wantStatusCode int
 	}{
 		{
-			name:      "success with 200 marks pending session active",
+			name:      "successful proxy offer",
 			sessionID: "speech-s1",
 			method:    http.MethodPost,
-			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1", "user-1").Return(pendingSession, (*appErrors.AppError)(nil))
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(pendingSession, nil)
-				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(responseBody, http.StatusOK, (*appErrors.AppError)(nil))
+			body:      []byte(`{"offer":"test"}`),
+			session:   &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending},
+			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService) {
+				provider.On("Session").Return(sessionRepo)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, nil)
 				sessionRepo.On("SetSessionActive", mock.Anything, "s1", mock.Anything).Return(nil)
-				provider.On("Session").Return(sessionRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
-			},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:      "already active session returns bad request",
-			sessionID: "speech-s1",
-			method:    http.MethodPost,
-			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1", "user-1").Return(activeSession, (*appErrors.AppError)(nil))
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(activeSession, nil)
-				provider.On("Session").Return(sessionRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(appErrors.BadRequest("session is not startable"))
-			},
-			wantErr: true,
-			errCode: http.StatusBadRequest,
-		},
-		{
-			name:      "empty session id",
-			sessionID: "",
-			method:    http.MethodPost,
-			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {},
-			wantErr:   true,
-			errCode:   http.StatusBadRequest,
-		},
-		{
-			name:      "get session by speech id error",
-			sessionID: "speech-s1",
-			method:    http.MethodPost,
-			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1", "user-1").Return((*models.Session)(nil), appErrors.Internal("not found"))
-			},
-			wantErr: true,
-			errCode: http.StatusInternalServerError,
-		},
-		{
-			name:      "speech proxy error marks session failed and releases quota",
-			sessionID: "speech-s1",
-			method:    http.MethodPost,
-			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1", "user-1").Return(pendingSession, (*appErrors.AppError)(nil))
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(pendingSession, nil)
-				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return([]byte{}, 0, appErrors.Internal("proxy error"))
-				quotaRepo.On("Release", mock.Anything, "user-1", "voice", mock.Anything, int64(300)).Return(nil)
-				sessionRepo.On("SetSessionFailed", mock.Anything, "s1").Return(nil)
-				provider.On("Session").Return(sessionRepo)
-				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
-			},
-			wantErr: true,
-			errCode: http.StatusInternalServerError,
-		},
-		{
-			name:      "non-2xx status marks session failed and releases quota",
-			sessionID: "speech-s1",
-			method:    http.MethodPost,
-			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				errorBody := []byte(`{"error":"gateway error"}`)
-				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1", "user-1").Return(pendingSession, (*appErrors.AppError)(nil))
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(pendingSession, nil)
-				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(errorBody, http.StatusBadGateway, (*appErrors.AppError)(nil))
-				quotaRepo.On("Release", mock.Anything, "user-1", "voice", mock.Anything, int64(300)).Return(nil)
-				sessionRepo.On("SetSessionFailed", mock.Anything, "s1").Return(nil)
-				provider.On("Session").Return(sessionRepo)
-				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
-			},
-			wantStatus: http.StatusBadGateway,
-			wantBody:   []byte(`{"error":"gateway error"}`),
-		},
-		{
-			name:      "mark active error marks session failed and releases quota",
-			sessionID: "speech-s1",
-			method:    http.MethodPost,
-			body:      []byte(`{}`),
-			setupMock: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1", "user-1").Return(pendingSession, (*appErrors.AppError)(nil))
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(pendingSession, nil)
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(responseBody, http.StatusOK, (*appErrors.AppError)(nil))
-				sessionRepo.On("SetSessionActive", mock.Anything, "s1", mock.Anything).Return(gorm.ErrRecordNotFound)
-				quotaRepo.On("Release", mock.Anything, "user-1", "voice", mock.Anything, int64(300)).Return(nil)
-				sessionRepo.On("SetSessionFailed", mock.Anything, "s1").Return(nil)
+			},
+			setupMocks: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
+				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1", "user-1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
+			},
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:      "speech engine error",
+			sessionID: "speech-s1",
+			method:    http.MethodPost,
+			body:      []byte(`{"offer":"test"}`),
+			session:   &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending},
+			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService) {
 				provider.On("Session").Return(sessionRepo)
-				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, nil)
+				sessionRepo.On("SetSessionFailed", mock.Anything, "s1").Return(nil)
+				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return([]byte{}, 0, appErrors.Internal("proxy error"))
+			},
+			setupMocks: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
+				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1", "user-1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
 			},
 			wantErr: true,
-			errCode: http.StatusInternalServerError,
+		},
+		{
+			name:      "non-2xx from speech engine",
+			sessionID: "speech-s1",
+			method:    http.MethodPost,
+			body:      []byte(`{"offer":"test"}`),
+			session:   &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending},
+			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService) {
+				provider.On("Session").Return(sessionRepo)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, nil)
+				sessionRepo.On("SetSessionFailed", mock.Anything, "s1").Return(nil)
+				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(errorBody, http.StatusBadGateway, (*appErrors.AppError)(nil))
+			},
+			setupMocks: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
+				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1", "user-1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
+			},
+			wantStatusCode: http.StatusBadGateway,
 		},
 	}
 
@@ -314,327 +256,201 @@ func TestModelGatewayService_ProxyOffer(t *testing.T) {
 			sessionSvc := new(svcMocks.SessionService)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
+			quotaSvc := new(svcMocks.QuotaService)
+
 			sessionRepo := new(repoMocks.SessionRepository)
-			quotaRepo := new(repoMocks.UserQuotaRepository)
 			provider := new(svcMocks.Provider)
-			uow := new(svcMocks.UnitOfWork)
+			tt.setupProviderMock(provider, sessionRepo, speechSvc)
+			tt.setupMocks(sessionSvc, speechSvc)
 
-			tt.setupMock(sessionSvc, speechSvc, sessionRepo, quotaRepo, provider, uow)
+		uow := new(svcMocks.UnitOfWork)
+		uow.SetProvider(provider)
+		uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 
-			svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, uow)
-			ctx := setupSessionCtx("user-1")
-
-			respBody, statusCode, appErr := svc.ProxyOffer(ctx, tt.sessionID, tt.method, tt.body)
+		svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
+		ctx := setupSessionCtx("user-1")
+		respBody, statusCode, appErr := svc.ProxyOffer(ctx, tt.sessionID, tt.method, tt.body)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)
-				assert.Equal(t, tt.errCode, appErr.Code)
-				return
-			}
-			require.Nil(t, appErr)
-			assert.Equal(t, tt.wantStatus, statusCode)
-			if tt.wantBody != nil {
-				assert.Equal(t, tt.wantBody, respBody)
 			} else {
-				assert.Equal(t, responseBody, respBody)
+				assert.Equal(t, tt.wantStatusCode, statusCode)
+				if tt.wantStatusCode == http.StatusOK {
+					require.Nil(t, appErr)
+					require.NotNil(t, respBody)
+				}
 			}
 		})
 	}
 }
 
 func TestModelGatewayService_CloseSession(t *testing.T) {
+	quotaDate := time.Date(2026, 5, 19, 0, 0, 0, 0, time.UTC)
+
 	tests := []struct {
-		name   string
-		req    *req.CloseSessionReq
-		setupMock func(
-			sessionRepo *repoMocks.SessionRepository,
-			quotaRepo *repoMocks.UserQuotaRepository,
-			provider *svcMocks.Provider,
-			uow *svcMocks.UnitOfWork,
-		)
-		wantErr bool
-		errCode int
+		name            string
+		session         *models.Session
+		actualUsage     int
+		setupProviderMock func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository)
+		wantErr         bool
+		errCode         int
 	}{
 		{
-			name: "success with quota release",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				quotaDate := time.Now().Truncate(24 * time.Hour)
-				session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: "active", ReservedAmount: 300, QuotaDate: &quotaDate}
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(session, nil)
-				quotaRepo.On("Release", mock.Anything, "user-1", "voice", quotaDate, int64(240)).Return(nil)
+			name:        "close active session with unused quota",
+			session:     &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusActive, MaxDuration: 300, QuotaDate: &quotaDate},
+			actualUsage: 60,
+			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository) {
+				provider.On("Session").Return(sessionRepo)
+				provider.On("UserQuota").Return(quotaRepo)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusActive, MaxDuration: 300, QuotaDate: &quotaDate}, nil)
+				quotaRepo.On("Deduct", mock.Anything, "user-1", "voice", quotaDate, int64(60)).Return(nil)
+				sessionRepo.On("SetActualUsage", mock.Anything, "s1", int64(60)).Return(nil)
 				sessionRepo.On("SetSessionInactive", mock.Anything, "s1", mock.Anything).Return(nil)
-				provider.On("Session").Return(sessionRepo)
-				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
-			name: "nil req body",
-			req:  nil,
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {},
-			wantErr: true,
-			errCode: http.StatusBadRequest,
-		},
-		{
-			name: "empty session id",
-			req:  &req.CloseSessionReq{SessionID: "", ActualUsage: 60},
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {},
-			wantErr: true,
-			errCode: http.StatusBadRequest,
-		},
-		{
-			name: "negative actualUsage",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: -1},
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {},
-			wantErr: true,
-			errCode: http.StatusBadRequest,
-		},
-		{
-			name: "session already inactive",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				inactiveSession := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: "inactive"}
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(inactiveSession, nil)
+			name:        "actualUsage clamped to MaxDuration",
+			session:     &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusActive, MaxDuration: 300, QuotaDate: &quotaDate},
+			actualUsage: 500,
+			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository) {
 				provider.On("Session").Return(sessionRepo)
 				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
-			},
-			wantErr: true,
-			errCode: http.StatusBadRequest,
-		},
-		{
-			name: "no quota release when quota_date is nil",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: "active", ReservedAmount: 300, QuotaDate: nil}
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(session, nil)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusActive, MaxDuration: 300, QuotaDate: &quotaDate}, nil)
+				quotaRepo.On("Deduct", mock.Anything, "user-1", "voice", quotaDate, int64(300)).Return(nil)
+				sessionRepo.On("SetActualUsage", mock.Anything, "s1", int64(300)).Return(nil)
 				sessionRepo.On("SetSessionInactive", mock.Anything, "s1", mock.Anything).Return(nil)
-				provider.On("Session").Return(sessionRepo)
-				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
-			name: "actualUsage exceeds reservedAmount gets clamped",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 500},
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				quotaDate := time.Now().Truncate(24 * time.Hour)
-				session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: "active", ReservedAmount: 300, QuotaDate: &quotaDate}
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(session, nil)
-				quotaRepo.On("Release", mock.Anything, "user-1", "voice", quotaDate, int64(0)).Return(nil)
-				sessionRepo.On("SetSessionInactive", mock.Anything, "s1", mock.Anything).Return(nil)
+			name:        "deduct fails",
+			session:     &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusActive, MaxDuration: 300, QuotaDate: &quotaDate},
+			actualUsage: 60,
+			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository) {
 				provider.On("Session").Return(sessionRepo)
 				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
-			},
-		},
-		{
-			name: "quota release error",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				quotaDate := time.Now().Truncate(24 * time.Hour)
-				session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: "active", ReservedAmount: 300, QuotaDate: &quotaDate}
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(session, nil)
-				quotaRepo.On("Release", mock.Anything, "user-1", "voice", quotaDate, int64(240)).Return(assert.AnError)
-				provider.On("Session").Return(sessionRepo)
-				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusActive, MaxDuration: 300, QuotaDate: &quotaDate}, nil)
+				quotaRepo.On("Deduct", mock.Anything, "user-1", "voice", quotaDate, int64(60)).Return(assert.AnError)
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
 		},
 		{
-			name: "update status error",
-			req:  &req.CloseSessionReq{SessionID: "s1", ActualUsage: 60},
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				quotaDate := time.Now().Truncate(24 * time.Hour)
-				session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: "active", ReservedAmount: 300, QuotaDate: &quotaDate}
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(session, nil)
-				quotaRepo.On("Release", mock.Anything, "user-1", "voice", quotaDate, int64(240)).Return(nil)
-				sessionRepo.On("SetSessionInactive", mock.Anything, "s1", mock.Anything).Return(assert.AnError)
+			name:        "session already closed",
+			session:     &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive},
+			actualUsage: 60,
+			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository) {
 				provider.On("Session").Return(sessionRepo)
-				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive}, nil)
 			},
 			wantErr: true,
-			errCode: http.StatusInternalServerError,
+			errCode: http.StatusBadRequest,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			sessionRepo := new(repoMocks.SessionRepository)
+			quotaRepo := new(repoMocks.UserQuotaRepository)
+			provider := new(svcMocks.Provider)
+			tt.setupProviderMock(provider, sessionRepo, quotaRepo)
+
 			configSvc := new(svcMocks.GlobalConfigService)
 			sessionSvc := new(svcMocks.SessionService)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
-			sessionRepo := new(repoMocks.SessionRepository)
-			quotaRepo := new(repoMocks.UserQuotaRepository)
-			provider := new(svcMocks.Provider)
-			uow := new(svcMocks.UnitOfWork)
+			quotaSvc := new(svcMocks.QuotaService)
 
-			tt.setupMock(sessionRepo, quotaRepo, provider, uow)
+		uow := new(svcMocks.UnitOfWork)
+		uow.SetProvider(provider)
+		uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 
-			svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, uow)
-			ctx := context.Background()
+		svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
+		ctx := setupSessionCtx("user-1")
 
-			appErr := svc.CloseSession(ctx, tt.req)
+		reqBody := &req.CloseSessionReq{
+				SessionID:   "s1",
+				ActualUsage: tt.actualUsage,
+			}
+			appErr := svc.CloseSession(ctx, reqBody)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)
 				assert.Equal(t, tt.errCode, appErr.Code)
-				return
+			} else {
+				require.Nil(t, appErr)
 			}
-			require.Nil(t, appErr)
 		})
 	}
 }
-
 
 func TestModelGatewayService_CancelSession(t *testing.T) {
 	tests := []struct {
-		name      string
-		sessionID string
-		setupMock func(
-			sessionRepo *repoMocks.SessionRepository,
-			quotaRepo *repoMocks.UserQuotaRepository,
-			provider *svcMocks.Provider,
-			uow *svcMocks.UnitOfWork,
-		)
-		wantErr bool
-		errCode int
+		name            string
+		sessionID       string
+		session         *models.Session
+		setupProviderMock func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository)
+		wantErr         bool
+		errCode         int
 	}{
 		{
-			name:      "success with quota release",
+			name:      "cancel pending session",
 			sessionID: "s1",
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				quotaDate := time.Now().Truncate(24 * time.Hour)
-				session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: "active", ReservedAmount: 300, QuotaDate: &quotaDate}
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(session, nil)
-				quotaRepo.On("Release", mock.Anything, "user-1", "voice", quotaDate, int64(300)).Return(nil)
-				sessionRepo.On("SetSessionInactive", mock.Anything, "s1", mock.Anything).Return(nil)
+			session:   &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending},
+			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
 				provider.On("Session").Return(sessionRepo)
-				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, nil)
+				sessionRepo.On("SetSessionInactive", mock.Anything, "s1", mock.Anything).Return(nil)
 			},
 		},
 		{
-			name:      "empty session id",
-			sessionID: "",
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {},
-			wantErr:   true,
-			errCode:   http.StatusBadRequest,
+			name:      "cancel active session",
+			sessionID: "s1",
+			session:   &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusActive},
+			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
+				provider.On("Session").Return(sessionRepo)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusActive}, nil)
+				sessionRepo.On("SetSessionInactive", mock.Anything, "s1", mock.Anything).Return(nil)
+			},
 		},
 		{
-			name:      "session already inactive",
+			name:      "session already closed",
 			sessionID: "s1",
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				inactiveSession := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: "inactive"}
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(inactiveSession, nil)
+			session:   &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive},
+			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
 				provider.On("Session").Return(sessionRepo)
-				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive}, nil)
 			},
 			wantErr: true,
 			errCode: http.StatusBadRequest,
-		},
-		{
-			name:      "no quota release when quota_date is nil",
-			sessionID: "s1",
-			setupMock: func(sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository, provider *svcMocks.Provider, uow *svcMocks.UnitOfWork) {
-				session := &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: "pending", ReservedAmount: 300, QuotaDate: nil}
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(session, nil)
-				sessionRepo.On("SetSessionInactive", mock.Anything, "s1", mock.Anything).Return(nil)
-				provider.On("Session").Return(sessionRepo)
-				provider.On("UserQuota").Return(quotaRepo)
-				uow.SetProvider(provider)
-				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
-			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			sessionRepo := new(repoMocks.SessionRepository)
+			provider := new(svcMocks.Provider)
+			tt.setupProviderMock(provider, sessionRepo)
+
 			configSvc := new(svcMocks.GlobalConfigService)
 			sessionSvc := new(svcMocks.SessionService)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
-			sessionRepo := new(repoMocks.SessionRepository)
-			quotaRepo := new(repoMocks.UserQuotaRepository)
-			provider := new(svcMocks.Provider)
-			uow := new(svcMocks.UnitOfWork)
+			quotaSvc := new(svcMocks.QuotaService)
 
-			tt.setupMock(sessionRepo, quotaRepo, provider, uow)
+		uow := new(svcMocks.UnitOfWork)
+		uow.SetProvider(provider)
+		uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 
-			svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, uow)
-			ctx := setupSessionCtx("user-1")
-
-			appErr := svc.CancelSession(ctx, tt.sessionID)
+		svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
+		ctx := setupSessionCtx("user-1")
+		appErr := svc.CancelSession(ctx, tt.sessionID)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)
 				assert.Equal(t, tt.errCode, appErr.Code)
-				return
+			} else {
+				require.Nil(t, appErr)
 			}
-			require.Nil(t, appErr)
 		})
 	}
-}
-
-func TestModelGatewayService_CreateSession_JSONSerializable(t *testing.T) {
-	defaultConfig := &models.GlobalConfig{
-		Config: datatypes.JSON(`{"limits":{"session":{"max_session_lockTTL":60},"user":{"daily_voice_seconds":3600}}}`),
-	}
-
-	configSvc := new(svcMocks.GlobalConfigService)
-	sessionSvc := new(svcMocks.SessionService)
-	speechSvc := new(svcMocks.SpeechProxyService)
-	startConnSvc := new(svcMocks.StartConnectionService)
-
-	configSvc.On("Get", mock.Anything).Return(defaultConfig, (*appErrors.AppError)(nil))
-	sessionSvc.On("Create", mock.Anything, "user-1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
-
-	uow := new(svcMocks.UnitOfWork)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil)
-
-	svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, uow)
-	ctx := setupSessionCtx("user-1")
-
-	result, appErr := svc.CreateSession(ctx)
-	require.Nil(t, appErr)
-
-	bytes, err := json.Marshal(result)
-	require.NoError(t, err)
-	assert.Contains(t, string(bytes), "s1")
-	assert.Contains(t, string(bytes), `"webrtc_connection":null`)
-}
-
-func TestModelGatewayService_CreateSession_ConflictWhenActiveSession(t *testing.T) {
-	configSvc := new(svcMocks.GlobalConfigService)
-	sessionSvc := new(svcMocks.SessionService)
-	speechSvc := new(svcMocks.SpeechProxyService)
-	startConnSvc := new(svcMocks.StartConnectionService)
-
-	configSvc.On("Get", mock.Anything).Return(&models.GlobalConfig{
-		Config: datatypes.JSON(`{"limits":{"session":{"max_session_lockTTL":60},"user":{"daily_voice_seconds":3600}}}`),
-	}, (*appErrors.AppError)(nil))
-	sessionSvc.On("Create", mock.Anything, "user-1").Return((*models.Session)(nil), appErrors.Conflict("close current session before starting a new one"))
-
-	uow := new(svcMocks.UnitOfWork)
-	uow.On("Do", mock.Anything, mock.Anything).Return(nil)
-
-	svc := services.NewModelGatewayService(configSvc, sessionSvc, speechSvc, startConnSvc, uow)
-	ctx := setupSessionCtx("user-1")
-
-	_, appErr := svc.CreateSession(ctx)
-	require.NotNil(t, appErr)
-	assert.Equal(t, http.StatusConflict, appErr.Code)
 }

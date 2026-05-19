@@ -25,23 +25,19 @@ export function ConnectNow() {
 
       const res = await createSession()
 
+      console.log(res)
+
       if (res.error) {
         toast.error(res.error.message || "Failed to create session")
         return
       }
 
       const sessionId = res.data?.id
-      const webrtcConnection = res.data?.webrtcConnection
 
-      if (!sessionId || !webrtcConnection) {
+      if (!sessionId) {
         toast.error("Failed to create session")
         return
       }
-
-      sessionStorage.setItem(
-        `webrtcConnection:${sessionId}`,
-        JSON.stringify(webrtcConnection)
-      )
 
       router.push(`/chat/${sessionId}`)
     } catch {

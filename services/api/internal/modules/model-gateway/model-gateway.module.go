@@ -15,6 +15,7 @@ import (
 func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHttpClient) {
 	sessionRepo := repositories.NewSessionRepository(db)
 	configRepo := repositories.NewGlobalConfigRepository(db)
+	userQuotaRepo := repositories.NewUserQuotaRepository(db)
 
 	uow := transaction.NewUnitOfWork(db)
 
@@ -22,8 +23,9 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHt
 	speechProxyService := services.NewSpeechProxyService(httpClient)
 	configService := services.NewGlobalConfigService(configRepo)
 	startConnectionSvc := services.NewStartConnectionService(speechProxyService, uow)
+	quotaService := services.NewQuotaService(userQuotaRepo)
 
-	modelGatewayService := services.NewModelGatewayService(configService, sessionService, speechProxyService, startConnectionSvc, uow)
+	modelGatewayService := services.NewModelGatewayService(configService, sessionService, speechProxyService, startConnectionSvc, quotaService, uow)
 	modelGatewayController := controllers.NewModelGatewayController(modelGatewayService)
 	globalConfigController := controllers.NewGlobalConfigController(configService)
 

@@ -15,4 +15,4 @@ tmp/
 *-credentials.json
 credential*.json
 
-docs/superpowers/
+**/docs/superpowers/

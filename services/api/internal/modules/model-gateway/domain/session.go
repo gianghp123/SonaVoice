@@ -9,11 +9,12 @@ import (
 )
 
 type Session struct {
-	ID             string
-	UserID         string
-	Status         enums.SessionStatus
-	ReservedAmount int64
-	QuotaDate      *time.Time
+	ID          string
+	UserID      string
+	Status      enums.SessionStatus
+	MaxDuration int64
+	ActualUsage int64
+	QuotaDate   *time.Time
 }
 
 func (s *Session) IsOwnedBy(userID string) bool {
@@ -44,29 +45,16 @@ func (s *Session) CanBeCancelled() *errors.AppError {
 	return nil
 }
 
-func (s *Session) WantsQuotaRelease() bool {
-	return s.QuotaDate != nil
-}
-
-func (s *Session) ClampActualUsage(actual int64) int64 {
-	if actual < 0 {
-		return 0
-	}
-	if actual > s.ReservedAmount {
-		return s.ReservedAmount
-	}
-	return actual
-}
-
 func NewSessionFromModel(m *models.Session) *Session {
 	if m == nil {
 		return nil
 	}
 	return &Session{
-		ID:             m.ID,
-		UserID:         m.UserID,
-		Status:         m.Status,
-		ReservedAmount: m.ReservedAmount,
-		QuotaDate:      m.QuotaDate,
+		ID:          m.ID,
+		UserID:      m.UserID,
+		Status:      m.Status,
+		MaxDuration: m.MaxDuration,
+		ActualUsage: m.ActualUsage,
+		QuotaDate:   m.QuotaDate,
 	}
 }

@@ -13,8 +13,8 @@ type StartConnectionService struct {
 	mock.Mock
 }
 
-func (m *StartConnectionService) Start(ctx context.Context, session *models.Session, userID string, dailyQuota int) (*res.WebRTCConnectionRes, *errors.AppError) {
-	args := m.Called(ctx, session, userID, dailyQuota)
+func (m *StartConnectionService) Start(ctx context.Context, session *models.Session, userID string) (*res.WebRTCConnectionRes, *errors.AppError) {
+	args := m.Called(ctx, session, userID)
 	if args.Get(0) == nil {
 		return nil, func() *errors.AppError {
 			if args.Get(1) == nil {

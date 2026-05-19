@@ -19,8 +19,8 @@ type ISessionRepository interface {
 	UpdateStatus(ctx context.Context, sessionID string, status enums.SessionStatus) error
 	SetSessionActive(ctx context.Context, sessionID string, startedAt time.Time) error
 	SetQuotaDate(ctx context.Context, sessionID string, quotaDate time.Time) error
-	SetReservedAmount(ctx context.Context, sessionID string, amount int64) error
+	SetMaxDuration(ctx context.Context, sessionID string, maxDuration int64) error
+	SetActualUsage(ctx context.Context, sessionID string, actualUsage int64) error
 	SetSessionFailed(ctx context.Context, sessionID string) error
 	SetSessionInactive(ctx context.Context, sessionID string, endedAt time.Time) error
-	SetQuotaDateToNil(ctx context.Context, sessionID string) error
 }

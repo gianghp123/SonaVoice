@@ -11,12 +11,12 @@ type UserQuotaRepository struct {
 	mock.Mock
 }
 
-func (m *UserQuotaRepository) Reserve(ctx context.Context, userID string, quotaKey string, quotaDate time.Time, dailyLimit int64) (int64, error) {
-	args := m.Called(ctx, userID, quotaKey, quotaDate, dailyLimit)
+func (m *UserQuotaRepository) GetOrCreate(ctx context.Context, userID string, quotaKey string, quotaDate time.Time, initialAmount int64) (int64, error) {
+	args := m.Called(ctx, userID, quotaKey, quotaDate, initialAmount)
 	return args.Get(0).(int64), args.Error(1)
 }
 
-func (m *UserQuotaRepository) Release(ctx context.Context, userID string, quotaKey string, quotaDate time.Time, amount int64) error {
+func (m *UserQuotaRepository) Deduct(ctx context.Context, userID string, quotaKey string, quotaDate time.Time, amount int64) error {
 	args := m.Called(ctx, userID, quotaKey, quotaDate, amount)
 	return args.Error(0)
 }

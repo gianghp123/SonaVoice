@@ -33,12 +33,15 @@ async def create_voice_bot_task(
     context: LLMContext,
     session_id,
     user_id,
+    start_time=None,
     max_duration=None,
     memory_processor: CustomMem0Processor = None,
 ) -> PipelineTask:
     
+    if start_time is None:
+        start_time = time.time()
+    
     session_messages: list[SessionMessage] = []
-    start_time = None
     service = SessionService()
 
 
@@ -147,7 +150,6 @@ async def create_voice_bot_task(
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
         logger.info(f"Client connected")
-        start_time = time.time()
         # Add a greeting message to the context
         context.add_message(
             {"role": "system", "content": "Say hello and briefly introduce yourself."}

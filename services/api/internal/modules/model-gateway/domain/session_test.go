@@ -2,7 +2,6 @@ package domain
 
 import (
 	"testing"
-	"time"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/stretchr/testify/assert"
@@ -44,7 +43,7 @@ func TestSession_CanBeClosed(t *testing.T) {
 	}{
 		{"can close active", enums.SessionStatusActive, false, 0},
 		{"can close pending", enums.SessionStatusPending, false, 0},
-		{"can close failed", enums.SessionStatusFailed, false, 0},
+		{"cannot close failed", enums.SessionStatusFailed, true, 400},
 		{"cannot close inactive", enums.SessionStatusInactive, true, 400},
 	}
 
@@ -87,22 +86,6 @@ func TestSession_CanBeCancelled(t *testing.T) {
 	}
 }
 
-func TestSession_ClampActualUsage(t *testing.T) {
-	s := &Session{ReservedAmount: 300}
-	assert.Equal(t, int64(0), s.ClampActualUsage(-10))
-	assert.Equal(t, int64(0), s.ClampActualUsage(0))
-	assert.Equal(t, int64(60), s.ClampActualUsage(60))
-	assert.Equal(t, int64(300), s.ClampActualUsage(300))
-	assert.Equal(t, int64(300), s.ClampActualUsage(500))
-}
-
-func TestSession_WantsQuotaRelease(t *testing.T) {
-	s := &Session{QuotaDate: nil}
-	assert.False(t, s.WantsQuotaRelease())
-	now := time.Now()
-	s.QuotaDate = &now
-	assert.True(t, s.WantsQuotaRelease())
-}
 
 func TestSession_IsOwnedBy(t *testing.T) {
 	s := &Session{UserID: "user-1"}

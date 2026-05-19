@@ -29,6 +29,7 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from src.agents.tools import summarize_function, save_memory_function
 from pipecat.services.piper.tts import PiperTTSService
+import time
 
 load_dotenv()
 
@@ -130,6 +131,8 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     memory_processor = CustomMem0Processor(
         memory_client=memory_client, user_id=user_id, session_id=session_id
     )
+    
+    start_time = time.time()
 
     # Create the Task using our factory
     task = await create_voice_bot_task(
@@ -138,9 +141,11 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         llm,
         tts,
         context,
+        session_id,
+        user_id,
+        start_time=start_time,
         max_duration=max_duration,
         memory_processor=memory_processor,
-        app_resources=app_resource,
     )
 
     # Run

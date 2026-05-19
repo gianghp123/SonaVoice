@@ -30,6 +30,7 @@ type modelGatewayService struct {
 	sessionService     ISessionService
 	speechService      ISpeechProxyService
 	startConnectionSvc IStartConnectionService
+	quotaService       IQuotaService
 	uow                transaction.UnitOfWork
 }
 
@@ -38,6 +39,7 @@ func NewModelGatewayService(
 	sessionService ISessionService,
 	speechService ISpeechProxyService,
 	startConnectionSvc IStartConnectionService,
+	quotaService IQuotaService,
 	uow transaction.UnitOfWork,
 ) IModelGatewayService {
 	return &modelGatewayService{
@@ -45,8 +47,70 @@ func NewModelGatewayService(
 		sessionService:     sessionService,
 		speechService:      speechService,
 		startConnectionSvc: startConnectionSvc,
+		quotaService:       quotaService,
 		uow:                uow,
 	}
+}
+
+func (s *modelGatewayService) CreateSession(ctx context.Context) (*res.CreateSessionRes, *errors.AppError) {
+	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+
+	model, appErr := s.configService.Get(ctx)
+	if appErr != nil {
+		return nil, appErr
+	}
+	if model == nil {
+		return nil, errors.Internal("global config missing")
+	}
+	configPayload, err := domain.ParseGlobalConfig(model.Config)
+	if err != nil {
+		return nil, errors.Internal()
+	}
+	dailyLimit := int64(configPayload.Limits.User.DailyVoiceSeconds)
+
+	remaining, err := s.quotaService.CheckRemaining(ctx, requesterID, dailyLimit)
+	if err != nil {
+		zapLogger.S().Errorw("Failed to check remaining quota", "userId", requesterID, "error", err)
+		return nil, errors.Internal()
+	}
+	if remaining <= 0 {
+		return nil, errors.Forbidden("quota exceeded")
+	}
+
+	if err := s.cancelStalePendingSession(ctx, requesterID); err != nil {
+		zapLogger.S().Warnw("Failed to cancel stale pending session", "userId", requesterID, "error", err)
+		return nil, errors.Internal()
+	}
+
+	var session *models.Session
+
+	if err := s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
+		sessionRepo := p.Session()
+
+		quoteDate := utils.QuotaDate()
+
+		session = &models.Session{
+			UserID:      requesterID,
+			Status:      enums.SessionStatusPending,
+			QuotaDate:   &quoteDate,
+			MaxDuration: remaining,
+		}
+
+		if err := sessionRepo.Create(ctx, session); err != nil {
+			zapLogger.S().Errorw("Failed to create session", "error", err)
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return nil, errors.MapRepoError(err)
+	}
+
+	return &res.CreateSessionRes{
+		ID:                  session.ID,
+		MaxDuration:         0,
+		WebRTCConnectionRes: nil,
+	}, nil
 }
 
 func (s *modelGatewayService) StartConnection(ctx context.Context, sessionID string) (*res.WebRTCConnectionRes, *errors.AppError) {
@@ -62,32 +126,7 @@ func (s *modelGatewayService) StartConnection(ctx context.Context, sessionID str
 		return nil, appErr
 	}
 
-	model, appErr := s.configService.Get(ctx)
-	if appErr != nil {
-		return nil, appErr
-	}
-	if model == nil {
-		return nil, errors.Internal("global config missing")
-	}
-	configPayload, err := domain.ParseGlobalConfig(model.Config)
-	if err != nil {
-		return nil, errors.Internal()
-	}
-
-	return s.startConnectionSvc.Start(ctx, session, requesterID, configPayload.Limits.User.DailyVoiceSeconds)
-}
-
-func (s *modelGatewayService) markSessionFailedAndReleaseQuota(ctx context.Context, p transaction.IProvider, session *models.Session) error {
-	sessionRepo := p.Session()
-	quotaRepo := p.UserQuota()
-
-	if session.QuotaDate != nil && session.ReservedAmount > 0 {
-		if err := quotaRepo.Release(ctx, session.UserID, "voice", *session.QuotaDate, session.ReservedAmount); err != nil {
-			return err
-		}
-	}
-
-	return sessionRepo.SetSessionFailed(ctx, session.ID)
+	return s.startConnectionSvc.Start(ctx, session, requesterID)
 }
 
 func (s *modelGatewayService) ProxyOffer(ctx context.Context, speechSessionId string, method string, body []byte) ([]byte, int, *errors.AppError) {
@@ -100,7 +139,6 @@ func (s *modelGatewayService) ProxyOffer(ctx context.Context, speechSessionId st
 
 	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 
-	// Pre-validation: get session by speech session ID (outside tx, cheap)
 	session, appErr := s.sessionService.GetBySpeechSessionID(ctx, speechSessionId, requesterID)
 	if appErr != nil {
 		logger.Errorw("Failed to get app session by speech session id", "speechSessionId", speechSessionId, "error", appErr)
@@ -114,50 +152,34 @@ func (s *modelGatewayService) ProxyOffer(ctx context.Context, speechSessionId st
 	err := s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
 		sessionRepo := p.Session()
 
-		// 1. Lock the row for the duration of the offer
 		sess, err := sessionRepo.GetForUpdate(ctx, session.ID)
 		if err != nil {
 			return err
 		}
 
-		// 2. Validate state machine: must be PENDING to transition
 		domainSession := domain.NewSessionFromModel(sess)
 		if appErr := domainSession.CanBeStarted(); appErr != nil {
 			return appErr
 		}
 
-		// 3. Forward to speech engine (lock held during HTTP call)
-		speechCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		speechCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		responseBody, statusCode, appErr = s.speechService.ProxyOffer(speechCtx, speechSessionId, method, body)
 		if appErr != nil {
 			logger.Errorw("Speech engine error during offer", "sessionId", sess.ID, "speechSessionId", speechSessionId, "error", appErr)
-			// 4a. Speech engine error → mark FAILED, release quota, capture error
-			if failErr := s.markSessionFailedAndReleaseQuota(ctx, p, sess); failErr != nil {
-				logger.Errorw("Failed to mark session failed after speech error", "sessionId", sess.ID, "error", failErr)
-				return failErr
+			if err := sessionRepo.SetSessionFailed(ctx, sess.ID); err != nil {
+				logger.Errorw("Failed to mark session failed", "sessionId", sess.ID, "error", err)
+				return err
 			}
 			proxyErr = appErr
 			return nil
 		}
 
-		if statusCode < 200 || statusCode >= 300 {
-			logger.Errorw("Speech engine returned non-2xx", "sessionId", sess.ID, "speechSessionId", speechSessionId, "statusCode", statusCode)
-			// 4b. Non-2xx from speech engine → same as error
-			if failErr := s.markSessionFailedAndReleaseQuota(ctx, p, sess); failErr != nil {
-				logger.Errorw("Failed to mark session failed after non-2xx", "sessionId", sess.ID, "statusCode", statusCode, "error", failErr)
-				return failErr
-			}
-			return nil // non-2xx is not a Go error; caller handles status code
-		}
-
-		// 5. Success → mark ACTIVE (status precondition ensures no race)
 		if err := sessionRepo.SetSessionActive(ctx, sess.ID, utils.NowUTC()); err != nil {
 			logger.Errorw("Failed to mark session active", "sessionId", sess.ID, "error", err)
-			// If activation fails, roll back by marking failed + releasing quota
-			if failErr := s.markSessionFailedAndReleaseQuota(ctx, p, sess); failErr != nil {
-				logger.Errorw("Failed to mark session failed after activation error", "sessionId", sess.ID, "error", failErr)
-				return failErr
+			if err := sessionRepo.SetSessionFailed(ctx, sess.ID); err != nil {
+				logger.Errorw("Failed to mark session failed after activation error", "sessionId", sess.ID, "error", err)
+				return err
 			}
 			proxyErr = errors.Internal("failed to activate session")
 			return nil
@@ -167,11 +189,8 @@ func (s *modelGatewayService) ProxyOffer(ctx context.Context, speechSessionId st
 	})
 
 	if err != nil {
-		if appErr, ok := err.(*errors.AppError); ok {
-			return nil, 0, appErr
-		}
 		logger.Errorw("ProxyOffer transaction failed", "speechSessionId", speechSessionId, "error", err)
-		return nil, 0, errors.Internal()
+		return nil, 0, errors.MapRepoError(err)
 	}
 
 	if proxyErr != nil {
@@ -201,7 +220,6 @@ func (s *modelGatewayService) CloseSession(ctx context.Context, reqBody *req.Clo
 
 	err := s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
 		sessionRepo := p.Session()
-		quotaRepo := p.UserQuota()
 
 		session, err := sessionRepo.GetForUpdate(ctx, sessionId)
 		if err != nil {
@@ -213,25 +231,26 @@ func (s *modelGatewayService) CloseSession(ctx context.Context, reqBody *req.Clo
 			return appErr
 		}
 
-		if domainSession.WantsQuotaRelease() {
-			actualUsage := domainSession.ClampActualUsage(int64(reqBody.ActualUsage))
-			reservedAmount := domainSession.ReservedAmount
-			unused := reservedAmount - actualUsage
-			if unused > 0 {
-				if err := quotaRepo.Release(ctx, session.UserID, "voice", *session.QuotaDate, unused); err != nil {
-					return err
-				}
+		actualUsage := min(int64(reqBody.ActualUsage), domainSession.MaxDuration)
+
+		if actualUsage > 0 {
+			quotaRepo := p.UserQuota()
+			if err := quotaRepo.Deduct(ctx, session.UserID, "voice", *session.QuotaDate, actualUsage); err != nil {
+				logger.Errorw("Failed to deduct quota", "sessionId", sessionId, "error", err)
+				return err
 			}
+		}
+
+		if err := sessionRepo.SetActualUsage(ctx, session.ID, actualUsage); err != nil {
+			logger.Errorw("Failed to set actual usage", "sessionId", sessionId, "error", err)
+			return err
 		}
 
 		return sessionRepo.SetSessionInactive(ctx, session.ID, utils.NowUTC())
 	})
 
 	if err != nil {
-		if appErr, ok := err.(*errors.AppError); ok {
-			return appErr
-		}
-		return errors.Internal()
+		return errors.MapRepoError(err)
 	}
 	return nil
 }
@@ -247,7 +266,6 @@ func (s *modelGatewayService) CancelSession(ctx context.Context, sessionID strin
 
 	err := s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
 		sessionRepo := p.Session()
-		quotaRepo := p.UserQuota()
 
 		session, err := sessionRepo.GetForUpdate(ctx, sessionID)
 		if err != nil {
@@ -263,21 +281,12 @@ func (s *modelGatewayService) CancelSession(ctx context.Context, sessionID strin
 			return appErr
 		}
 
-		if domainSession.WantsQuotaRelease() {
-			if err := quotaRepo.Release(ctx, session.UserID, "voice", *session.QuotaDate, session.ReservedAmount); err != nil {
-				return err
-			}
-		}
-
 		return sessionRepo.SetSessionInactive(ctx, session.ID, utils.NowUTC())
 	})
 
 	if err != nil {
-		if appErr, ok := err.(*errors.AppError); ok {
-			return appErr
-		}
 		logger.Errorw("Failed to cancel session", "sessionId", sessionID, "error", err)
-		return errors.Internal()
+		return errors.MapRepoError(err)
 	}
 	return nil
 }
@@ -285,46 +294,19 @@ func (s *modelGatewayService) CancelSession(ctx context.Context, sessionID strin
 func (s *modelGatewayService) cancelStalePendingSession(ctx context.Context, userID string) error {
 	return s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
 		sessionRepo := p.Session()
-		quotaRepo := p.UserQuota()
 
 		staleSession, err := sessionRepo.GetPendingByUserIDForUpdate(ctx, userID)
 		if err != nil {
 			if stdErrors.Is(err, gorm.ErrRecordNotFound) {
-				return nil // Not found = nothing to do
+				return nil
 			}
-			return err // Real DB error — will be logged by caller
+			return err
 		}
 
 		if !utils.IsStale(staleSession.CreatedAt, 2*time.Minute) {
-			return nil // Not stale enough
+			return nil
 		}
 
-		if staleSession.QuotaDate != nil && staleSession.ReservedAmount > 0 {
-			if err := quotaRepo.Release(ctx, staleSession.UserID, "voice", *staleSession.QuotaDate, staleSession.ReservedAmount); err != nil {
-				return err
-			}
-		}
-
-		return sessionRepo.SetSessionInactive(ctx, staleSession.ID, utils.NowUTC())
+		return sessionRepo.SetSessionFailed(ctx, staleSession.ID)
 	})
-}
-
-func (s *modelGatewayService) CreateSession(ctx context.Context) (*res.CreateSessionRes, *errors.AppError) {
-	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
-
-	// Opportunistic stale PENDING cleanup (serverless — no background jobs)
-	if err := s.cancelStalePendingSession(ctx, requesterID); err != nil {
-		zapLogger.S().Warnw("Failed to cancel stale pending session", "userId", requesterID, "error", err)
-	}
-
-	session, appErr := s.sessionService.Create(ctx, requesterID)
-	if appErr != nil {
-		return nil, appErr
-	}
-
-	return &res.CreateSessionRes{
-		ID:                  session.ID,
-		MaxDuration:         0,
-		WebRTCConnectionRes: nil,
-	}, nil
 }

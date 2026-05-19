@@ -62,13 +62,13 @@ func (m *SessionRepository) SetQuotaDate(ctx context.Context, sessionID string, 
 	return args.Error(0)
 }
 
-func (m *SessionRepository) SetReservedAmount(ctx context.Context, sessionID string, amount int64) error {
-	args := m.Called(ctx, sessionID, amount)
+func (m *SessionRepository) SetMaxDuration(ctx context.Context, sessionID string, maxDuration int64) error {
+	args := m.Called(ctx, sessionID, maxDuration)
 	return args.Error(0)
 }
 
-func (m *SessionRepository) SetQuotaDateToNil(ctx context.Context, sessionID string) error {
-	args := m.Called(ctx, sessionID)
+func (m *SessionRepository) SetActualUsage(ctx context.Context, sessionID string, actualUsage int64) error {
+	args := m.Called(ctx, sessionID, actualUsage)
 	return args.Error(0)
 }
 
