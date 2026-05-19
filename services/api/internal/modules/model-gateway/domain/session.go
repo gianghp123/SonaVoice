@@ -5,6 +5,7 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
+	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 )
 
@@ -23,6 +24,7 @@ func (s *Session) IsOwnedBy(userID string) bool {
 
 func (s *Session) CanBeStarted() *errors.AppError {
 	if s.Status != enums.SessionStatusPending {
+		zapLogger.S().Warnw("Session is not pending", "sessionId", s.ID, "status", s.Status)
 		return errors.BadRequest("session is not startable")
 	}
 	return nil

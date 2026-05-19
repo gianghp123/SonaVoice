@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	stdErrors "errors"
+	"net/http"
 	"time"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
@@ -143,6 +144,13 @@ func (s *modelGatewayService) ProxyOffer(ctx context.Context, speechSessionId st
 	if appErr != nil {
 		logger.Errorw("Failed to get app session by speech session id", "speechSessionId", speechSessionId, "error", appErr)
 		return nil, 0, appErr
+	}
+
+	if method == http.MethodPatch {
+		speechCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		return s.speechService.ProxyOffer(speechCtx, speechSessionId, method, body)
 	}
 
 	var responseBody []byte

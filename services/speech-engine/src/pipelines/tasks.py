@@ -126,7 +126,15 @@ async def create_voice_bot_task(
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
         logger.info("Client disconnected - cancelling pipeline")
+        actual_usage = int(time.time() - start_time)
+
+        await service.close_session(
+            session_id=session_id,
+            actual_usage=actual_usage,
+        )
+        
         await task.cancel()
+        
 
 
     # Session timer
@@ -175,12 +183,6 @@ async def create_voice_bot_task(
             )
         ])
 
-        actual_usage = int(time.time() - start_time)
-
-        await service.close_session(
-            session_id=session_id,
-            actual_usage=actual_usage,
-        )
         
 
     # Error handlers
