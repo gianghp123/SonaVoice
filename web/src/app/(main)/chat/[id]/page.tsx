@@ -15,12 +15,12 @@ export default function AuthenticatedChatPage() {
       transportType="smallwebrtc"
       startBotParams={
         {
-          endpoint: `/api/proxy/webrtc/model-gateway/sessions/${sessionId}/start`,
+          endpoint: `/api/proxy/webrtc/sessions/${sessionId}/start`,
         }
       }
       startBotResponseTransformer={(response: any) => {
         return {
-          webrtcUrl: `/api/proxy/webrtc/model-gateway/sessions/${response.sessionId}/api/offer`
+          webrtcUrl: `/api/proxy/webrtc/sessions/${response.sessionId}/api/offer`
         }
       }
       }

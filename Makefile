@@ -7,7 +7,7 @@ web:
 	cd web && npm run dev
 
 api:
-	cd services/api && go run cmd/servers/model-gateway/main.go
+	cd services/api && go run cmd/servers/session/main.go
 
 speech:
 	cd services/speech-engine && . .venv/bin/activate && python main.py -t webrtc

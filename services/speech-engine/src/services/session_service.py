@@ -17,7 +17,7 @@ class SessionService:
         self.base_url = self.base_url.rstrip("/")
 
     async def close_session(self, session_id: str, actual_usage: int) -> dict[str, Any]:
-        url = f"{self.base_url}/model-gateway/sessions/{session_id}/close"
+        url = f"{self.base_url}/sessions/{session_id}/close"
 
         payload = {
             "session_id": session_id,
