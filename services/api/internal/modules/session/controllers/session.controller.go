@@ -7,6 +7,7 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/req"
+	_ "github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/services"
 	"github.com/gin-gonic/gin"
 )

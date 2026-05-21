@@ -11,6 +11,10 @@ import (
 	session "github.com/gianghp123/SonaVoice/api/internal/modules/session"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
+	_ "github.com/gianghp123/SonaVoice/api/cmd/server/docs"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -19,7 +23,7 @@ import (
 func getServerConfig() *configs.ServerConfig {
 	return &configs.ServerConfig{
 		Mode: utils.GetEnv("MODE", "debug"),
-		Port: utils.GetEnv("SESSION_PORT", "8080"),
+		Port: utils.GetEnv("PORT", "8080"),
 	}
 }
 
@@ -35,7 +39,7 @@ func getServerConfig() *configs.ServerConfig {
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 
 // @host      localhost:8080
-// @BasePath  /api/v1
+// @BasePath  /
 
 // @securityDefinitions.apikey BearerAuth
 // @in header
@@ -81,19 +85,21 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(gin.Logger())
 
-	api := router.Group("/api/v1")
-
-	api.GET("/health", func(c *gin.Context) {
+	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
 	// Register modules
-	session.SetupModule(api, db, httpClient)
+	session.SetupModule(router.Group("/"), db, httpClient)
+
+	// Swagger
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Server address
 	addr := fmt.Sprintf(":%s", serverCfg.Port)
 
 	logger.Infof("session server running on %s", addr)
+	logger.Infof("swagger running on %s/swagger/index.html", addr)
 
 	// Start server
 	if err := router.Run(addr); err != nil {

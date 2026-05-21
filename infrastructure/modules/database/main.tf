@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    neon = {
+      source  = "kislerdm/neon"
+      version = "~> 0.13"
+    }
+  }
+}
+
 resource "neon_branch" "this" {
   project_id = var.neon_project_id
   name       = var.branch

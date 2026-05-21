@@ -27,7 +27,7 @@ func NewSessionConfigController(svc services.ISessionConfigService) *SessionConf
 // @Produce      json
 // @Success      200  {object}  response.BaseResponse[res.SessionConfigRes]
 // @Failure      500  {object}  response.BaseResponse[any]
-// @Router       /session-config [get]
+// @Router       /sessions/config [get]
 func (ctrl *SessionConfigController) HandleGet(c *gin.Context) {
 	model, appErr := ctrl.svc.Get(c.Request.Context())
 	if appErr != nil {
@@ -55,7 +55,7 @@ func (ctrl *SessionConfigController) HandleGet(c *gin.Context) {
 // @Failure      401   {object}  response.BaseResponse[any]
 // @Failure      403   {object}  response.BaseResponse[any]
 // @Failure      500   {object}  response.BaseResponse[any]
-// @Router       /session-config [put]
+// @Router       /sessions/config [put]
 func (ctrl *SessionConfigController) HandleUpdate(c *gin.Context) {
 	var cfg req.SessionConfigReq
 

@@ -1,0 +1,350 @@
+basePath: /
+definitions:
+  github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError:
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError'
+      meta:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta'
+      success:
+        type: boolean
+    type: object
+  ? github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_CreateSessionRes
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.CreateSessionRes'
+      error:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError'
+      meta:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta'
+      success:
+        type: boolean
+    type: object
+  ? github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionConfigRes
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionConfigRes'
+      error:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError'
+      meta:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta'
+      success:
+        type: boolean
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_core_response.Meta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      totalPages:
+        type: integer
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.ConfigPayload:
+    properties:
+      enabled:
+        type: boolean
+      limits:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.LimitsConfig'
+      reset_timezone:
+        type: string
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.LimitsConfig:
+    properties:
+      session:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.SessionLimitConfig'
+      user:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.UserLimitConfig'
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.SessionLimitConfig:
+    properties:
+      max_session_lockTTL:
+        type: integer
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.UserLimitConfig:
+    properties:
+      daily_request_count:
+        type: integer
+      daily_voice_seconds:
+        type: integer
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_req.SessionConfigReq:
+    properties:
+      config:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.ConfigPayload'
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.CreateSessionRes:
+    properties:
+      id:
+        type: string
+      max_duration:
+        type: integer
+      webrtc_connection:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.WebRTCConnectionRes'
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.IceConfig:
+    properties:
+      iceServers:
+        items:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.IceServer'
+        type: array
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.IceServer:
+    properties:
+      credential:
+        description: for TURN servers
+        type: string
+      urls:
+        items:
+          type: string
+        type: array
+      username:
+        description: for TURN servers
+        type: string
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionConfigRes:
+    properties:
+      config:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.ConfigPayload'
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.WebRTCConnectionRes:
+    properties:
+      iceConfig:
+        allOf:
+        - $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.IceConfig'
+        description: 'only if enableDefaultIceServers: true'
+      sessionId:
+        type: string
+    type: object
+externalDocs:
+  description: OpenAPI
+  url: https://swagger.io/resources/open-api/
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Session API
+  version: "1.0"
+paths:
+  /sessions:
+    post:
+      consumes:
+      - application/json
+      description: Create a new session and start a WebRTC connection with the speech
+        service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_CreateSessionRes'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - Bearer: []
+      summary: Create new session and start connection
+      tags:
+      - session
+  /sessions/{sessionId}/offer:
+    patch:
+      consumes:
+      - application/json
+      description: Proxy a WebRTC offer request to the speech service by session ID
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: WebRTC offer request body
+        in: body
+        name: body
+        required: true
+        schema: {}
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - Bearer: []
+      summary: Proxy WebRTC offer
+      tags:
+      - session
+    post:
+      consumes:
+      - application/json
+      description: Proxy a WebRTC offer request to the speech service by session ID
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: WebRTC offer request body
+        in: body
+        name: body
+        required: true
+        schema: {}
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - Bearer: []
+      summary: Proxy WebRTC offer
+      tags:
+      - session
+  /sessions/{sessionId}/start:
+    post:
+      consumes:
+      - application/json
+      description: Start a WebRTC connection for a pending session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_CreateSessionRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - Bearer: []
+      summary: Start connection for an existing session
+      tags:
+      - session
+  /sessions/config:
+    get:
+      description: Retrieve the session configuration
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionConfigRes'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      summary: Get session config
+      tags:
+      - session-config
+    put:
+      consumes:
+      - application/json
+      description: Update the session configuration (admin only)
+      parameters:
+      - description: Session config payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_req.SessionConfigReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionConfigRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - Bearer: []
+      summary: Update session config
+      tags:
+      - session-config
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

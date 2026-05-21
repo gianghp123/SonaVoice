@@ -50,4 +50,4 @@ test-coverage:
 	go tool cover -html=coverage.out -o coverage.html
 
 swag-init:
-	swag init -g main.go -d "./cmd/servers/session,internal/modules/session,internal/core" -o ./cmd/servers/session/docs 
+	swag init -g ./cmd/server/main.go -o ./cmd/server/docs --parseInternal --parseDependency

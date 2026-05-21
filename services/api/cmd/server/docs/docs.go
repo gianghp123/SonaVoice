@@ -24,7 +24,59 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/session-config": {
+        "/sessions": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Create a new session and start a WebRTC connection with the speech service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "session"
+                ],
+                "summary": "Create new session and start connection",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_CreateSessionRes"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/config": {
             "get": {
                 "description": "Retrieve the session configuration",
                 "produces": [
@@ -38,13 +90,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-res_SessionConfigRes"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionConfigRes"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     }
                 }
@@ -73,7 +125,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/req.SessionConfigReq"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_req.SessionConfigReq"
                         }
                     }
                 ],
@@ -81,83 +133,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-res_SessionConfigRes"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionConfigRes"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
-                        }
-                    }
-                }
-            }
-        },
-        "/sessions": {
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Create a new session and start a WebRTC connection with the speech service",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "session"
-                ],
-                "summary": "Create new session and start connection",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-res_CreateSessionRes"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     }
                 }
@@ -201,19 +201,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     }
                 }
@@ -255,19 +255,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     }
                 }
@@ -304,31 +304,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-res_CreateSessionRes"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_CreateSessionRes"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/response.BaseResponse-any"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
                         }
                     }
                 }
@@ -336,51 +336,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "dtos.ConfigPayload": {
-            "type": "object",
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                },
-                "limits": {
-                    "$ref": "#/definitions/dtos.LimitsConfig"
-                },
-                "reset_timezone": {
-                    "type": "string"
-                }
-            }
-        },
-        "dtos.LimitsConfig": {
-            "type": "object",
-            "properties": {
-                "session": {
-                    "$ref": "#/definitions/dtos.SessionLimitConfig"
-                },
-                "user": {
-                    "$ref": "#/definitions/dtos.UserLimitConfig"
-                }
-            }
-        },
-        "dtos.SessionLimitConfig": {
-            "type": "object",
-            "properties": {
-                "max_session_lockTTL": {
-                    "type": "integer"
-                }
-            }
-        },
-        "dtos.UserLimitConfig": {
-            "type": "object",
-            "properties": {
-                "daily_request_count": {
-                    "type": "integer"
-                },
-                "daily_voice_seconds": {
-                    "type": "integer"
-                }
-            }
-        },
-        "errors.AppError": {
+        "github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError": {
             "type": "object",
             "properties": {
                 "code": {
@@ -391,15 +347,125 @@ const docTemplate = `{
                 }
             }
         },
-        "req.SessionConfigReq": {
+        "github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any": {
             "type": "object",
             "properties": {
-                "config": {
-                    "$ref": "#/definitions/dtos.ConfigPayload"
+                "data": {},
+                "error": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
-        "res.CreateSessionRes": {
+        "github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_CreateSessionRes": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.CreateSessionRes"
+                },
+                "error": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionConfigRes": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionConfigRes"
+                },
+                "error": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_core_response.Meta": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "totalPages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.ConfigPayload": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "limits": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.LimitsConfig"
+                },
+                "reset_timezone": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.LimitsConfig": {
+            "type": "object",
+            "properties": {
+                "session": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.SessionLimitConfig"
+                },
+                "user": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.UserLimitConfig"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.SessionLimitConfig": {
+            "type": "object",
+            "properties": {
+                "max_session_lockTTL": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.UserLimitConfig": {
+            "type": "object",
+            "properties": {
+                "daily_request_count": {
+                    "type": "integer"
+                },
+                "daily_voice_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_req.SessionConfigReq": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.ConfigPayload"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.CreateSessionRes": {
             "type": "object",
             "properties": {
                 "id": {
@@ -409,22 +475,22 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "webrtc_connection": {
-                    "$ref": "#/definitions/res.WebRTCConnectionRes"
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.WebRTCConnectionRes"
                 }
             }
         },
-        "res.IceConfig": {
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.IceConfig": {
             "type": "object",
             "properties": {
                 "iceServers": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/res.IceServer"
+                        "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.IceServer"
                     }
                 }
             }
         },
-        "res.IceServer": {
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.IceServer": {
             "type": "object",
             "properties": {
                 "credential": {
@@ -443,93 +509,27 @@ const docTemplate = `{
                 }
             }
         },
-        "res.SessionConfigRes": {
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionConfigRes": {
             "type": "object",
             "properties": {
                 "config": {
-                    "$ref": "#/definitions/dtos.ConfigPayload"
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.ConfigPayload"
                 }
             }
         },
-        "res.WebRTCConnectionRes": {
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.WebRTCConnectionRes": {
             "type": "object",
             "properties": {
                 "iceConfig": {
                     "description": "only if enableDefaultIceServers: true",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/res.IceConfig"
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.IceConfig"
                         }
                     ]
                 },
                 "sessionId": {
                     "type": "string"
-                }
-            }
-        },
-        "response.BaseResponse-any": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "error": {
-                    "$ref": "#/definitions/errors.AppError"
-                },
-                "meta": {
-                    "$ref": "#/definitions/response.Meta"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "response.BaseResponse-res_CreateSessionRes": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/res.CreateSessionRes"
-                },
-                "error": {
-                    "$ref": "#/definitions/errors.AppError"
-                },
-                "meta": {
-                    "$ref": "#/definitions/response.Meta"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "response.BaseResponse-res_SessionConfigRes": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/res.SessionConfigRes"
-                },
-                "error": {
-                    "$ref": "#/definitions/errors.AppError"
-                },
-                "meta": {
-                    "$ref": "#/definitions/response.Meta"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "response.Meta": {
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "type": "integer"
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                },
-                "totalPages": {
-                    "type": "integer"
                 }
             }
         }
@@ -551,7 +551,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8080",
-	BasePath:         "/api/v1",
+	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Session API",
 	Description:      "",
