@@ -10,9 +10,9 @@ class SessionServiceError(Exception):
 
 class SessionService:
     def __init__(self) -> None:
-        self.base_url = os.getenv("SESSION_SERVICE_URL")
+        self.base_url = os.getenv("API_URL")
         if not self.base_url:
-            raise SessionServiceError("SESSION_SERVICE_URL is not set")
+            raise SessionServiceError("API_URL is not set")
 
         self.base_url = self.base_url.rstrip("/")
 

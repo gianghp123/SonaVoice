@@ -107,9 +107,9 @@ async def create_voice_bot_task(
     @assistant_aggregator.event_handler("on_assistant_turn_stopped")
     async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
         if message.content:
-            session_messages.append(AssistantMessage(role="assistant", content=message.content, is_interrupted=False, timestamp=message.timestamp))
+            session_messages.append(AssistantMessage(role="assistant", content=message.content, was_interrupted=False, created_at=message.timestamp))
         if message.interrupted:
-            session_messages.append(AssistantMessage(role="assistant", content=message.content, is_interrupted=True, timestamp=message.timestamp))
+            session_messages.append(AssistantMessage(role="assistant", content=message.content, was_interrupted=True, created_at=message.timestamp))
 
     @user_aggregator.event_handler("on_user_turn_idle")
     async def on_user_turn_idle(aggregator):

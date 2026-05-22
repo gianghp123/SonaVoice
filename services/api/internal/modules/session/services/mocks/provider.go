@@ -23,3 +23,8 @@ func (p *Provider) UserQuota() repository_interfaces.IUserQuotaRepository {
 	args := p.Called()
 	return args.Get(0).(repository_interfaces.IUserQuotaRepository)
 }
+
+func (p *Provider) Message() repository_interfaces.IMessageRepository {
+	args := p.Called()
+	return args.Get(0).(repository_interfaces.IMessageRepository)
+}

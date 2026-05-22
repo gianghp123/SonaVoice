@@ -9,6 +9,7 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 
 	session "github.com/gianghp123/SonaVoice/api/internal/modules/session"
+	message "github.com/gianghp123/SonaVoice/api/internal/modules/message"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -91,6 +92,7 @@ func main() {
 
 	// Register modules
 	session.SetupModule(router.Group("/"), db, httpClient)
+	message.SetupModule(router.Group("/"), db)
 
 	// Swagger
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

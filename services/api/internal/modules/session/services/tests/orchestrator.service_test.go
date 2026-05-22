@@ -457,6 +457,8 @@ func TestOrchestratorService_CancelSession(t *testing.T) {
 }
 
 func TestOrchestratorService_ListSessions(t *testing.T) {
+	inactive := enums.SessionStatusInactive
+
 	tests := []struct {
 		name      string
 		query     req.SessionListQuery
@@ -470,6 +472,7 @@ func TestOrchestratorService_ListSessions(t *testing.T) {
 			setupMock: func(sessionSvc *svcMocks.SessionService) {
 				sessionSvc.On("List", mock.Anything, req.SessionListQuery{
 					UserID: strPtr("user-1"),
+					Status: &inactive,
 					Page:   1,
 					Limit:  10,
 				}).Return(&response.PaginatedResult[*models.Session]{
@@ -488,6 +491,7 @@ func TestOrchestratorService_ListSessions(t *testing.T) {
 			setupMock: func(sessionSvc *svcMocks.SessionService) {
 				sessionSvc.On("List", mock.Anything, req.SessionListQuery{
 					UserID: strPtr("user-1"),
+					Status: &inactive,
 					Page:   1,
 					Limit:  10,
 				}).Return(&response.PaginatedResult[*models.Session]{
