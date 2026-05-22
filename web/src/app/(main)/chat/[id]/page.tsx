@@ -38,8 +38,15 @@ export default function AuthenticatedChatPage() {
           return <LoadingScreen />
         }
 
-        const handleSessionDisconnect = async () => {
+        const handleSessionError = async () => {
           await cancelSession(sessionId)
+          if (handleDisconnect) {
+            await handleDisconnect()
+          }
+          router.push("/")
+        }
+
+        const handleSessionDisconnect = async () => {
           if (handleDisconnect) {
             await handleDisconnect()
           }
@@ -48,7 +55,8 @@ export default function AuthenticatedChatPage() {
 
         return (
           <ChatLayout
-            handleDisconnect={handleSessionDisconnect}
+            handleError={handleSessionDisconnect}
+            handleDisconnect={handleSessionError}
             initialError={error}
           />
         )

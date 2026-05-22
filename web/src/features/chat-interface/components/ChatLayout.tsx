@@ -44,9 +44,11 @@ function HistoryTrigger() {
 
 export function ChatLayout({
   handleDisconnect,
+  handleError,
   initialError
 }: {
   handleDisconnect: () => void | Promise<void>
+  handleError: () => void | Promise<void>
   initialError?: string | null
 }) {
   const [fatalError, setFatalError] = useState<string | null>(null)
@@ -99,7 +101,7 @@ export function ChatLayout({
               </AlertDialogHeader>
 
               <AlertDialogFooter>
-                <AlertDialogAction onClick={handleDisconnect}>
+                <AlertDialogAction onClick={handleError}>
                   Return home
                 </AlertDialogAction>
               </AlertDialogFooter>
