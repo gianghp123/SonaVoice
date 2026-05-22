@@ -50,7 +50,6 @@ export function ChatLayout({
   initialError?: string | null
 }) {
   const [fatalError, setFatalError] = useState<string | null>(null)
-  const router = useRouter()
 
   useRTVIClientEvent(
     RTVIEvent.Error,
@@ -68,11 +67,6 @@ export function ChatLayout({
     }, [])
   )
 
-  const redirectOnDisconnect = async () => {
-    await handleDisconnect()
-    router.push("/")
-  }
-
   useEffect(() => {
     if (initialError) {
       setFatalError(initialError)
@@ -85,7 +79,7 @@ export function ChatLayout({
       style={{ "--sidebar-width": "60vh" } as React.CSSProperties}
     >
       <SidebarInset>
-        <VoicePanel handleDisconnect={redirectOnDisconnect}>
+        <VoicePanel handleDisconnect={handleDisconnect}>
           <HistoryTrigger />
 
           <AlertDialog
@@ -105,7 +99,7 @@ export function ChatLayout({
               </AlertDialogHeader>
 
               <AlertDialogFooter>
-                <AlertDialogAction onClick={redirectOnDisconnect}>
+                <AlertDialogAction onClick={handleDisconnect}>
                   Return home
                 </AlertDialogAction>
               </AlertDialogFooter>

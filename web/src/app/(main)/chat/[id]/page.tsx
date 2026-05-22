@@ -2,11 +2,13 @@
 
 import { LoadingScreen } from "@/components/common/LoadingScreen"
 import { ChatLayout } from "@/features/chat-interface/components/ChatLayout"
+import { cancelSession } from "@/features/chat-interface/services/session.actions"
 import { PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 
 export default function AuthenticatedChatPage() {
   const params = useParams()
+  const router = useRouter()
 
   const sessionId = params.id as string
 
@@ -36,9 +38,17 @@ export default function AuthenticatedChatPage() {
           return <LoadingScreen />
         }
 
+        const handleSessionDisconnect = async () => {
+          await cancelSession(sessionId)
+          if (handleDisconnect) {
+            await handleDisconnect()
+          }
+          router.push("/")
+        }
+
         return (
           <ChatLayout
-            handleDisconnect={handleDisconnect ?? (() => { })}
+            handleDisconnect={handleSessionDisconnect}
             initialError={error}
           />
         )

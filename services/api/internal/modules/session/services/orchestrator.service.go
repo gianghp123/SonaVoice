@@ -8,6 +8,7 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
+	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	"github.com/gianghp123/SonaVoice/api/internal/database/transaction"
@@ -20,6 +21,8 @@ import (
 
 type IOrchestratorService interface {
 	CreateSession(ctx context.Context) (*res.CreateSessionRes, *errors.AppError)
+	GetSession(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError)
+	ListSessions(ctx context.Context, q req.SessionListQuery) (*response.PaginatedResult[*res.SessionListItemRes], *errors.AppError)
 	StartConnection(ctx context.Context, sessionID string) (*res.WebRTCConnectionRes, *errors.AppError)
 	CloseSession(ctx context.Context, reqBody *req.CloseSessionReq) *errors.AppError
 	CancelSession(ctx context.Context, sessionID string) *errors.AppError
@@ -51,6 +54,57 @@ func NewOrchestratorService(
 		quotaService:       quotaService,
 		uow:                uow,
 	}
+}
+
+func (s *orchestratorService) GetSession(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError) {
+	logger := zapLogger.S()
+	logger.Debugw("Get session", "sessionId", sessionID)
+
+	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+
+	model, appErr := s.sessionService.Get(ctx, sessionID)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	if model == nil {
+		return nil, errors.NotFound("session not found")
+	}
+
+	if appErr := utils.EnforceOwnership(model.UserID, requesterID); appErr != nil {
+		return nil, appErr
+	}
+
+	return &res.SessionRes{
+		ID:        model.ID,
+		UserID:    model.UserID,
+		Status:    model.Status,
+		CreatedAt: model.CreatedAt,
+	}, nil
+}
+
+func (s *orchestratorService) ListSessions(ctx context.Context, q req.SessionListQuery) (*response.PaginatedResult[*res.SessionListItemRes], *errors.AppError) {
+	logger := zapLogger.S()
+	logger.Debugw("List sessions", "page", q.Page, "limit", q.Limit)
+
+	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	status := enums.SessionStatusInactive
+	q.UserID = &requesterID
+	q.Status = &status
+
+	result, appErr := s.sessionService.List(ctx, q)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	var items []*res.SessionListItemRes
+	err := utils.MapToDTOs(result.Data, &items)
+	if err != nil {
+		logger.Errorw("Failed to map sessions to DTO", "error", err)
+		return nil, errors.Internal()
+	}
+
+	return &response.PaginatedResult[*res.SessionListItemRes]{Data: items, Meta: result.Meta}, nil
 }
 
 func (s *orchestratorService) CreateSession(ctx context.Context) (*res.CreateSessionRes, *errors.AppError) {
@@ -117,8 +171,12 @@ func (s *orchestratorService) CreateSession(ctx context.Context) (*res.CreateSes
 func (s *orchestratorService) StartConnection(ctx context.Context, sessionID string) (*res.WebRTCConnectionRes, *errors.AppError) {
 	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 
-	session, appErr := s.sessionService.Get(ctx, sessionID, requesterID)
+	session, appErr := s.sessionService.Get(ctx, sessionID)
 	if appErr != nil {
+		return nil, appErr
+	}
+
+	if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
 		return nil, appErr
 	}
 
@@ -140,9 +198,13 @@ func (s *orchestratorService) ProxyOffer(ctx context.Context, speechSessionId st
 
 	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 
-	session, appErr := s.sessionService.GetBySpeechSessionID(ctx, speechSessionId, requesterID)
+	session, appErr := s.sessionService.GetBySpeechSessionID(ctx, speechSessionId)
 	if appErr != nil {
 		logger.Errorw("Failed to get app session by speech session id", "speechSessionId", speechSessionId, "error", appErr)
+		return nil, 0, appErr
+	}
+	if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
+		logger.Errorw("Ownership enforcement failed", "speechSessionId", speechSessionId, "error", appErr)
 		return nil, 0, appErr
 	}
 
@@ -311,7 +373,7 @@ func (s *orchestratorService) cancelStalePendingSession(ctx context.Context, use
 			return err
 		}
 
-		if !utils.IsStale(staleSession.CreatedAt, 2*time.Minute) {
+		if !utils.IsStale(staleSession.CreatedAt, 30*time.Second) {
 			return nil
 		}
 

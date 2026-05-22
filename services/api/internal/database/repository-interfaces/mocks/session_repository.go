@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/gianghp123/SonaVoice/api/internal/core/response"
+	"github.com/gianghp123/SonaVoice/api/internal/database"
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	"github.com/stretchr/testify/mock"
@@ -96,4 +98,12 @@ func (m *SessionRepository) GetPendingByUserIDForUpdate(ctx context.Context, use
 func (m *SessionRepository) SetSessionInactive(ctx context.Context, sessionID string, endedAt time.Time) error {
 	args := m.Called(ctx, sessionID, endedAt)
 	return args.Error(0)
+}
+
+func (m *SessionRepository) List(ctx context.Context, q *database.Query) (*response.PaginatedResult[*models.Session], error) {
+	args := m.Called(ctx, q)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*response.PaginatedResult[*models.Session]), args.Error(1)
 }

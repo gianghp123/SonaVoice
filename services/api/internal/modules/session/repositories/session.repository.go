@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
+	"github.com/gianghp123/SonaVoice/api/internal/core/response"
+	"github.com/gianghp123/SonaVoice/api/internal/database"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
@@ -112,6 +114,21 @@ func (s *sessionRepository) GetPendingByUserIDForUpdate(ctx context.Context, use
 		return nil, err
 	}
 	return &model, nil
+}
+
+func (s *sessionRepository) List(ctx context.Context, q *database.Query) (*response.PaginatedResult[*models.Session], error) {
+	tx := s.db.WithContext(ctx).Model(&models.Session{})
+	total, err := q.Count(tx)
+	if err != nil {
+		return nil, err
+	}
+	tx = q.Apply(tx)
+	var sessions []*models.Session
+	if err := tx.Find(&sessions).Error; err != nil {
+		return nil, err
+	}
+	meta := response.NewMeta(q.Page, q.Limit, total)
+	return &response.PaginatedResult[*models.Session]{Data: sessions, Meta: meta}, nil
 }
 
 func (s *sessionRepository) SetSessionInactive(ctx context.Context, sessionID string, endedAt time.Time) error {

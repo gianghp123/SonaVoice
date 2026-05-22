@@ -34,6 +34,8 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHt
 	sessGroup.POST("/:sessionId/start", middlewares.ClerkAuthMiddleware(), sessionController.HandleStartConnection)
 	sessGroup.POST("/:sessionId/api/offer", middlewares.ClerkAuthMiddleware(), sessionController.HandleOffer)
 	sessGroup.PATCH("/:sessionId/api/offer", middlewares.ClerkAuthMiddleware(), sessionController.HandleOffer)
+	sessGroup.GET("", middlewares.ClerkAuthMiddleware(), sessionController.HandleListSessions)
+	sessGroup.GET("/:sessionId", middlewares.ClerkAuthMiddleware(), sessionController.HandleGetSession)
 	sessGroup.POST("/:sessionId/cancel", middlewares.ClerkAuthMiddleware(), sessionController.HandleCancelSession)
 	sessGroup.POST("/:sessionId/close", sessionController.HandleCloseSession)
 

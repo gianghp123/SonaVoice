@@ -5,16 +5,20 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
+	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
+	"github.com/gianghp123/SonaVoice/api/internal/database"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 )
 
 type ISessionService interface {
 	Create(ctx context.Context, userID string) (*models.Session, *errors.AppError)
-	Get(ctx context.Context, sessionID, requesterID string) (*models.Session, *errors.AppError)
-	GetBySpeechSessionID(ctx context.Context, speechSessionID, requesterID string) (*models.Session, *errors.AppError)
+	Get(ctx context.Context, sessionID string) (*models.Session, *errors.AppError)
+	GetBySpeechSessionID(ctx context.Context, speechSessionID string) (*models.Session, *errors.AppError)
+	List(ctx context.Context, q req.SessionListQuery) (*response.PaginatedResult[*models.Session], *errors.AppError)
 	MarkSessionActive(ctx context.Context, sessionID string) *errors.AppError
 	MarkSessionFailed(ctx context.Context, sessionID string) *errors.AppError
 }
@@ -25,6 +29,31 @@ type sessionService struct {
 
 func NewSessionService(sessionRepo repository_interfaces.ISessionRepository) ISessionService {
 	return &sessionService{sessionRepo: sessionRepo}
+}
+
+func (s *sessionService) List(ctx context.Context, q req.SessionListQuery) (*response.PaginatedResult[*models.Session], *errors.AppError) {
+	logger := zapLogger.S()
+
+	dbQuery := database.NewQuery().
+		SetPage(q.Page).
+		SetLimit(q.Limit).
+		SetOrderBy("created_at DESC")
+
+	if q.UserID != nil {
+		dbQuery.SetFilter("user_id", *q.UserID)
+	}
+
+	if q.Status != nil {
+		dbQuery.SetFilter("status", *q.Status)
+	}
+
+	result, err := s.sessionRepo.List(ctx, dbQuery)
+	if err != nil {
+		logger.Errorw("Failed to list sessions", "error", err)
+		return nil, errors.MapRepoError(err)
+	}
+
+	return result, nil
 }
 
 func (s *sessionService) Create(ctx context.Context, userID string) (*models.Session, *errors.AppError) {
@@ -40,35 +69,23 @@ func (s *sessionService) Create(ctx context.Context, userID string) (*models.Ses
 	return session, nil
 }
 
-func (s *sessionService) Get(ctx context.Context, sessionID, requesterID string) (*models.Session, *errors.AppError) {
+func (s *sessionService) Get(ctx context.Context, sessionID string) (*models.Session, *errors.AppError) {
 	logger := zapLogger.S()
 	session, err := s.sessionRepo.Get(ctx, sessionID)
 	if err != nil {
 		logger.Errorw("Failed to get session", "error", err)
 		return nil, errors.MapRepoError(err)
 	}
-
-	if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
-		logger.Errorw("Failed to enforce ownership", "error", appErr)
-		return nil, appErr
-	}
-
 	return session, nil
 }
 
-func (s *sessionService) GetBySpeechSessionID(ctx context.Context, speechSessionID, requesterID string) (*models.Session, *errors.AppError) {
+func (s *sessionService) GetBySpeechSessionID(ctx context.Context, speechSessionID string) (*models.Session, *errors.AppError) {
 	logger := zapLogger.S()
 	session, err := s.sessionRepo.GetBySpeechSessionID(ctx, speechSessionID)
 	if err != nil {
 		logger.Errorw("Failed to get session by speech session id", "error", err)
 		return nil, errors.MapRepoError(err)
 	}
-
-	if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
-		logger.Errorw("Failed to enforce ownership", "error", appErr)
-		return nil, appErr
-	}
-
 	return session, nil
 }
 

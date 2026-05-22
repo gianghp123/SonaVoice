@@ -39,7 +39,7 @@ func (ctrl *SessionController) HandleCreateSession(c *gin.Context) {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
 	}
-	c.JSON(http.StatusOK, response.Success(offer))
+	c.JSON(http.StatusCreated, response.Success(offer))
 }
 
 // HandleStartConnection godoc
@@ -129,4 +129,61 @@ func (ctrl *SessionController) HandleCancelSession(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response.Success[any](nil))
+}
+
+// HandleListSessions godoc
+// @Summary      List user sessions
+// @Description  Get paginated list of sessions belonging to the authenticated user
+// @Security     Bearer
+// @Tags         session
+// @Accept       json
+// @Produce      json
+// @Param        page   query  int  false  "Page number (default 1)"
+// @Param        limit  query  int  false  "Items per page (default 10, max 100)"
+// @Success      200  {object}  response.BaseResponse[[]res.SessionListItemRes]
+// @Failure      400  {object}  response.BaseResponse[any]
+// @Failure      401  {object}  response.BaseResponse[any]
+// @Failure      500  {object}  response.BaseResponse[any]
+// @Router       /sessions [get]
+func (ctrl *SessionController) HandleListSessions(c *gin.Context) {
+	var query req.SessionListQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, response.Fail(errors.BadRequest("invalid query params")))
+		return
+	}
+
+	result, appErr := ctrl.svc.ListSessions(c.Request.Context(), query)
+	if appErr != nil {
+		c.JSON(appErr.Code, response.Fail(appErr))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.SuccessWithMeta(result.Data, result.Meta))
+}
+
+// HandleGetSession godoc
+// @Summary      Get session details
+// @Description  Get a single session by ID (must belong to the authenticated user)
+// @Security     Bearer
+// @Tags         session
+// @Accept       json
+// @Produce      json
+// @Param        sessionId  path  string  true  "Session ID"
+// @Success      200  {object}  response.BaseResponse[res.SessionRes]
+// @Failure      400  {object}  response.BaseResponse[any]
+// @Failure      401  {object}  response.BaseResponse[any]
+// @Failure      403  {object}  response.BaseResponse[any]
+// @Failure      404  {object}  response.BaseResponse[any]
+// @Failure      500  {object}  response.BaseResponse[any]
+// @Router       /sessions/{sessionId} [get]
+func (ctrl *SessionController) HandleGetSession(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+
+	session, appErr := ctrl.svc.GetSession(c.Request.Context(), sessionID)
+	if appErr != nil {
+		c.JSON(appErr.Code, response.Fail(appErr))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(session))
 }

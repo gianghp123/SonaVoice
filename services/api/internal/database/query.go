@@ -1,5 +1,7 @@
 package database
 
+import "gorm.io/gorm"
+
 type Query struct {
 	Filters map[string]interface{}
 	Page    int
@@ -39,16 +41,19 @@ func (q *Query) SetOrderBy(order string) *Query {
 	return q
 }
 
-// Count returns a query that counts total matching rows.
-// Implement with your ORM:
-//   GORM:  func (q *Query) Count(tx *gorm.DB) *gorm.DB { return tx.Where(q.Filters) }
-func (q *Query) Count(tx interface{}) interface{} {
-	return tx
+func (q *Query) Count(tx *gorm.DB) (int64, error) {
+	var total int64
+	if err := tx.Where(q.Filters).Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
 }
 
-// Apply applies filters, ordering, and pagination to a query.
-// Implement with your ORM:
-//   GORM:  tx.Where(q.Filters).Order(q.OrderBy).Offset((q.Page-1)*q.Limit).Limit(q.Limit)
-func (q *Query) Apply(tx interface{}) interface{} {
-	return tx
+func (q *Query) Apply(tx *gorm.DB) *gorm.DB {
+	tx = tx.Where(q.Filters)
+	if q.OrderBy != "" {
+		tx = tx.Order(q.OrderBy)
+	}
+	offset := (q.Page - 1) * q.Limit
+	return tx.Offset(offset).Limit(q.Limit)
 }

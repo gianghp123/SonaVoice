@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 
-INSERT INTO global_config (config)
+INSERT INTO session_config (config)
 SELECT
     '{
       "enabled": true,
@@ -18,7 +18,7 @@ SELECT
     }'::jsonb
 WHERE NOT EXISTS (
     SELECT 1
-    FROM global_config
+    FROM session_config
     WHERE deleted_at IS NULL
 );
 
@@ -28,7 +28,7 @@ WHERE NOT EXISTS (
 -- +goose Down
 -- +goose StatementBegin
 
-DELETE FROM global_config
+DELETE FROM session_config
 WHERE config = '{
   "enabled": true,
   "resetTimezone": "Asia/Ho_Chi_Minh",
