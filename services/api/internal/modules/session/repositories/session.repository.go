@@ -10,6 +10,7 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -54,6 +55,10 @@ func (s *sessionRepository) GetForUpdate(ctx context.Context, sessionID string) 
 
 func (s *sessionRepository) UpdateSpeechSessionID(ctx context.Context, sessionID, speechSessionID string) error {
 	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("speech_session_id", speechSessionID).Error
+}
+
+func (s *sessionRepository) UpdateSpeechStartResponse(ctx context.Context, sessionID string, speechStartResponse datatypes.JSON) error {
+	return s.db.Model(&models.Session{}).Where("id = ?", sessionID).Update("speech_start_response", speechStartResponse).Error
 }
 
 func (s *sessionRepository) SetMaxDuration(ctx context.Context, sessionID string, maxDuration int64) error {

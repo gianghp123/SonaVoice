@@ -4,10 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/database"
-	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
+	"gorm.io/datatypes"
 )
 
 type ISessionRepository interface {
@@ -25,5 +26,6 @@ type ISessionRepository interface {
 	SetActualUsage(ctx context.Context, sessionID string, actualUsage int64) error
 	SetSessionFailed(ctx context.Context, sessionID string) error
 	SetSessionInactive(ctx context.Context, sessionID string, endedAt time.Time) error
+	UpdateSpeechStartResponse(ctx context.Context, sessionID string, speechStartResponse datatypes.JSON) error
 	List(ctx context.Context, q *database.Query) (*response.PaginatedResult[*models.Session], error)
 }

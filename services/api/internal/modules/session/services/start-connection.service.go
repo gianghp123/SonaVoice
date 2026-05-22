@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
@@ -66,6 +67,15 @@ func (s *startConnectionService) Start(ctx context.Context, session *models.Sess
 		}
 
 		if err := sessionRepo.UpdateSpeechSessionID(ctx, session.ID, webrtcRes.SessionID); err != nil {
+			return err
+		}
+
+		startResBytes, marshalErr := json.Marshal(webrtcRes)
+		if marshalErr != nil {
+			return marshalErr
+		}
+
+		if err := sessionRepo.UpdateSpeechStartResponse(ctx, session.ID, startResBytes); err != nil {
 			return err
 		}
 

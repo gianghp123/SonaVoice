@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	stdErrors "errors"
 	"net/http"
 	"time"
@@ -26,7 +27,7 @@ type IOrchestratorService interface {
 	StartConnection(ctx context.Context, sessionID string) (*res.WebRTCConnectionRes, *errors.AppError)
 	CloseSession(ctx context.Context, reqBody *req.CloseSessionReq) *errors.AppError
 	CancelSession(ctx context.Context, sessionID string) *errors.AppError
-	ProxyOffer(ctx context.Context, speechSessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
+	ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
 }
 
 type orchestratorService struct {
@@ -180,6 +181,15 @@ func (s *orchestratorService) StartConnection(ctx context.Context, sessionID str
 		return nil, appErr
 	}
 
+	if session.SpeechSessionID != "" && session.SpeechStartResponse != nil {
+		var cached res.WebRTCConnectionRes
+		if err := json.Unmarshal(session.SpeechStartResponse, &cached); err != nil {
+			zapLogger.S().Errorw("Failed to deserialize cached speech start response", "sessionId", sessionID, "error", err)
+			return nil, errors.Internal()
+		}
+		return &cached, nil
+	}
+
 	domainSession := domain.NewSessionFromModel(session)
 	if appErr := domainSession.CanBeStarted(); appErr != nil {
 		return nil, appErr
@@ -188,24 +198,29 @@ func (s *orchestratorService) StartConnection(ctx context.Context, sessionID str
 	return s.startConnectionSvc.Start(ctx, session, requesterID)
 }
 
-func (s *orchestratorService) ProxyOffer(ctx context.Context, speechSessionId string, method string, body []byte) ([]byte, int, *errors.AppError) {
+func (s *orchestratorService) ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError) {
 	logger := zapLogger.S()
 	logger.Debug("Proxying offer to speech engine")
 
-	if speechSessionId == "" {
+	if sessionId == "" {
 		return nil, 0, errors.BadRequest("missing session id")
 	}
 
 	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 
-	session, appErr := s.sessionService.GetBySpeechSessionID(ctx, speechSessionId)
+	session, appErr := s.sessionService.Get(ctx, sessionId)
 	if appErr != nil {
-		logger.Errorw("Failed to get app session by speech session id", "speechSessionId", speechSessionId, "error", appErr)
+		logger.Errorw("Failed to get app session", "sessionId", sessionId, "error", appErr)
 		return nil, 0, appErr
 	}
 	if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
-		logger.Errorw("Ownership enforcement failed", "speechSessionId", speechSessionId, "error", appErr)
+		logger.Errorw("Ownership enforcement failed", "sessionId", sessionId, "error", appErr)
 		return nil, 0, appErr
+	}
+
+	speechSessionId := session.SpeechSessionID
+	if speechSessionId == "" {
+		return nil, 0, errors.BadRequest("session has not started a speech connection")
 	}
 
 	if method == http.MethodPatch {
@@ -227,32 +242,33 @@ func (s *orchestratorService) ProxyOffer(ctx context.Context, speechSessionId st
 			return err
 		}
 
-		domainSession := domain.NewSessionFromModel(sess)
-		if appErr := domainSession.CanBeStarted(); appErr != nil {
-			return appErr
-		}
+		wasPending := sess.Status == enums.SessionStatusPending
 
 		speechCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		responseBody, statusCode, appErr = s.speechService.ProxyOffer(speechCtx, speechSessionId, method, body)
 		if appErr != nil {
 			logger.Errorw("Speech engine error during offer", "sessionId", sess.ID, "speechSessionId", speechSessionId, "error", appErr)
-			if err := sessionRepo.SetSessionFailed(ctx, sess.ID); err != nil {
-				logger.Errorw("Failed to mark session failed", "sessionId", sess.ID, "error", err)
-				return err
+			if wasPending {
+				if err := sessionRepo.SetSessionFailed(ctx, sess.ID); err != nil {
+					logger.Errorw("Failed to mark session failed", "sessionId", sess.ID, "error", err)
+					return err
+				}
 			}
 			proxyErr = appErr
 			return nil
 		}
 
-		if err := sessionRepo.SetSessionActive(ctx, sess.ID, utils.NowUTC()); err != nil {
-			logger.Errorw("Failed to mark session active", "sessionId", sess.ID, "error", err)
-			if err := sessionRepo.SetSessionFailed(ctx, sess.ID); err != nil {
-				logger.Errorw("Failed to mark session failed after activation error", "sessionId", sess.ID, "error", err)
-				return err
+		if wasPending {
+			if err := sessionRepo.SetSessionActive(ctx, sess.ID, utils.NowUTC()); err != nil {
+				logger.Errorw("Failed to mark session active", "sessionId", sess.ID, "error", err)
+				if err := sessionRepo.SetSessionFailed(ctx, sess.ID); err != nil {
+					logger.Errorw("Failed to mark session failed after activation error", "sessionId", sess.ID, "error", err)
+					return err
+				}
+				proxyErr = errors.Internal("failed to activate session")
+				return nil
 			}
-			proxyErr = errors.Internal("failed to activate session")
-			return nil
 		}
 
 		return nil

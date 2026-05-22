@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
+	"gorm.io/datatypes"
 )
 
 type Session struct {
@@ -15,8 +16,9 @@ type Session struct {
 	QuotaDate       *time.Time          `gorm:"type:date;"`
 	StartedAt       time.Time
 	EndedAt         time.Time
-	Messages        []Message           `gorm:"foreignKey:SessionID"`
-	Status          enums.SessionStatus `gorm:"type:varchar(255);not null"`
+	Messages             []Message           `gorm:"foreignKey:SessionID"`
+	Status               enums.SessionStatus `gorm:"type:varchar(255);not null"`
+	SpeechStartResponse  datatypes.JSON      `gorm:"type:jsonb;"`
 }
 
 func (Session) TableName() string { return "sessions" }

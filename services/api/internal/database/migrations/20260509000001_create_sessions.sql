@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         varchar(255) NOT NULL,
     speech_session_id varchar(255),
+    speech_start_response jsonb,
     status          varchar(255) NOT NULL,
     max_duration    bigint NOT NULL DEFAULT 0,
     actual_usage    bigint NOT NULL DEFAULT 0,

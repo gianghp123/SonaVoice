@@ -200,7 +200,7 @@ func TestOrchestratorService_ProxyOffer(t *testing.T) {
 	}{
 		{
 			name:      "successful proxy offer",
-			sessionID: "speech-s1",
+			sessionID: "s1",
 			method:    http.MethodPost,
 			body:      []byte(`{"offer":"test"}`),
 			session:   &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending},
@@ -211,13 +211,13 @@ func TestOrchestratorService_ProxyOffer(t *testing.T) {
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(responseBody, http.StatusOK, (*appErrors.AppError)(nil))
 			},
 			setupMocks: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
-				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
+				sessionSvc.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", SpeechSessionID: "speech-s1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
 			},
 			wantStatusCode: http.StatusOK,
 		},
 		{
 			name:      "speech engine error",
-			sessionID: "speech-s1",
+			sessionID: "s1",
 			method:    http.MethodPost,
 			body:      []byte(`{"offer":"test"}`),
 			session:   &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending},
@@ -228,13 +228,13 @@ func TestOrchestratorService_ProxyOffer(t *testing.T) {
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return([]byte{}, 0, appErrors.Internal("proxy error"))
 			},
 			setupMocks: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
-				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
+				sessionSvc.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", SpeechSessionID: "speech-s1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
 			},
 			wantErr: true,
 		},
 		{
 			name:      "non-2xx from speech engine",
-			sessionID: "speech-s1",
+			sessionID: "s1",
 			method:    http.MethodPost,
 			body:      []byte(`{"offer":"test"}`),
 			session:   &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending},
@@ -245,7 +245,7 @@ func TestOrchestratorService_ProxyOffer(t *testing.T) {
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(errorBody, http.StatusBadGateway, appErrors.Internal("proxy error"))
 			},
 			setupMocks: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
-				sessionSvc.On("GetBySpeechSessionID", mock.Anything, "speech-s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
+				sessionSvc.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", SpeechSessionID: "speech-s1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
 			},
 			wantErr: true,
 		},
