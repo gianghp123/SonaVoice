@@ -10,14 +10,13 @@ async def summarize_conversation(params: FunctionCallParams):
     
 async def save_user_preferences(params: FunctionCallParams):
     user_id = params.tool_resources.user_id
-    session_id = params.tool_resources.session_id
     memory_client = params.tool_resources.memory_client
     messages_to_store = [
         m for m in params.context.messages
         if m.get("role") in ("user", "assistant")
         and isinstance(m.get("content"), str)
     ]
-    await memory_client.add(messages_to_store, user_id=user_id, run_id=session_id)
+    await memory_client.add(messages_to_store, user_id=user_id)
     await params.result_callback({"success": True})
     
 summarize_function = FunctionSchema(

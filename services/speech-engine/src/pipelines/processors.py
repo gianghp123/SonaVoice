@@ -4,12 +4,11 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 
 class CustomMem0Processor(FrameProcessor):
-    def __init__(self, memory_client: AsyncMemory, user_id: str, session_id: str, **kwargs):
+    def __init__(self, memory_client: AsyncMemory, user_id: str, **kwargs):
         super().__init__(**kwargs)
         self.memory_client = memory_client
         self.user_id = user_id
         self.last_query = None
-        self.session_id = session_id
 
     async def _retrieve_memories(self, query: str, top_k = 20):
         try:
@@ -17,8 +16,7 @@ class CustomMem0Processor(FrameProcessor):
                 query=query,
                 top_k=top_k,
                 filters={
-                  "user_id": self.user_id,
-                  "run_id": self.session_id
+                  "user_id": self.user_id
                 },
             )
             return results["results"]

@@ -95,7 +95,6 @@ async def create_voice_bot_task(
         params=PipelineParams(enable_metrics=True),
         tool_resources={
             "user_id": user_id,
-            "session_id": session_id,
             "memory_client": memory_processor.memory_client if memory_processor else None,
         },
     )
