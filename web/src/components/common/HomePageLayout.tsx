@@ -33,7 +33,7 @@ export function HomePageLayout({ sessions, children, breadcrumb }: HomePageConte
   const pathname = usePathname()
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={false}>
       <Sidebar>
         <SidebarHeader>
           <Logo />

@@ -6,12 +6,13 @@ import { cancelSession } from "@/features/chat-interface/services/session.action
 import { PROXY_ROUTES } from "@/lib/routes"
 import { PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
 import { useParams, useRouter } from "next/navigation"
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useState } from "react"
 
 export default function ChatPage() {
   const params = useParams()
   const router = useRouter()
   const sessionId = params.id as string
+  const [maxDuration, setMaxDuration] = useState(0)
 
   const startBotParams = useMemo(() => ({
     endpoint: PROXY_ROUTES.WEBRTC.START(sessionId),
@@ -21,9 +22,12 @@ export default function ChatPage() {
     enableMic: true,
   }), [])
 
-  const startBotResponseTransformer = useCallback((_response: any) => ({
-    webrtcUrl: PROXY_ROUTES.WEBRTC.OFFER(sessionId),
-  }), [sessionId])
+  const startBotResponseTransformer = useCallback((response: any) => {
+    setMaxDuration(response.maxDuration)
+    return {
+      webrtcUrl: PROXY_ROUTES.WEBRTC.OFFER(sessionId),
+    }
+  }, [sessionId])
 
   return (
     <PipecatAppBase
@@ -52,6 +56,7 @@ export default function ChatPage() {
 
         return (
           <ChatLayout
+            maxDuration={maxDuration}
             handleError={handleSessionError}
             handleDisconnect={handleSessionDisconnect}
             initialError={error}

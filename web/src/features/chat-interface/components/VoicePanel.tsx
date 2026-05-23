@@ -8,11 +8,11 @@ import { WaveformVisualization } from "./WaveformVisualization"
 import { VoiceToolbar } from "./VoiceToolbar"
 import { usePipecatClientTransportState } from "@pipecat-ai/client-react"
 
-export function VoicePanel({ children, handleDisconnect }: { children?: React.ReactNode, handleDisconnect: () => void | Promise<void> }) {
+export function VoicePanel({ maxDuration, children, handleDisconnect }: {maxDuration: number, children?: React.ReactNode, handleDisconnect: () => void | Promise<void> }) {
   const transportState = usePipecatClientTransportState()
 
   return (
-    <section className="relative flex flex-1 flex-col items-center justify-center bg-card">
+    <section className="relative flex flex-1 flex-col items-center justify-center">
       <div className="absolute top-4 left-4 flex items-center gap-2">
         <Logo />
         <span className="text-muted-foreground">/</span>
@@ -22,7 +22,7 @@ export function VoicePanel({ children, handleDisconnect }: { children?: React.Re
       {children}
 
       <div className="absolute top-4 left-1/2 -translate-x-1/2">
-        <SessionTimer />
+        <SessionTimer maxDuration={maxDuration}/>
       </div>
 
       <div className="relative flex flex-col items-center">

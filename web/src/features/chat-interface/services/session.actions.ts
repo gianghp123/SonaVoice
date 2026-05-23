@@ -1,9 +1,9 @@
 'use server'
 
-import { revalidateTag } from "next/cache"
 import { apiFetch } from "@/lib/api-fetch"
 import { API_ROUTES } from "@/lib/routes"
 import { tags } from "@/lib/tags"
+import { updateTag } from "next/cache"
 import { ICreateSessionRes } from "../dtos/create-session.dto.res"
 
 export async function createSession() {
@@ -13,7 +13,7 @@ export async function createSession() {
   })
 
   if (!result.error) {
-    revalidateTag(tags.sessions, "max")
+    updateTag(tags.sessions)
   }
 
   return result
@@ -26,7 +26,7 @@ export async function cancelSession(sessionId: string) {
   })
 
   if (!result.error) {
-    revalidateTag(tags.sessions, "max")
+    updateTag(tags.sessions)
   }
 
   return result

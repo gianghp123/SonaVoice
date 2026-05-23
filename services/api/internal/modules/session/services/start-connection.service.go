@@ -87,5 +87,7 @@ func (s *startConnectionService) Start(ctx context.Context, session *models.Sess
 		return nil, errors.MapRepoError(err)
 	}
 
+	webrtcRes.MaxDuration = session.MaxDuration
+
 	return webrtcRes, nil
 }

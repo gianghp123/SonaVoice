@@ -24,7 +24,6 @@ import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
 import { RTVIEvent } from "@pipecat-ai/client-js"
 import { useRTVIClientEvent } from "@pipecat-ai/client-react"
 import { PanelRight } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -43,10 +42,12 @@ function HistoryTrigger() {
 }
 
 export function ChatLayout({
+  maxDuration,
   handleDisconnect,
   handleError,
   initialError
 }: {
+  maxDuration: number
   handleDisconnect: () => void | Promise<void>
   handleError: () => void | Promise<void>
   initialError?: string | null
@@ -81,7 +82,7 @@ export function ChatLayout({
       style={{ "--sidebar-width": "60vh" } as React.CSSProperties}
     >
       <SidebarInset>
-        <VoicePanel handleDisconnect={handleDisconnect}>
+        <VoicePanel maxDuration={maxDuration} handleDisconnect={handleDisconnect}>
           <HistoryTrigger />
 
           <AlertDialog
