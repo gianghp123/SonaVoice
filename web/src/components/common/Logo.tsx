@@ -1,14 +1,19 @@
+import { AudioLines } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <span
+    <div
       className={cn(
-        "text-lg font-semibold tracking-tight text-primary",
+        "flex items-center gap-2 font-semibold text-primary",
         className
       )}
     >
-      Sona
-    </span>
+      <AudioLines className="size-[1em]" strokeWidth={2.2} />
+
+      <span className="text-[1em] leading-none">
+        Sona
+      </span>
+    </div>
   )
 }
