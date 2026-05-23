@@ -4,6 +4,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { PAGE_ROUTES, AUTH_ROUTES } from "@/lib/routes";
 import { Toaster } from "sonner";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
@@ -35,8 +36,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ClerkProvider
-          signInUrl="/sign-in"
-          signUpUrl="/sign-up"
+          signInUrl={AUTH_ROUTES.SIGN_IN}
+          signUpUrl={AUTH_ROUTES.SIGN_UP}
+          signInFallbackRedirectUrl={PAGE_ROUTES.HOME}
+          signUpFallbackRedirectUrl={PAGE_ROUTES.HOME}
         >
           <TooltipProvider>{children}</TooltipProvider>
         </ClerkProvider>

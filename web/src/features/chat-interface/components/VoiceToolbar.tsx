@@ -1,9 +1,9 @@
 "use client"
 
-import { MicOff, Mic, PhoneOff } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { PipecatClientMicToggle } from "@pipecat-ai/client-react"
 import { ConnectButton } from "@pipecat-ai/voice-ui-kit"
-import { Button } from "@/components/ui/button"
+import { Mic, MicOff } from "lucide-react"
 
 export function VoiceToolbar({ handleDisconnect }: { handleDisconnect: () => void | Promise<void> }) {
   return (

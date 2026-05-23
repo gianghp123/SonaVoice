@@ -18,5 +18,5 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB) {
 
 	msgGroup := router.Group("/sessions/:sessionId/messages")
 	msgGroup.GET("", middlewares.ClerkAuthMiddleware(), messageController.HandleListMessages)
-	msgGroup.POST("", middlewares.ClerkAuthMiddleware(), messageController.HandleCreateMessages)
+	msgGroup.POST("", messageController.HandleCreateMessages)
 }

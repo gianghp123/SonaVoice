@@ -1,9 +1,9 @@
 "use client"
 
 import { usePipecatConversation } from "@pipecat-ai/client-react"
-import { MessageBubble } from "./MessageBubble"
+import { MessageBubble } from "../../../components/common/MessageBubble"
 import { MessageRole } from "@/lib/enums/message-role.enum"
-import { AnalysisCard } from "./AnalysisCard"
+import { AnalysisCard } from "../../../components/common/AnalysisCard"
 import { HistoryHeader } from "./HistoryHeader"
 
 export function HistoryPanelContent() {

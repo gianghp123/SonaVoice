@@ -6,5 +6,5 @@ export interface IMessage {
 	role: MessageRole
 	transcript: string
 	wasInterrupted: boolean
-  createdAt: Date
+  createdAt: string
 }

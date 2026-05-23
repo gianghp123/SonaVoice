@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card"
 import { ConnectNow } from "@/features/landing/components/ConnectNow"
 import { getSessions } from "@/features/chat-interface/services/session.get"
-import { HomePageLayout } from "@/features/landing/components/HomePageLayout"
+import { HomePageLayout } from "@/components/common/HomePageLayout"
 import { Show, SignInButton } from "@clerk/nextjs"
 
 export default async function HomePage(props: {

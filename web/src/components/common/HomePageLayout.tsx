@@ -1,7 +1,7 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { Logo } from "@/components/common/Logo"
+import { SidebarFooterUI } from "@/components/common/SidebarFooter"
 import {
   Sidebar,
   SidebarContent,
@@ -16,16 +16,20 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { SidebarFooterUI } from "@/components/common/SidebarFooter"
+import { ConnectNow } from "@/features/landing/components/ConnectNow"
+import { PAGE_ROUTES } from "@/lib/routes"
 import type { ISession } from "@/lib/types/session.interface"
-import { Logo } from "@/components/common/Logo"
-
+import { AudioLines } from "lucide-react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { Separator } from "../ui/separator"
 interface HomePageContentProps {
   sessions: ISession[]
   children: React.ReactNode
+  breadcrumb?: React.ReactNode
 }
 
-export function HomePageLayout({ sessions, children }: HomePageContentProps) {
+export function HomePageLayout({ sessions, children, breadcrumb }: HomePageContentProps) {
   const pathname = usePathname()
 
   return (
@@ -36,15 +40,28 @@ export function HomePageLayout({ sessions, children }: HomePageContentProps) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
+            <SidebarMenu className="pb-2">
+              <SidebarMenuItem>
+                <ConnectNow
+                  variant="ghost"
+                  className="justify-start px-2 font-normal"
+                >
+                  <AudioLines className="size-4" />
+                  <span>New Session</span>
+                </ConnectNow>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+          <SidebarGroup>
             <SidebarGroupLabel>Recently sessions</SidebarGroupLabel>
             <SidebarMenu>
               {sessions.map((session) => (
                 <SidebarMenuItem key={session.id}>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === `/chat/${session.id}`}
+                    isActive={pathname === PAGE_ROUTES.SESSION.DETAIL(session.id)}
                   >
-                    <Link href={`/chat/${session.id}`}>
+                    <Link href={PAGE_ROUTES.SESSION.DETAIL(session.id)}>
                       <span className="truncate">
                         {new Date(session.createdAt).toLocaleDateString()}
                       </span>
@@ -67,7 +84,13 @@ export function HomePageLayout({ sessions, children }: HomePageContentProps) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <SidebarTrigger className="absolute top-4 left-4 z-10" />
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b">
+          <div className="flex items-center gap-2 px-3">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="my-auto mr-2 h-4" />
+            {breadcrumb}
+          </div>
+        </header>
         {children}
       </SidebarInset>
     </SidebarProvider>

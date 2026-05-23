@@ -24,7 +24,6 @@ class MessageService:
         url = f"{self.base_url}/sessions/{session_id}/messages"
 
         payload = {
-            "session_id": session_id,
             "messages": messages,
         }
 

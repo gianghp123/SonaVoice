@@ -3,17 +3,18 @@
 import { LoadingScreen } from "@/components/common/LoadingScreen"
 import { ChatLayout } from "@/features/chat-interface/components/ChatLayout"
 import { cancelSession } from "@/features/chat-interface/services/session.actions"
+import { PROXY_ROUTES } from "@/lib/routes"
 import { PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
 import { useParams, useRouter } from "next/navigation"
 import { useCallback, useMemo } from "react"
 
-export default function AuthenticatedChatPage() {
+export default function ChatPage() {
   const params = useParams()
   const router = useRouter()
   const sessionId = params.id as string
 
   const startBotParams = useMemo(() => ({
-    endpoint: `/api/proxy/webrtc/sessions/${sessionId}/start`,
+    endpoint: PROXY_ROUTES.WEBRTC.START(sessionId),
   }), [sessionId])
 
   const clientOptions = useMemo(() => ({
@@ -21,7 +22,7 @@ export default function AuthenticatedChatPage() {
   }), [])
 
   const startBotResponseTransformer = useCallback((_response: any) => ({
-    webrtcUrl: `/api/proxy/webrtc/sessions/${sessionId}/api/offer`,
+    webrtcUrl: PROXY_ROUTES.WEBRTC.OFFER(sessionId),
   }), [sessionId])
 
   return (

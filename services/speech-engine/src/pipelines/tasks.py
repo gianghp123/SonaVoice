@@ -23,6 +23,7 @@ from src.types.messages import SessionMessage, UserMessage, AssistantMessage
 from pipecat.frames.frames import LLMSummarizeContextFrame
 import time
 from src.services.session_service import SessionService
+from src.services.messages_service import MessageService
 from src.pipelines.processors import CustomMem0Processor
 
 async def create_voice_bot_task(
@@ -42,7 +43,8 @@ async def create_voice_bot_task(
         start_time = time.time()
     
     session_messages: list[SessionMessage] = []
-    service = SessionService()
+    session_service = SessionService()
+    message_service = MessageService()
 
 
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
@@ -102,14 +104,14 @@ async def create_voice_bot_task(
     # Messages handler
     @user_aggregator.event_handler("on_user_turn_stopped")
     async def on_user_turn_stopped(aggregator, strategy, message: UserTurnStoppedMessage):
-        session_messages.append(UserMessage(role="user", content=message.content))
+        session_messages.append(UserMessage(role="user", transcript=message.content))
 
     @assistant_aggregator.event_handler("on_assistant_turn_stopped")
     async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
         if message.content:
-            session_messages.append(AssistantMessage(role="assistant", content=message.content, was_interrupted=False, created_at=message.timestamp))
+            session_messages.append(AssistantMessage(role="assistant", transcript=message.content, was_interrupted=False, created_at=message.timestamp))
         if message.interrupted:
-            session_messages.append(AssistantMessage(role="assistant", content=message.content, was_interrupted=True, created_at=message.timestamp))
+            session_messages.append(AssistantMessage(role="assistant", transcript=message.content, was_interrupted=True, created_at=message.timestamp))
 
     @user_aggregator.event_handler("on_user_turn_idle")
     async def on_user_turn_idle(aggregator):
@@ -127,10 +129,12 @@ async def create_voice_bot_task(
         logger.info("Client disconnected - cancelling pipeline")
         actual_usage = int(time.time() - start_time)
 
-        await service.close_session(
+        await session_service.close_session(
             session_id=session_id,
             actual_usage=actual_usage,
         )
+        
+        await message_service.save_messages(session_id, session_messages)
         
         await task.cancel()
         

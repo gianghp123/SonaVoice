@@ -8,7 +8,6 @@ from src.transports.daily import create_daily_transport
 from src.transports.small_webrtc import create_small_webrtc_transport
 from src.pipelines.tasks import create_voice_bot_task
 from mem0 import AsyncMemory
-from src.core.app_resources import AppResources
 from src.agents.prompts import ENGLIST_TEACHER_SYSTEM_INSTRUCTION
 from pipecat.runner.types import RunnerArguments
 from pipecat.runner.types import (
@@ -121,9 +120,6 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     else:
         tools = ToolsSchema([summarize_function, save_memory_function])
         memory_client = AsyncMemory.from_config(settings.memory_config)
-        app_resource = AppResources(
-            memory_client=memory_client, user_id=user_id, session_id=session_id
-        )
 
     context = LLMContext(tools=tools)
 
