@@ -6,12 +6,12 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/configs"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
-	"github.com/gianghp123/SonaVoice/api/internal/utils"
-
-	session "github.com/gianghp123/SonaVoice/api/internal/modules/session"
+	"github.com/gianghp123/SonaVoice/api/internal/middlewares"
 	message "github.com/gianghp123/SonaVoice/api/internal/modules/message"
-
+	session "github.com/gianghp123/SonaVoice/api/internal/modules/session"
+	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
@@ -54,34 +54,56 @@ func main() {
 	// Init logger
 	zapLogger.Init(cfg.Logger)
 	defer zapLogger.Sync()
-
 	logger := zapLogger.S()
 
-	serverCfg := getServerConfig()
 	// Set gin mode
+	serverCfg := getServerConfig()
 	gin.SetMode(serverCfg.Mode)
 
 	// Connect database
 	db, err := gorm.Open(postgres.Open(cfg.Database.DatabaseUrl), &gorm.Config{})
 	if err != nil {
 		logger.Fatalf("failed to connect database: %v", err)
+		return
 	}
-
 	sqlDB, err := db.DB()
 	if err != nil {
 		logger.Fatalf("failed to get sql.DB: %v", err)
+		return
 	}
-
 	if err := sqlDB.Ping(); err != nil {
 		logger.Fatalf("failed to ping database: %v", err)
+		return
 	}
-
 	logger.Info("database connected successfully")
 
-	httpClient := httpclient.NewHttpClient()
+	// Redis client
+	redisOpts, err := redis.ParseURL(cfg.Redis.RedisUrl)
+	if err != nil {
+		logger.Fatalf("failed to parse redis url: %v", err)
+		return
+	}
+	redisClient := redis.NewClient(redisOpts)
+
+	//middlewares
+	globalLimiter := middlewares.NewRateLimitMiddleware(
+		redisClient,
+		"rl:global",
+		"60-M",
+	)
+	sessionLimiter := middlewares.NewRateLimitMiddleware(
+		redisClient,
+		"rl:session",
+		"5-M",
+	)
+	auth := middlewares.ClerkAuthMiddleware()
 
 	// Init Gin
 	router := gin.Default()
+
+	// Enable rate limiting
+	router.ForwardedByClientIP = true
+	router.Use(globalLimiter)
 
 	router.Use(gin.Recovery())
 	router.Use(gin.Logger())
@@ -91,8 +113,9 @@ func main() {
 	})
 
 	// Register modules
-	session.SetupModule(router.Group("/"), db, httpClient)
-	message.SetupModule(router.Group("/"), db)
+	httpClient := httpclient.NewHttpClient()
+	session.SetupModule(router.Group("/"), db, httpClient, auth, sessionLimiter)
+	message.SetupModule(router.Group("/"), db, auth)
 
 	// Swagger
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

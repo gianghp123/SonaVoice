@@ -12,7 +12,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHttpClient) {
+func SetupModule(
+	router *gin.RouterGroup,
+	db *gorm.DB, httpClient httpclient.IHttpClient,
+	authMiddleware gin.HandlerFunc,
+	sessionLimiter gin.HandlerFunc,
+) {
 	sessionRepo := repositories.NewSessionRepository(db)
 	configRepo := repositories.NewSessionConfigRepository(db)
 	userQuotaRepo := repositories.NewUserQuotaRepository(db)
@@ -30,16 +35,16 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB, httpClient httpclient.IHt
 	sessionConfigController := controllers.NewSessionConfigController(configService)
 
 	sessGroup := router.Group("/sessions")
-	sessGroup.POST("", middlewares.ClerkAuthMiddleware(), sessionController.HandleCreateSession)
-	sessGroup.POST("/:sessionId/start", middlewares.ClerkAuthMiddleware(), sessionController.HandleStartConnection)
-	sessGroup.POST("/:sessionId/api/offer", middlewares.ClerkAuthMiddleware(), sessionController.HandleOffer)
-	sessGroup.PATCH("/:sessionId/api/offer", middlewares.ClerkAuthMiddleware(), sessionController.HandleOffer)
-	sessGroup.GET("", middlewares.ClerkAuthMiddleware(), sessionController.HandleListSessions)
-	sessGroup.GET("/:sessionId", middlewares.ClerkAuthMiddleware(), sessionController.HandleGetSession)
-	sessGroup.POST("/:sessionId/cancel", middlewares.ClerkAuthMiddleware(), sessionController.HandleCancelSession)
+	sessGroup.POST("", sessionLimiter, authMiddleware, sessionController.HandleCreateSession)
+	sessGroup.POST("/:sessionId/start", authMiddleware, sessionController.HandleStartConnection)
+	sessGroup.POST("/:sessionId/api/offer", authMiddleware, sessionController.HandleOffer)
+	sessGroup.PATCH("/:sessionId/api/offer", authMiddleware, sessionController.HandleOffer)
+	sessGroup.GET("", authMiddleware, sessionController.HandleListSessions)
+	sessGroup.GET("/:sessionId", authMiddleware, sessionController.HandleGetSession)
+	sessGroup.POST("/:sessionId/cancel", authMiddleware, sessionController.HandleCancelSession)
 	sessGroup.POST("/:sessionId/close", sessionController.HandleCloseSession)
 
 	scGroup := sessGroup.Group("/config")
 	scGroup.GET("", sessionConfigController.HandleGet)
-	scGroup.PUT("", middlewares.ClerkAuthMiddleware(), middlewares.RequireRole(enums.UserRoleAdmin), sessionConfigController.HandleUpdate)
+	scGroup.PUT("", authMiddleware, middlewares.RequireRole(enums.UserRoleAdmin), sessionConfigController.HandleUpdate)
 }

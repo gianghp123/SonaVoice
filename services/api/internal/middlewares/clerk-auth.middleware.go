@@ -55,8 +55,18 @@ func ClerkAuthMiddleware() gin.HandlerFunc {
 		}
 
 		claims, ok := clerk.SessionClaimsFromContext(nextReq.Context())
-		if !ok || claims.Subject == "" {
-			logger.Warnw("Invalid clerk session", "path", nextReq.URL.Path, "method", nextReq.Method, "subject", claims.Subject)
+		if !ok || claims == nil || claims.Subject == "" {
+			subject := ""
+			if claims != nil {
+				subject = claims.Subject
+			}
+
+			logger.Warnw("Invalid clerk session",
+				"path", nextReq.URL.Path,
+				"method", nextReq.Method,
+				"subject", subject,
+			)
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, appErr.Unauthorized())
 			return
 		}
