@@ -1,51 +1,58 @@
-variable "project" {
-  type = string
-}
+variable "neon_config" {
+  type = object({
+    project_id    = string
+    database_name = string
+    role_name     = string
+  })
 
-variable "region" {
-  type = string
-}
-
-variable "neon_project_id" {
-    type = string
-}
-
-variable "environment" {
-  type = string
-  default = "development"
-}
-
-variable "branch" {
-  type = string
-  default = "development"
-}
-
-variable "database_name" {
-  type = string
-}
-
-variable "role_name" {
-  type = string
+  sensitive = true
 }
 
 variable "neon_api_key" {
-  type = string
-}
-
-variable "sentry_api_key" {
-  type = string
-}
-
-variable "sentry_organization" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "sentry_projects" {
   type = map(object({
-    name     = string
-    platform = string
-    teams    = list(string)
-
+    name        = string
+    platform    = string
+    teams       = list(string)
     resolve_age = optional(number, 720)
   }))
+}
+
+variable "sentry_credential" {
+  type = object({
+    api_key      = string
+    organization = string
+  })
+
+  sensitive = true
+}
+
+variable "upstash_credential" {
+  type = object({
+    email   = string
+    api_key = string
+  })
+
+  sensitive = true
+}
+
+variable "upstash_redis_config" {
+  type = object({
+    name = string
+    region = string
+    primary_region = string
+    tls = bool
+  })
+}
+
+variable "app" {
+  type = object({
+    project     = string
+    region      = string
+    environment = string
+  })
 }

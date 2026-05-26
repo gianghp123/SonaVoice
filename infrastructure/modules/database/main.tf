@@ -1,6 +1,6 @@
 resource "neon_branch" "this" {
   project_id = var.neon_project_id
-  name       = var.branch
+  name       = var.environment
 }
 
 resource "neon_endpoint" "this" {

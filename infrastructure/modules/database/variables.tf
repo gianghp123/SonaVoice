@@ -15,11 +15,6 @@ variable "environment" {
   default = "development"
 }
 
-variable "branch" {
-  type = string
-  default = "development"
-}
-
 variable "database_name" {
   type = string
 }

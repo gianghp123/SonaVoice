@@ -7,6 +7,10 @@ terraform {
     sentry = {
       source = "jianyuan/sentry"
     }
+    upstash = {
+      source  = "upstash/upstash"
+      version = "2.1.0"
+    }
   }
 }
 
@@ -15,25 +19,41 @@ provider "neon" {
 }
 
 provider "sentry" {
-  token = var.sentry_api_key
+  token = var.sentry_credential.api_key
 }
 
-module "database" {
+provider "upstash" {
+  api_key = var.upstash_credential.api_key
+  email   = var.upstash_credential.email
+}
+
+module "neon_database" {
   source = "../../modules/database"
-  project = var.project
-  region = var.region
-  environment = var.environment
-  branch = var.branch
-  database_name = var.database_name
-  role_name = var.role_name
-  neon_project_id = var.neon_project_id
-}
 
+  project        = var.app.project
+  region         = var.app.region
+  environment    = var.app.environment
+
+  database_name   = var.neon_config.database_name
+  role_name       = var.neon_config.role_name
+  neon_project_id = var.neon_config.project_id
+}
 
 module "sentry" {
   source = "../../modules/sentry"
-  project = var.project
-  environment = var.environment
-  sentry_organization = var.sentry_organization
-  sentry_projects = var.sentry_projects
+
+  project             = var.app.project
+  environment         = var.app.environment
+  sentry_organization = var.sentry_credential.organization
+  sentry_projects     = var.sentry_projects
+}
+
+module "upstash_redis" {
+  source = "../../modules/redis"
+  project = var.app.project
+  environment = var.app.environment
+  redis_name = var.upstash_redis_config.name
+  region = var.upstash_redis_config.region
+  primary_region = var.upstash_redis_config.primary_region
+  tls = var.upstash_redis_config.tls
 }
