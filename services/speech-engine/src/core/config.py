@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     LLM_NAME: str = "deepseek-v4-flash"
     
     BOT_NAME: str = "SONA"
+
+    # Sentry
+    SENTRY_DSN: str = ""
     
     # Constants
     EMBEDDING_DIMS: int = 768

@@ -11,6 +11,7 @@ type Config struct {
 	ClerkAuth ClerkConfig
 	Logger    LoggerConfig
 	Redis     RedisConfig
+	Sentry    SentryConfig
 }
 
 func Load() *Config {
@@ -25,5 +26,6 @@ func Load() *Config {
 		ClerkAuth: loadClerkConfig(),
 		Logger:    loadLoggerConfig(),
 		Redis:     loadRedisConfig(),
+		Sentry:    loadSentryConfig(),
 	}
 }

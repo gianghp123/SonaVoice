@@ -4,6 +4,9 @@ go 1.25.0
 
 require (
 	github.com/clerk/clerk-sdk-go/v2 v2.6.0
+	github.com/getsentry/sentry-go v0.46.2
+	github.com/getsentry/sentry-go/gin v0.46.2
+	github.com/getsentry/sentry-go/zap v0.46.2
 	github.com/gin-gonic/gin v1.12.0
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/jinzhu/copier v0.4.0

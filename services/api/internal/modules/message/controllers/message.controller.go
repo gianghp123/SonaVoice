@@ -3,6 +3,8 @@ package controllers
 import (
 	"net/http"
 
+	"github.com/getsentry/sentry-go"
+
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/message/dtos/req"
@@ -37,6 +39,7 @@ func (ctrl *MessageController) HandleListMessages(c *gin.Context) {
 
 	var messages []res.MessageRes
 	if err := utils.MapToDTOs(result.Data, &messages); err != nil {
+		sentry.CaptureException(err)
 		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal("failed to map messages")))
 		return
 	}
@@ -61,6 +64,7 @@ func (ctrl *MessageController) HandleCreateMessages(c *gin.Context) {
 
 	var result []res.MessageRes
 	if err := utils.MapToDTOs(msgs, &result); err != nil {
+		sentry.CaptureException(err)
 		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal("failed to map messages")))
 		return
 	}

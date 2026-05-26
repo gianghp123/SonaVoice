@@ -3,6 +3,8 @@ package controllers
 import (
 	"net/http"
 
+	"github.com/getsentry/sentry-go"
+
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/domain"
@@ -36,6 +38,7 @@ func (ctrl *SessionConfigController) HandleGet(c *gin.Context) {
 	}
 	configPayload, err := domain.ParseSessionConfig(model.Config)
 	if err != nil {
+		sentry.CaptureException(err)
 		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
 		return
 	}
@@ -73,6 +76,7 @@ func (ctrl *SessionConfigController) HandleUpdate(c *gin.Context) {
 	}
 	configPayload, err := domain.ParseSessionConfig(model.Config)
 	if err != nil {
+		sentry.CaptureException(err)
 		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
 		return
 	}

@@ -23,6 +23,7 @@ import { HistoryPanelContent } from "@/features/chat-interface/components/Histor
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
 import { RTVIEvent } from "@pipecat-ai/client-js"
 import { useRTVIClientEvent } from "@pipecat-ai/client-react"
+import * as Sentry from "@sentry/nextjs"
 import { PanelRight } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -58,7 +59,26 @@ export function ChatLayout({
     RTVIEvent.Error,
     useCallback((message) => {
       const { error, message: msg, fatal } = message.data as any
-      const text = error ?? msg  // use "error" first, fall back to "message"
+      const text = error ?? msg ?? "Unknown RTVI error"
+
+      Sentry.logger[fatal ? "error" : "warn"]("RTVI client error", {
+        area: "chat-layout",
+        stage: "rtvi",
+        fatal: Boolean(fatal),
+        error: text,
+      })
+
+      if (fatal) {
+        Sentry.captureException(new Error(text), {
+          tags: {
+            area: "chat-layout",
+            type: "rtvi-fatal-error",
+          },
+          extra: {
+            rtviEventData: message.data,
+          },
+        })
+      }
 
       toast.error("An error occurred: " + text, {
         duration: 10000,
@@ -72,6 +92,13 @@ export function ChatLayout({
 
   useEffect(() => {
     if (initialError) {
+      Sentry.captureException(new Error(initialError), {
+        tags: {
+          area: "chat-layout",
+          type: "pipecat-initial-error",
+        },
+      })
+
       setFatalError(initialError)
     }
   }, [initialError])

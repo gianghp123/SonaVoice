@@ -2188,6 +2188,9 @@ runner = [
     { name = "python-dotenv" },
     { name = "uvicorn" },
 ]
+sentry = [
+    { name = "sentry-sdk" },
+]
 webrtc = [
     { name = "aiortc" },
     { name = "opencv-python" },
@@ -3339,7 +3342,7 @@ dependencies = [
     { name = "ipykernel" },
     { name = "loguru" },
     { name = "mem0ai", extra = ["nlp"] },
-    { name = "pipecat-ai", extra = ["cartesia", "daily", "deepgram", "piper", "runner", "webrtc"] },
+    { name = "pipecat-ai", extra = ["cartesia", "daily", "deepgram", "piper", "runner", "sentry", "webrtc"] },
     { name = "psycopg2-binary" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
@@ -3351,7 +3354,7 @@ requires-dist = [
     { name = "ipykernel", specifier = ">=7.2.0" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mem0ai", extras = ["nlp"], specifier = ">=2.0.2" },
-    { name = "pipecat-ai", extras = ["cartesia", "daily", "deepgram", "piper", "runner", "silero", "webrtc"], specifier = ">=1.1.0" },
+    { name = "pipecat-ai", extras = ["cartesia", "daily", "deepgram", "piper", "runner", "silero", "webrtc", "sentry"], specifier = ">=1.1.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.12" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
     { name = "python-dotenv", specifier = ">=1.2.2" },

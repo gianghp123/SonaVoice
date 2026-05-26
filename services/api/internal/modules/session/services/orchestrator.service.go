@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
@@ -134,7 +136,8 @@ func (s *orchestratorService) CreateSession(ctx context.Context) (*res.CreateSes
 	}
 
 	if err := s.cancelStalePendingSession(ctx, requesterID); err != nil {
-		zapLogger.S().Warnw("Failed to cancel stale pending session", "userId", requesterID, "error", err)
+		sentry.CaptureException(err)
+		zapLogger.S().Errorw("Failed to cancel stale pending session", "userId", requesterID, "error", err)
 		return nil, errors.Internal()
 	}
 

@@ -5,6 +5,7 @@ import { ChatLayout } from "@/features/chat-interface/components/ChatLayout"
 import { cancelSession } from "@/features/chat-interface/services/session.actions"
 import { PROXY_ROUTES } from "@/lib/routes"
 import { PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
+import * as Sentry from "@sentry/nextjs"
 import { useParams, useRouter } from "next/navigation"
 import { useCallback, useMemo, useState } from "react"
 
@@ -23,6 +24,11 @@ export default function ChatPage() {
   }), [])
 
   const startBotResponseTransformer = useCallback((response: any) => {
+    Sentry.logger.info("Voice session started", {
+      area: "chat-page",
+      sessionId,
+      maxDuration: response.maxDuration,
+    })
     setMaxDuration(response.maxDuration)
     return {
       webrtcUrl: PROXY_ROUTES.WEBRTC.OFFER(sessionId),
@@ -44,12 +50,22 @@ export default function ChatPage() {
         if (!client) return <LoadingScreen />
 
         const handleSessionError = async () => {
+          Sentry.logger.error("Voice session fatal error handled", {
+            area: "chat-page",
+            sessionId,
+          })
+
           await cancelSession(sessionId)
           await handleDisconnect?.()
           router.push("/")
         }
 
         const handleSessionDisconnect = async () => {
+          Sentry.logger.info("Voice session disconnected by user", {
+            area: "chat-page",
+            sessionId,
+          })
+
           await handleDisconnect?.()
           router.push("/")
         }

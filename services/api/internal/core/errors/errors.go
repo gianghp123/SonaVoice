@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
@@ -72,6 +73,7 @@ func MapRepoError(err error) *AppError {
 		return Conflict()
 	}
 
+	sentry.CaptureException(err)
 	return Internal()
 }
 

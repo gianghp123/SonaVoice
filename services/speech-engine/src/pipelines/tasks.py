@@ -25,6 +25,8 @@ import time
 from src.services.session_service import SessionService
 from src.services.messages_service import MessageService
 from src.pipelines.processors import CustomMem0Processor
+import sentry_sdk
+
 
 async def create_voice_bot_task(
     transport,
@@ -38,14 +40,30 @@ async def create_voice_bot_task(
     max_duration=None,
     memory_processor: CustomMem0Processor = None,
 ) -> PipelineTask:
-    
     if start_time is None:
         start_time = time.time()
-    
+
     session_messages: list[SessionMessage] = []
     session_service = SessionService()
     message_service = MessageService()
 
+    sentry_sdk.set_user({"id": user_id})
+    sentry_sdk.set_context(
+        "voice_session",
+        {
+            "session_id": session_id,
+            "max_duration": max_duration,
+            "has_memory": memory_processor is not None,
+        },
+    )
+
+    log = logger.bind(
+        area="voice-task",
+        user_id=user_id,
+        session_id=session_id,
+        max_duration=max_duration,
+        has_memory=memory_processor is not None,
+    )
 
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
@@ -63,10 +81,9 @@ async def create_voice_bot_task(
         ),
     )
 
-    pipeline = None
-
-    # 2. Define Pipeline
     if memory_processor is None:
+        log.info("Creating pipeline without memory processor")
+
         pipeline = Pipeline(
             [
                 transport.input(),
@@ -79,12 +96,14 @@ async def create_voice_bot_task(
             ]
         )
     else:
+        log.info("Creating pipeline with memory processor")
+
         pipeline = Pipeline(
             [
                 transport.input(),
                 stt,
                 user_aggregator,
-                memory_processor,  # Your CustomMem0Service
+                memory_processor,
                 llm,
                 tts,
                 transport.output(),
@@ -101,7 +120,6 @@ async def create_voice_bot_task(
         },
     )
 
-    # Messages handler
     @user_aggregator.event_handler("on_user_turn_stopped")
     async def on_user_turn_stopped(aggregator, strategy, message: UserTurnStoppedMessage):
         session_messages.append(UserMessage(role="user", transcript=message.content))
@@ -109,106 +127,175 @@ async def create_voice_bot_task(
     @assistant_aggregator.event_handler("on_assistant_turn_stopped")
     async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
         if message.content:
-            session_messages.append(AssistantMessage(role="assistant", transcript=message.content, was_interrupted=False, created_at=message.timestamp))
+            session_messages.append(
+                AssistantMessage(
+                    role="assistant",
+                    transcript=message.content,
+                    was_interrupted=False,
+                    created_at=message.timestamp,
+                )
+            )
+
         if message.interrupted:
-            session_messages.append(AssistantMessage(role="assistant", transcript=message.content, was_interrupted=True, created_at=message.timestamp))
+            session_messages.append(
+                AssistantMessage(
+                    role="assistant",
+                    transcript=message.content,
+                    was_interrupted=True,
+                    created_at=message.timestamp,
+                )
+            )
+
+            log.info(
+                "Assistant interrupted",
+                content_length=len(message.content or ""),
+            )
 
     @user_aggregator.event_handler("on_user_turn_idle")
     async def on_user_turn_idle(aggregator):
+        log.info("User idle")
+
         msg = {
             "role": "developer",
             "content": "The user is quiet. Ask if they are there.",
         }
+
         await aggregator.push_frame(LLMMessagesAppendFrame([msg], run_llm=True))
 
-
-
-    # Disconnect handler
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
-        logger.info("Client disconnected - cancelling pipeline")
         actual_usage = int(time.time() - start_time)
 
-        await session_service.close_session(
-            session_id=session_id,
+        log.info(
+            "Client disconnected",
             actual_usage=actual_usage,
+            message_count=len(session_messages),
         )
-        
-        await message_service.save_messages(session_id, session_messages)
-        
-        await task.cancel()
-        
 
+        try:
+            await session_service.close_session(
+                session_id=session_id,
+                actual_usage=actual_usage,
+            )
 
-    # Session timer
+            await message_service.save_messages(session_id, session_messages)
+
+            log.info(
+                "Session closed and messages saved",
+                actual_usage=actual_usage,
+                message_count=len(session_messages),
+            )
+
+        except Exception:
+            log.exception(
+                "Failed to close session or save messages",
+                actual_usage=actual_usage,
+                message_count=len(session_messages),
+            )
+
+        finally:
+            await task.cancel()
+
     async def session_timer(task, aggregator, timeout_secs=300):
         await asyncio.sleep(timeout_secs)
-        # Trigger LLM to say goodbye
+
+        log.info(
+            "Session max duration reached",
+            timeout_secs=timeout_secs,
+        )
+
         await aggregator.push_frame(
             LLMMessagesAppendFrame(
-                messages=[{"role": "system", "content": "Say goodbye to the user since the session is over."}],
-                run_llm=True
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Say goodbye to the user since the session is over.",
+                    }
+                ],
+                run_llm=True,
             )
         )
-        # EndFrame is queued, so the goodbye speech will complete before shutdown
-        await aggregator.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
-        actual_duration = time.time() - start_time
-        logger.info(f"Session duration: {actual_duration} seconds")
-        
 
-   
+        await aggregator.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
+
+        actual_duration = time.time() - start_time
+
+        log.info(
+            "Session timer finished",
+            actual_duration=actual_duration,
+        )
 
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
-        logger.info(f"Client connected")
-        # Add a greeting message to the context
+        log.info("Client connected")
+
         context.add_message(
-            {"role": "system", "content": "Say hello and briefly introduce yourself."}
+            {
+                "role": "system",
+                "content": "Say hello and briefly introduce yourself.",
+            }
         )
-        # Prompt the bot to start talking when the client connects
+
         await task.queue_frames([LLMRunFrame()])
+
         if max_duration is not None:
-            asyncio.create_task(session_timer(task, user_aggregator, timeout_secs=max_duration))
-            
-        
-    
-    
-    # Finish handler
+            asyncio.create_task(
+                session_timer(
+                    task,
+                    user_aggregator,
+                    timeout_secs=max_duration,
+                )
+            )
 
     @task.event_handler("on_pipeline_finished")
     async def on_pipeline_finished(task, frame):
-        await task.queue_frames([
-            LLMSummarizeContextFrame(
-                config=LLMContextSummaryConfig(
-                    target_context_tokens=4000,
-                    min_messages_after_summary=0,
+        log.info("Pipeline finished")
+
+        await task.queue_frames(
+            [
+                LLMSummarizeContextFrame(
+                    config=LLMContextSummaryConfig(
+                        target_context_tokens=4000,
+                        min_messages_after_summary=0,
+                    )
                 )
-            )
-        ])
+            ]
+        )
 
-        
-
-    # Error handlers
     @tts.event_handler("on_connection_error")
     async def on_tts_connection_error(service, error):
-        logger.error(f"TTS connection error: {error}")
-
+        log.error(
+            "TTS connection error",
+            stage="tts",
+            error=str(error),
+        )
 
     @stt.event_handler("on_connection_error")
     async def on_stt_connection_error(service, error):
-        logger.error(f"STT connection error: {error}")
-
+        log.error(
+            "STT connection error",
+            stage="stt",
+            error=str(error),
+        )
 
     @llm.event_handler("on_connection_error")
     async def on_llm_connection_error(service, error):
-        logger.error(f"LLM connection error: {error}")
-
+        log.error(
+            "LLM connection error",
+            stage="llm",
+            error=str(error),
+        )
 
     @task.event_handler("on_pipeline_error")
     async def on_pipeline_error(task, frame):
-        logger.error(f"Pipeline error: {frame.error}, fatal: {frame.fatal}")
-
         error_msg = str(frame.error)
+
+        log.error(
+            "Pipeline error",
+            stage="pipeline",
+            fatal=frame.fatal,
+            error=error_msg,
+        )
 
         if "Cartesia" in error_msg or "TTS" in error_msg or "WebSocket" in error_msg:
             service_name = "TTS service"
@@ -221,7 +308,10 @@ async def create_voice_bot_task(
 
         custom_msg = get_custom_error_message(error_msg, service_name)
 
-        await task.queue_frames([
-            ErrorFrame(error=custom_msg, fatal=True)
-        ])
+        await task.queue_frames(
+            [
+                ErrorFrame(error=custom_msg, fatal=True)
+            ]
+        )
+
     return task

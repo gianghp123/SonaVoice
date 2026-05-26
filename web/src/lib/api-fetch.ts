@@ -1,7 +1,10 @@
-'server-only'
+'use server'
+
+import 'server-only'
+import { auth } from "@clerk/nextjs/server";
+import * as Sentry from '@sentry/nextjs';
 import type { BaseResponse } from "./base-response";
 import { snakeToCamel } from "./case";
-import { auth } from "@clerk/nextjs/server";
 
 type ApiFetchOptions = {
   baseUrl?: string;
@@ -13,6 +16,7 @@ export async function apiFetch<T = any>(
   url: string,
   options?: ApiFetchOptions
 ): Promise<BaseResponse<T>> {
+  const startedAt = Date.now();
 
   try {
     const {
@@ -22,7 +26,15 @@ export async function apiFetch<T = any>(
       ...fetchOptions
     } = options || {};
 
+    const method = fetchOptions.method || "GET";
+
     if (!baseUrl) {
+      Sentry.logger.error("API_URL is not configured", {
+        area: "api-fetch",
+        url,
+        method,
+      });
+
       throw new Error(
         "Server API_URL is not configured. Please set API_URL environment variable."
       );
@@ -33,23 +45,28 @@ export async function apiFetch<T = any>(
       apikey: process.env.API_KEY || "",
     };
 
-
     if (withCredentials) {
       const { getToken } = await auth();
       const token = await getToken();
 
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
+      } else {
+        Sentry.logger.warn("Clerk token missing for credentialed API request", {
+          area: "api-fetch",
+          url,
+          method,
+        });
       }
     }
 
     const searchParams = new URLSearchParams();
+
     if (query) {
       Object.entries(query).forEach(([key, value]) => {
         if (value === undefined || value === null || value === "") return;
 
         if (typeof value === "object") {
-          // If it's a DynamoDB object, we MUST stringify it properly
           searchParams.append(key, JSON.stringify(value));
         } else {
           searchParams.append(key, String(value));
@@ -58,23 +75,66 @@ export async function apiFetch<T = any>(
     }
 
     const queryString = searchParams.toString();
-
     const fullUrl = `${baseUrl}${url}${queryString ? `?${queryString}` : ""}`;
 
-    console.log("🚀 Calling API:", fullUrl);
-
     const response = await fetch(fullUrl, {
-      method: fetchOptions.method || "GET",
+      method,
       ...fetchOptions,
-      headers
+      headers,
     });
+
+    const durationMs = Date.now() - startedAt;
 
     if (!response.ok) {
       let message = "Unknown error";
+      let errorData: any;
+
       try {
-        const errorData = await response.json();
-        message = errorData.error.message || errorData.message || message;
-      } catch (_) { }
+        errorData = await response.json();
+        message = errorData.error?.message || errorData.message || message;
+      } catch (_) {
+        Sentry.logger.warn("Failed to parse backend error response", {
+          area: "api-fetch",
+          url,
+          method,
+          status: response.status,
+          durationMs,
+        });
+      }
+
+      if (response.status >= 500 || response.status === 429) {
+        Sentry.logger.error("Backend API returned unexpected error", {
+          area: "api-fetch",
+          url,
+          method,
+          status: response.status,
+          durationMs,
+        });
+
+        Sentry.captureException(new Error(message), {
+          tags: {
+            area: "api-fetch",
+            type: "backend-response-error",
+            status: String(response.status),
+          },
+          extra: {
+            url,
+            method,
+            status: response.status,
+            durationMs,
+            responseBody: errorData,
+          },
+        });
+      } else {
+        Sentry.logger.info("Backend API returned expected non-OK response", {
+          area: "api-fetch",
+          url,
+          method,
+          status: response.status,
+          durationMs,
+        });
+      }
+
       return {
         error: {
           code: response.status,
@@ -89,7 +149,22 @@ export async function apiFetch<T = any>(
 
     if (contentType && contentType.includes("application/json")) {
       const text = await response.text();
-      rawData = text ? JSON.parse(text) : {};
+
+      try {
+        rawData = text ? JSON.parse(text) : {};
+      } catch (error) {
+        const durationMs = Date.now() - startedAt;
+
+        Sentry.logger.error("Failed to parse backend JSON response", {
+          area: "api-fetch",
+          url,
+          method,
+          status: response.status,
+          durationMs,
+        });
+
+        throw error;
+      }
     } else {
       rawData = {};
     }
@@ -105,11 +180,33 @@ export async function apiFetch<T = any>(
         },
       } as BaseResponse<T>;
     }
+
     return {
       data: data.data !== undefined ? (data.data as T) : (data as T),
     } as BaseResponse<T>;
   } catch (error: any) {
-    console.error(error);
+    const durationMs = Date.now() - startedAt;
+
+    Sentry.logger.error("apiFetch crashed", {
+      area: "api-fetch",
+      url,
+      method: options?.method || "GET",
+      durationMs,
+    });
+
+    Sentry.captureException(error, {
+      tags: {
+        area: "api-fetch",
+        type: "fetch-crash",
+      },
+      extra: {
+        url,
+        method: options?.method || "GET",
+        queryKeys: options?.query ? Object.keys(options.query) : undefined,
+        durationMs,
+      },
+    });
+
     return {
       error: {
         code: error.code || 500,

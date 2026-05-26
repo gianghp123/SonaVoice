@@ -2,8 +2,13 @@ package main
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/getsentry/sentry-go"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 
 	"github.com/gianghp123/SonaVoice/api/internal/configs"
+	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/middlewares"
@@ -51,8 +56,21 @@ func getServerConfig() *configs.ServerConfig {
 func main() {
 	cfg := configs.Load()
 
+	// Init Sentry
+	if cfg.Sentry.Dsn != "" {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:         cfg.Sentry.Dsn,
+			Environment: cfg.Sentry.Environment,
+			EnableLogs:  true,
+			Debug:       true,
+		}); err != nil {
+			panic(fmt.Sprintf("sentry initialization failed: %v", err))
+		}
+		defer sentry.Flush(2 * time.Second)
+	}
+
 	// Init logger
-	zapLogger.Init(cfg.Logger)
+	zapLogger.Init(cfg.Logger, cfg.Sentry)
 	defer zapLogger.Sync()
 	logger := zapLogger.S()
 
@@ -100,6 +118,26 @@ func main() {
 
 	// Init Gin
 	router := gin.Default()
+
+	// Sentry middleware - must be first to catch panics
+	router.Use(sentrygin.New(sentrygin.Options{
+		Repanic: true,
+	}))
+
+	// Attach user info to Sentry scope when available
+	router.Use(func(c *gin.Context) {
+		if hub := sentrygin.GetHubFromContext(c); hub != nil {
+			userID := utils.GetCtx[string](c, enums.ContextKeyUserID)
+			if userID != "" {
+				hub.Scope().SetUser(sentry.User{ID: userID})
+			}
+			role := utils.GetCtx[enums.UserRole](c, enums.ContextKeyUserRole)
+			if role != "" {
+				hub.Scope().SetTag("role", string(role))
+			}
+		}
+		c.Next()
+	})
 
 	// Enable rate limiting
 	router.ForwardedByClientIP = true

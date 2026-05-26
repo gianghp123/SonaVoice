@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 )
 
@@ -45,6 +47,7 @@ func (h *httpClient) Do(
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
 		if err != nil {
+			sentry.CaptureException(err)
 			return nil, 0, errors.Internal("failed to marshal request body")
 		}
 
@@ -58,6 +61,7 @@ func (h *httpClient) Do(
 		reader,
 	)
 	if err != nil {
+		sentry.CaptureException(err)
 		return nil, 0, errors.Internal("failed to create request")
 	}
 
@@ -67,12 +71,14 @@ func (h *httpClient) Do(
 
 	resp, err := h.client.Do(req)
 	if err != nil {
+		sentry.CaptureException(err)
 		return nil, 0, errors.Internal("failed to execute request")
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		sentry.CaptureException(err)
 		return nil, 0, errors.Internal("failed to read response")
 	}
 
