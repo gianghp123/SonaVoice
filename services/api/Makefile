@@ -1,11 +1,7 @@
--include .env
-export
-
 .PHONY: migrate-create migrate-up migrate-down up down build logs restart clean dev test test-coverage swag-init
 
 DOCKER_COMPOSE = docker compose --env-file .env -f docker/docker-compose.yaml
 
-DB_URL = $(DATABASE_URL)
 
 migrate-create:
 	@if [ -z "$(name)" ]; then \
@@ -15,10 +11,24 @@ migrate-create:
 	goose -dir internal/database/migrations create $(name) sql
 
 migrate-up:
-	goose -dir internal/database/migrations postgres "$(DB_URL)" up
+	@if [ -z "$$DATABASE_URL" ] && [ -f .env ]; then \
+		set -a; . ./.env; set +a; \
+	fi; \
+	if [ -z "$$DATABASE_URL" ]; then \
+		echo "DATABASE_URL is required"; \
+		exit 1; \
+	fi; \
+	goose -dir internal/database/migrations postgres "$$DATABASE_URL" up
 
 migrate-down:
-	goose -dir internal/database/migrations postgres "$(DB_URL)" down
+	@if [ -z "$$DATABASE_URL" ] && [ -f .env ]; then \
+		set -a; . ./.env; set +a; \
+	fi; \
+	if [ -z "$$DATABASE_URL" ]; then \
+		echo "DATABASE_URL is required"; \
+		exit 1; \
+	fi; \
+	goose -dir internal/database/migrations postgres "$$DATABASE_URL" down
 
 up:
 	$(DOCKER_COMPOSE) up -d --build

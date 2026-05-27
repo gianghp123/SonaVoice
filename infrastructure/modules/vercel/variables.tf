@@ -1,7 +1,3 @@
-variable "project" {
-  type = string
-}
-
 variable "environment" {
   type = string
 }
@@ -10,18 +6,29 @@ variable "github_repo" {
   type = string
 }
 
-variable "vercel_projects" {
-  type = map(object({
-    framework      = string
-    root_directory = string
+variable "name" {
+  type = string
+}
 
-    environment_variables = map(object({
-      value     = string
-      sensitive = optional(bool, false)
-    }))
+variable "framework" {
+  type = string
+}
+
+variable "root_directory" {
+  type = string
+}
+
+variable "environment_variables" {
+  type = map(object({
+    value     = string
+    sensitive = optional(bool, false)
+    target    = optional(list(string))
   }))
+
+  default = {}
 }
 
 variable "target" {
-  type = list(string)
+  type    = list(string)
+  default = ["production", "preview"]
 }

@@ -29,65 +29,58 @@ module "sentry" {
 
 
 locals {
-  env_vars = {
+  api_env_vars = merge(var.sona_go_api.environment_variables, {
     DATABASE_URL = {
       value     = module.neon_database.database_url
       sensitive = true
     }
+
     REDIS_URL = {
       value     = data.terraform_remote_state.shared.outputs.redis_url
       sensitive = true
     }
-    SENTRY_PROJECT_DSNS = {
-      value     = module.sentry.sentry_project_dsns
+
+    SENTRY_DSN = {
+      value     = module.sentry.sentry_project_dsns["sona-go-api"]
       sensitive = true
     }
-  }
+  })
 
-  vercel_projects = {
-    for name, cfg in var.vercel_projects : name => {
-      framework      = cfg.framework
-      root_directory = cfg.root_directory
-      environment_variables = {
-        for k, v in cfg.environment_variables : k => (
-          v != null ? v :
-          k == "SENTRY_DSN" ? { value = module.sentry.sentry_project_dsns[name], sensitive = true } :
-          local.env_vars[k]
-        )
-      }
+  web_env_vars = merge(var.sona_nextjs.environment_variables, {
+    API_URL = {
+      value     = module.vercel_api.project_url
+      sensitive = false
     }
-  }
 
-  missing_dynamic_keys = flatten([
-    for name, cfg in var.vercel_projects : [
-      for k, v in cfg.environment_variables : "${name}.${k}"
-      if v == null && k != "SENTRY_DSN" && !contains(keys(local.env_vars), k)
-    ]
-  ])
+    SENTRY_DSN = {
+      value     = module.sentry.sentry_project_dsns["sona-nextjs"]
+      sensitive = true
+    }
+  })
 }
 
-check "dynamic_values_exist" {
-  assert {
-    condition     = length(local.missing_dynamic_keys) == 0
-    error_message = "Missing dynamic values: ${jsonencode(local.missing_dynamic_keys)}"
-  }
+module "vercel_api" {
+  source = "../../modules/vercel"
+
+  name           = "sona-go-api"
+  environment    = var.app.environment
+  github_repo    = var.github_repo
+  framework      = var.sona_go_api.framework
+  root_directory = var.sona_go_api.root_directory
+
+  environment_variables = local.api_env_vars
+  target                = var.vercel_target
 }
 
-check "dynamic_values_not_null" {
-  assert {
-    condition = alltrue([
-      for name, proj in local.vercel_projects :
-      alltrue([for k, v in proj.environment_variables : v != null])
-    ])
-    error_message = "Some dynamic values resolved to null (module output missing)"
-  }
-}
+module "vercel_web" {
+  source = "../../modules/vercel"
 
-module "vercel" {
-  source          = "../../modules/vercel"
-  vercel_projects = local.vercel_projects
-  github_repo     = var.github_repo
-  project         = var.app.project
-  environment     = var.app.environment
-  target          = var.vercel_target
+  name           = "sona-nextjs"
+  environment    = var.app.environment
+  github_repo    = var.github_repo
+  framework      = var.sona_nextjs.framework
+  root_directory = var.sona_nextjs.root_directory
+
+  environment_variables = local.web_env_vars
+  target                = var.vercel_target
 }

@@ -1,6 +1,10 @@
-output "vercel_project_urls" {
-  value = {
-    for name, proj in vercel_project.this : name => "https://${proj.name}.vercel.app"
-  }
-  description = "Vercel project URLs"
+output "project_name" {
+  value = vercel_project.this.name
+}
+output "project_url" {
+  value = "https://${vercel_project.this.name}.vercel.app"
+}
+
+output "project_id" {
+  value = vercel_project.this.id
 }

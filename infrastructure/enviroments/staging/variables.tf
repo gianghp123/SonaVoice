@@ -40,7 +40,7 @@ variable "sentry_credential" {
 }
 
 variable "vercel_api_token" {
-  type = string
+  type      = string
   sensitive = true
 }
 
@@ -48,8 +48,8 @@ variable "github_repo" {
   type = string
 }
 
-variable "vercel_projects" {
-  type = map(object({
+variable "sona_nextjs" {
+  type = object({
     framework      = string
     root_directory = string
 
@@ -57,10 +57,22 @@ variable "vercel_projects" {
       value     = string
       sensitive = optional(bool, false)
     })), {})
-  }))
+  })
+}
+
+variable "sona_go_api" {
+  type = object({
+    framework      = string
+    root_directory = string
+
+    environment_variables = optional(map(object({
+      value     = string
+      sensitive = optional(bool, false)
+    })), {})
+  })
 }
 
 variable "vercel_target" {
-  type = list(string)
+  type    = list(string)
   default = ["production", "preview", "development"]
 }

@@ -7,3 +7,7 @@ output "sentry_project_dsns" {
   value     = module.sentry.sentry_project_dsns
   sensitive = true
 }
+
+output "website_url" {
+  value = module.vercel_web.project_url
+}
