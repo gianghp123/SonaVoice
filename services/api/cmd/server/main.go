@@ -106,12 +106,12 @@ func main() {
 	//middlewares
 	globalLimiter := middlewares.NewRateLimitMiddleware(
 		redisClient,
-		"rl:global",
+		fmt.Sprintf("%s:rl:global", cfg.Redis.RedisKeyPrefix),
 		"60-M",
 	)
 	sessionLimiter := middlewares.NewRateLimitMiddleware(
 		redisClient,
-		"rl:session",
+		fmt.Sprintf("%s:rl:session", cfg.Redis.RedisKeyPrefix),
 		"5-M",
 	)
 	auth := middlewares.ClerkAuthMiddleware()

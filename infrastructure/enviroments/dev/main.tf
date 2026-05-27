@@ -48,12 +48,10 @@ module "sentry" {
   sentry_projects     = var.sentry_projects
 }
 
-module "upstash_redis" {
-  source = "../../modules/redis"
-  project = var.app.project
-  environment = var.app.environment
-  redis_name = var.upstash_redis_config.name
-  region = var.upstash_redis_config.region
-  primary_region = var.upstash_redis_config.primary_region
-  tls = var.upstash_redis_config.tls
+data "terraform_remote_state" "shared" {
+  backend = "local"
+
+  config = {
+    path = "../shared/terraform.tfstate"
+  }
 }

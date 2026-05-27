@@ -14,11 +14,3 @@ variable "tls" {
   type = bool
   default = true
 }
-
-variable "project" {
-  type = string
-}
-
-variable "environment" {
-  type = string
-}

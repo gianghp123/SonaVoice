@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "experimentalServices": {
     "api": {
-      "entrypoint": "services/api/cmd/server/main.go",
+      "entrypoint": "cmd/server/main.go",
       "routePrefix": "api/v1",
       "runtime": "go"
     }

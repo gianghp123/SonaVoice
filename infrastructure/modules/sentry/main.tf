@@ -4,7 +4,7 @@ resource "sentry_project" "this" {
   organization = var.sentry_organization
 
   name     = "${each.value.name}-${var.environment}"
-  slug     = each.key
+  slug     = "${each.key}-${var.environment}"
   platform = each.value.platform
   teams    = each.value.teams
 
