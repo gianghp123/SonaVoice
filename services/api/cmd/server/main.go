@@ -62,7 +62,6 @@ func main() {
 			Dsn:         cfg.Sentry.Dsn,
 			Environment: cfg.Sentry.Environment,
 			EnableLogs:  true,
-			Debug:       true,
 		}); err != nil {
 			panic(fmt.Sprintf("sentry initialization failed: %v", err))
 		}

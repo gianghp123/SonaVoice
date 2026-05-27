@@ -2,8 +2,9 @@ package zapLogger
 
 import (
 	"context"
+	"os"
 
-	"github.com/getsentry/sentry-go/zap"
+	sentryzap "github.com/getsentry/sentry-go/zap"
 
 	"github.com/gianghp123/SonaVoice/api/internal/configs"
 	"go.uber.org/zap"
@@ -13,28 +14,57 @@ import (
 var logger *zap.Logger
 
 func Init(cfg configs.LoggerConfig, sentryCfg configs.SentryConfig) {
-	var err error
+	encoderConfig := zap.NewProductionEncoderConfig()
+
 	if cfg.Mode == "development" {
-		logger, err = zap.NewDevelopment()
-	} else {
-		logger, err = zap.NewProduction()
-	}
-	if err != nil || logger == nil {
-		panic(err)
+		encoderConfig = zap.NewDevelopmentEncoderConfig()
 	}
 
+	encoder := zapcore.NewConsoleEncoder(encoderConfig)
+
+	// stdout: debug/info/warn
+	lowPriority := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+		return level < zapcore.ErrorLevel
+	})
+
+	// stderr: error/fatal/panic
+	highPriority := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+		return level >= zapcore.ErrorLevel
+	})
+
+	core := zapcore.NewTee(
+		zapcore.NewCore(
+			encoder,
+			zapcore.AddSync(os.Stdout),
+			lowPriority,
+		),
+		zapcore.NewCore(
+			encoder,
+			zapcore.AddSync(os.Stderr),
+			highPriority,
+		),
+	)
+
+	logger = zap.New(core, zap.AddCaller())
+
 	if sentryCfg.Dsn != "" {
-		sentryCore := sentryzap.NewSentryCore(context.Background(), sentryzap.Option{
-			Level: []zapcore.Level{
-				zapcore.InfoLevel,
-				zapcore.WarnLevel,
-				zapcore.ErrorLevel,
+		sentryCore := sentryzap.NewSentryCore(
+			context.Background(),
+			sentryzap.Option{
+				Level: []zapcore.Level{
+					zapcore.ErrorLevel,
+					zapcore.PanicLevel,
+					zapcore.FatalLevel,
+				},
+				AddCaller: true,
 			},
-			AddCaller: true,
-		})
-		logger = logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
-			return zapcore.NewTee(core, sentryCore)
-		}))
+		)
+
+		logger = logger.WithOptions(
+			zap.WrapCore(func(c zapcore.Core) zapcore.Core {
+				return zapcore.NewTee(c, sentryCore)
+			}),
+		)
 	}
 }
 
