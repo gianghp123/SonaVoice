@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar"
 import { HistoryPanelContent } from "@/features/chat-interface/components/HistoryPanelContent"
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
-import { RTVIEvent } from "@pipecat-ai/client-js"
+import { RTVIEvent, RTVIMessage } from "@pipecat-ai/client-js"
 import { useRTVIClientEvent } from "@pipecat-ai/client-react"
 import * as Sentry from "@sentry/nextjs"
 import { PanelRight } from "lucide-react"
@@ -57,7 +57,7 @@ export function ChatLayout({
 
   useRTVIClientEvent(
     RTVIEvent.Error,
-    useCallback((message) => {
+    useCallback((message: RTVIMessage) => {
       const { error, message: msg, fatal } = message.data as any
       const text = error ?? msg ?? "Unknown RTVI error"
 
