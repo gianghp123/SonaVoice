@@ -48,7 +48,7 @@ locals {
 
   web_env_vars = merge(var.sona_nextjs.environment_variables, {
     API_URL = {
-      value     = module.vercel_api.project_url
+      value     = "${module.vercel_api.project_url}/api/v1"
       sensitive = false
     }
 

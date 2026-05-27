@@ -4,7 +4,8 @@
     "api": {
       "entrypoint": "cmd/server/main.go",
       "routePrefix": "api/v1",
-      "runtime": "go"
+      "runtime": "go",
+      "regions": ["sin1"]
     }
   }
 }
