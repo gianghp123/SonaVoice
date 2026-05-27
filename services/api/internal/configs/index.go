@@ -16,9 +16,8 @@ type Config struct {
 
 func Load() *Config {
 
-	err := dotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if err := dotenv.Load(); err != nil {
+		log.Println("No .env file found, using system environment variables")
 	}
 
 	return &Config{
