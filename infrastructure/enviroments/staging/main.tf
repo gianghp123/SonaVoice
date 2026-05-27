@@ -67,6 +67,7 @@ module "vercel_api" {
   github_repo    = var.github_repo
   framework      = var.sona_go_api.framework
   root_directory = var.sona_go_api.root_directory
+  default_regions = var.sona_go_api.default_regions
 
   environment_variables = local.api_env_vars
   target                = var.vercel_target

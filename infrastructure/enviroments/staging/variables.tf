@@ -64,6 +64,7 @@ variable "sona_go_api" {
   type = object({
     framework      = string
     root_directory = string
+    default_regions = list(string)
     environment_variables = optional(map(object({
       value     = string
       sensitive = optional(bool, false)

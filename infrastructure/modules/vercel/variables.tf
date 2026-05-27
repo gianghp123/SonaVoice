@@ -10,6 +10,10 @@ variable "name" {
   type = string
 }
 
+variable "default_regions" {
+  type = list(string)
+  default = null
+}
 
 variable "framework" {
   type = string

@@ -6,8 +6,5 @@
       "routePrefix": "api/v1",
       "runtime": "go"
     }
-  },
-  "regions": [
-    "sin1"
-  ]
+  }
 }
