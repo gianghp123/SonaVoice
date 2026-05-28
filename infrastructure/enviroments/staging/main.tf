@@ -71,6 +71,11 @@ module "vercel_api" {
 
   environment_variables = local.api_env_vars
   target                = var.vercel_target
+
+  ignore_command = coalesce(
+    var.sona_nextjs.ignore_command,
+    "git diff HEAD^ HEAD --quiet -- ."
+  )
 }
 
 module "vercel_web" {
@@ -84,4 +89,9 @@ module "vercel_web" {
 
   environment_variables = local.web_env_vars
   target                = var.vercel_target
+
+  ignore_command = coalesce(
+    var.sona_nextjs.ignore_command,
+    "git diff HEAD^ HEAD --quiet -- ."
+  )
 }

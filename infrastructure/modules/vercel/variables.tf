@@ -37,3 +37,9 @@ variable "target" {
   type    = list(string)
   default = ["production", "preview"]
 }
+
+
+variable "ignore_command" {
+  type = string
+  default = null
+}

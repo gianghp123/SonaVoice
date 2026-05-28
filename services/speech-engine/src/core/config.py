@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     
     CARTESIA_VOICE_ID: str = "bf0a246a-8642-498a-9950-80c35e9276b5"
     
-    DAILY_API_KEY: str
+    DAILY_API_KEY: str = ""
     
     LLM_NAME: str = "deepseek-v4-flash"
     
@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Sentry
     SENTRY_DSN: str = ""
     
+    # ICE / TURN Servers (JSON array of IceServer objects)
+    ICE_SERVERS: str = ""
+
     # Constants
     EMBEDDING_DIMS: int = 768
 

@@ -8,9 +8,11 @@ resource "vercel_project" "this" {
     repo = var.github_repo
   }
 
-  resource_config = var.default_regions == null ? null : {
+  resource_config = var.default_regions != null ? {
     function_default_regions = var.default_regions
-  }
+  } : null
+  
+  ignore_command = var.ignore_command != null ? var.ignore_command : null
 
   environment = [
     for env_key, env_value in var.environment_variables : {

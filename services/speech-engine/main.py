@@ -223,6 +223,6 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
 
 
 if __name__ == "__main__":
-    from pipecat.runner.run import main
+    from src.runner import main
 
     main()

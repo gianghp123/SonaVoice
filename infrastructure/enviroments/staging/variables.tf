@@ -52,6 +52,7 @@ variable "sona_nextjs" {
   type = object({
     framework      = string
     root_directory = string
+    ignore_command = optional(string)
 
     environment_variables = optional(map(object({
       value     = string
@@ -65,6 +66,8 @@ variable "sona_go_api" {
     framework      = string
     root_directory = string
     default_regions = list(string)
+    ignore_command = optional(string)
+
     environment_variables = optional(map(object({
       value     = string
       sensitive = optional(bool, false)
@@ -75,4 +78,11 @@ variable "sona_go_api" {
 variable "vercel_target" {
   type    = list(string)
   default = ["production", "preview", "development"]
+}
+
+variable "turn_config" {
+  type = object({
+    uid = string
+    secret = string
+  })
 }

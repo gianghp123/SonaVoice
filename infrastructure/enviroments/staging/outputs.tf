@@ -11,3 +11,8 @@ output "sentry_project_dsns" {
 output "website_url" {
   value = module.vercel_web.project_url
 }
+
+output "api_url" {
+  value = module.vercel_api.project_url
+  sensitive = true
+}
