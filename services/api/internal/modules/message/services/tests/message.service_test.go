@@ -187,6 +187,18 @@ func TestMessageService_Create(t *testing.T) {
 			errCode: http.StatusForbidden,
 		},
 		{
+			name:      "empty messages - bad request",
+			sessionID: "session-1",
+			body: &req.CreateMessagesReq{
+				Messages: []req.MessageItem{},
+			},
+			userID: "user-1",
+			setupMock: func(msgRepo *repoMocks.MessageRepository, sessionRepo *repoMocks.SessionRepository) {
+			},
+			wantErr: true,
+			errCode: http.StatusBadRequest,
+		},
+		{
 			name:      "db error",
 			sessionID: "session-1",
 			body: &req.CreateMessagesReq{

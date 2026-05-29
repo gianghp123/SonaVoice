@@ -161,7 +161,7 @@ def _get_bot_module():
     )
 
 
-def _setup_webrtc_routes(app: FastAPI, args: argparse.Namespace):
+def _setup_webrtc_routes(app: FastAPI, args: argparse.Namespace, bot_module=None):
     """Set up WebRTC-specific routes."""
     try:
         from pipecat_ai_small_webrtc_prebuilt.frontend import SmallWebRTCPrebuiltUI
@@ -224,13 +224,13 @@ def _setup_webrtc_routes(app: FastAPI, args: argparse.Namespace):
 
         # Prepare runner arguments with the callback to run your bot
         async def webrtc_connection_callback(connection: SmallWebRTCConnection):
-            bot_module = _get_bot_module()
+            resolved_bot_module = bot_module or _get_bot_module()
 
             runner_args = SmallWebRTCRunnerArguments(
                 webrtc_connection=connection, body=request.request_data
             )
             runner_args.cli_args = args
-            background_tasks.add_task(bot_module.bot, runner_args)
+            background_tasks.add_task(resolved_bot_module.bot, runner_args)
 
         # Delegate handling to SmallWebRTCRequestHandler
         answer = await small_webrtc_handler.handle_web_request(
@@ -364,6 +364,48 @@ def runner_port() -> int:
     return RUNNER_PORT
 
 
+def create_app(
+    args: argparse.Namespace | None = None,
+    bot_module=None,
+    web_app: FastAPI | None = None,
+) -> FastAPI:
+    """Create and configure a FastAPI application for Pipecat WebRTC transport.
+
+    This function is suitable for production ASGI servers (e.g., Modal, uvicorn).
+
+    Args:
+        args: Optional runner arguments. Defaults to localhost:7860 with no downloads folder.
+        bot_module: Optional module containing a ``bot(runner_args)`` function.
+            If not provided, the module will be auto-discovered.
+        web_app: Optional existing FastAPI instance to configure. If omitted,
+            a new application is created.
+
+    Returns:
+        FastAPI: Configured FastAPI application instance.
+    """
+    if args is None:
+        args = argparse.Namespace(folder=None, esp32=False, host="0.0.0.0")
+
+    # Set defaults for args used by _setup_webrtc_routes
+    args.folder = getattr(args, "folder", None)
+    args.esp32 = getattr(args, "esp32", False)
+
+    if web_app is None:
+        web_app = FastAPI()
+
+    web_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    _setup_webrtc_routes(web_app, args, bot_module=bot_module)
+
+    return web_app
+
+
 def main(parser: argparse.ArgumentParser | None = None):
     """Start the Pipecat development runner.
 
@@ -409,18 +451,11 @@ def main(parser: argparse.ArgumentParser | None = None):
     RUNNER_HOST = args.host
     RUNNER_PORT = args.port
 
-    # Add CORS middleware and set up WebRTC routes
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    _setup_webrtc_routes(app, args)
+    # Use the module-level app so any pre-added custom routes are preserved.
+    web_app = create_app(args, web_app=app)
 
     # Run the server
-    uvicorn.run(app, host=args.host, port=args.port)
+    uvicorn.run(web_app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

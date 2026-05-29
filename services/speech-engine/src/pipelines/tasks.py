@@ -67,7 +67,9 @@ async def create_voice_bot_task(
 
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
-        user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer()),
+        user_params=LLMUserAggregatorParams(
+            vad_analyzer=SileroVADAnalyzer(),
+        ),
         assistant_params=LLMAssistantAggregatorParams(
             enable_auto_context_summarization=True,
             auto_context_summarization_config=LLMAutoContextSummarizationConfig(
@@ -116,16 +118,22 @@ async def create_voice_bot_task(
         params=PipelineParams(enable_metrics=True),
         tool_resources={
             "user_id": user_id,
-            "memory_client": memory_processor.memory_client if memory_processor else None,
+            "memory_client": (
+                memory_processor.memory_client if memory_processor else None
+            ),
         },
     )
 
     @user_aggregator.event_handler("on_user_turn_stopped")
-    async def on_user_turn_stopped(aggregator, strategy, message: UserTurnStoppedMessage):
+    async def on_user_turn_stopped(
+        aggregator, strategy, message: UserTurnStoppedMessage
+    ):
         session_messages.append(UserMessage(role="user", transcript=message.content))
 
     @assistant_aggregator.event_handler("on_assistant_turn_stopped")
-    async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
+    async def on_assistant_turn_stopped(
+        aggregator, message: AssistantTurnStoppedMessage
+    ):
         if message.content:
             session_messages.append(
                 AssistantMessage(
@@ -178,13 +186,19 @@ async def create_voice_bot_task(
                 actual_usage=actual_usage,
             )
 
-            await message_service.save_messages(session_id, session_messages)
+            if session_messages and len(session_messages) > 0:
+                await message_service.save_messages(session_id, session_messages)
 
-            log.info(
-                "Session closed and messages saved",
-                actual_usage=actual_usage,
-                message_count=len(session_messages),
-            )
+                log.info(
+                    "Session closed and messages saved",
+                    actual_usage=actual_usage,
+                    message_count=len(session_messages),
+                )
+            else:
+                log.info(
+                    "Session closed with no messages to save",
+                    actual_usage=actual_usage,
+                )
 
         except Exception:
             log.exception(
@@ -308,10 +322,6 @@ async def create_voice_bot_task(
 
         custom_msg = get_custom_error_message(error_msg, service_name)
 
-        await task.queue_frames(
-            [
-                ErrorFrame(error=custom_msg, fatal=True)
-            ]
-        )
+        await task.queue_frames([ErrorFrame(error=custom_msg, fatal=True)])
 
     return task

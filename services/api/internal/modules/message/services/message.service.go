@@ -58,6 +58,9 @@ func (s *messageService) List(ctx context.Context, sessionID string, q req.Messa
 }
 
 func (s *messageService) Create(ctx context.Context, sessionID string, body *req.CreateMessagesReq) ([]*models.Message, *errors.AppError) {
+	if len(body.Messages) == 0 {
+		return nil, errors.BadRequest("messages must not be empty")
+	}
 
 	var messages []*models.Message
 	for _, item := range body.Messages {

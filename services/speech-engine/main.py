@@ -3,13 +3,11 @@ from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from src.core.config import settings
 from src.pipelines.processors import CustomMem0Processor
-from src.transports.daily import create_daily_transport
 from src.transports.small_webrtc import create_small_webrtc_transport
 from src.pipelines.tasks import create_voice_bot_task
 from mem0 import AsyncMemory
 from src.agents.prompts import ENGLIST_TEACHER_SYSTEM_INSTRUCTION
 from pipecat.runner.types import (
-    DailyRunnerArguments,
     RunnerArguments,
     SmallWebRTCRunnerArguments,
 )
@@ -19,7 +17,6 @@ from pipecat.transports.smallwebrtc.transport import (
 )
 from pipecat.transports.base_transport import BaseTransport
 from loguru import logger
-from pipecat.transports.daily.transport import DailyParams
 from dotenv import load_dotenv
 from src.agents.tools import summarize_conversation, save_user_preferences
 from pipecat.processors.aggregators.llm_context import LLMContext
@@ -47,21 +44,7 @@ async def bot(runner_args: RunnerArguments):
     try:
         transport = None
 
-        if isinstance(runner_args, DailyRunnerArguments):
-            log.info("Creating Daily transport")
-
-            transport = create_daily_transport(
-                room_url=runner_args.room_url,
-                token=runner_args.token,
-                bot=settings.BOT_NAME,
-                params=DailyParams(
-                    audio_in_enabled=True,
-                    audio_out_enabled=True,
-                    transcription_enabled=True,
-                ),
-            )
-
-        elif isinstance(runner_args, SmallWebRTCRunnerArguments):
+        if isinstance(runner_args, SmallWebRTCRunnerArguments):
             log.info("Creating SmallWebRTC transport")
 
             webrtc_connection: SmallWebRTCConnection = runner_args.webrtc_connection

@@ -79,10 +79,3 @@ variable "vercel_target" {
   type    = list(string)
   default = ["production", "preview", "development"]
 }
-
-variable "turn_config" {
-  type = object({
-    uid = string
-    secret = string
-  })
-}

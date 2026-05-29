@@ -1,0 +1,10 @@
+google-genai>=2.0.1
+loguru>=0.7.3
+mem0ai[nlp]>=2.0.2
+modal>=1.4.3
+pipecat-ai[deepgram,piper,runner,sentry,silero,webrtc]>=1.1.0
+pipecat-ai-small-webrtc-prebuilt>=2.5.0
+psycopg2-binary>=2.9.12
+pydantic-settings>=2.14.1
+python-dotenv>=1.2.2
+aiohttp>=3.10.0

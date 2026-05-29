@@ -17,15 +17,10 @@ class Settings(BaseSettings):
     OPENCODE_API_KEY: str
     OPENAI_BASE_URL: str = "https://opencode.ai/zen/go/v1"
     DEEPGRAM_API_KEY: str
-    CARTESIA_API_KEY: str
     GOOGLE_API_KEY: str # Required for the embedding provider
     
     # Database
     DATABASE_URL: str
-    
-    CARTESIA_VOICE_ID: str = "bf0a246a-8642-498a-9950-80c35e9276b5"
-    
-    DAILY_API_KEY: str = ""
     
     LLM_NAME: str = "deepseek-v4-flash"
     
