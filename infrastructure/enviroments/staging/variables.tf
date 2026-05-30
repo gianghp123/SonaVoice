@@ -12,8 +12,6 @@ variable "neon_config" {
     database_name = string
     role_name     = string
   })
-
-  sensitive = true
 }
 
 variable "neon_api_key" {
@@ -55,7 +53,7 @@ variable "sona_nextjs" {
     ignore_command = optional(string)
 
     environment_variables = optional(map(object({
-      value     = string
+      value = string
       sensitive = optional(bool, false)
     })), {})
   })
@@ -63,13 +61,13 @@ variable "sona_nextjs" {
 
 variable "sona_go_api" {
   type = object({
-    framework      = string
-    root_directory = string
+    framework       = string
+    root_directory  = string
     default_regions = list(string)
-    ignore_command = optional(string)
+    ignore_command  = optional(string)
 
     environment_variables = optional(map(object({
-      value     = string
+      value = string
       sensitive = optional(bool, false)
     })), {})
   })

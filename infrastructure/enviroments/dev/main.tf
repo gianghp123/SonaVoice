@@ -30,9 +30,9 @@ provider "upstash" {
 module "neon_database" {
   source = "../../modules/database"
 
-  project        = var.app.project
-  region         = var.app.region
-  environment    = var.app.environment
+  project     = var.app.project
+  region      = var.app.region
+  environment = var.app.environment
 
   database_name   = var.neon_config.database_name
   role_name       = var.neon_config.role_name

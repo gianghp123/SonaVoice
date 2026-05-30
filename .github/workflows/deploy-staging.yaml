@@ -1,0 +1,185 @@
+name: Deploy Staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: web
+        run: npm run lint
+
+      - name: Test frontend
+        working-directory: web
+        run: npm test --if-present
+
+      - name: Build frontend
+        working-directory: web
+        run: npm run build
+
+  test-api:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: services/api/go.sum
+
+      - name: Test Go backend
+        working-directory: services/api
+        run: go test ./...
+
+  test-speech-engine:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: services/speech-engine
+        run: |
+          python -m pip install --upgrade pip
+
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Run tests if present
+        working-directory: services/speech-engine
+        run: |
+          if [ -d tests ]; then
+            pytest
+          else
+            echo "No tests directory found. Skipping."
+          fi
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    environment: Production – sona-voice
+
+    needs:
+      - test-frontend
+      - test-api
+      - test-speech-engine
+
+    env:
+      MODAL_ENVIRONMENT: staging
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      MODAL_APP_NAME: sona-speech-engine
+      VERCEL_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+
+      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+      DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+      ICE_SERVERS: ${{ secrets.ICE_SERVERS }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Modal
+        run: |
+          python -m pip install --upgrade pip
+          pip install modal
+
+      - name: Restore Terraform tfvars
+        working-directory: infra/staging
+        run: |
+          cat > config.auto.tfvars <<'EOF'
+          ${{ secrets.TFVARS_CONTENT }}
+          EOF
+
+      - name: Terraform apply staging
+        working-directory: infra/staging
+        run: |
+          terraform init
+          terraform fmt -check
+          terraform validate
+          terraform apply -auto-approve
+
+      - name: Read Terraform outputs
+        working-directory: infra/staging
+        run: |
+          echo "DATABASE_URL=$(terraform output -raw database_url)" >> "$GITHUB_ENV"
+          echo "API_URL=$(terraform output -raw api_url)" >> "$GITHUB_ENV"
+          echo "SPEECH_SENTRY_DSN=$(terraform output -json sentry_project_dsns | jq -r '."sona-python-pipecat"')" >> "$GITHUB_ENV"
+          echo "VERCEL_API_PROJECT_NAME=$(terraform output -raw vercel_api_project_name)" >> "$GITHUB_ENV"
+
+      - name: Sync secrets to Modal
+        run: |
+          modal secret delete "$MODAL_SECRET_NAME" --env staging || true
+
+          modal secret create "$MODAL_SECRET_NAME" \
+            DATABASE_URL="$DATABASE_URL" \
+            API_URL="$API_URL" \
+            OPENAI_API_KEY="$OPENAI_API_KEY" \
+            OPENAI_BASE_URL="$OPENAI_BASE_URL" \
+            DEEPGRAM_API_KEY="$DEEPGRAM_API_KEY" \
+            GOOGLE_API_KEY="$GOOGLE_API_KEY" \
+            OPENCODE_API_KEY="$OPENCODE_API_KEY" \
+            SENTRY_DSN="$SPEECH_SENTRY_DSN" \
+            ICE_SERVERS="$ICE_SERVERS" \
+            MODAL_APP_NAME="$MODAL_APP_NAME" \
+            --env staging
+
+      - name: Deploy Modal speech engine
+        working-directory: services/speech-engine
+        run: |
+          modal deploy -m modal_app --env staging
+
+      - name: Get Modal speech service URL
+        working-directory: services/speech-engine
+        run: |
+          SPEECH_SERVICE_URL=$(modal app list --json \
+            | jq -r --arg name "$MODAL_APP_NAME" '
+                .[] | select(.name == $name) | .web_url
+              ')
+
+          echo "SPEECH_SERVICE_URL=$SPEECH_SERVICE_URL" >> "$GITHUB_ENV"
+
+      - name: Update Go API SPEECH_SERVICE_URL
+        run: |
+          vercel link \
+            --yes \
+            --project "$VERCEL_API_PROJECT_NAME" \
+            --token "$VERCEL_TOKEN"
+
+          vercel env rm SPEECH_SERVICE_URL production --yes --token "$VERCEL_TOKEN" || true
+          printf "%s" "$SPEECH_SERVICE_URL" \
+            | vercel env add SPEECH_SERVICE_URL production --token "$VERCEL_TOKEN"
+
+          vercel env rm SPEECH_SERVICE_URL preview --yes --token "$VERCEL_TOKEN" || true
+          printf "%s" "$SPEECH_SERVICE_URL" \
+            | vercel env add SPEECH_SERVICE_URL preview --token "$VERCEL_TOKEN"

@@ -1,6 +1,6 @@
 output "database_url" {
   sensitive = true
-  value = module.neon_database.database_url
+  value     = module.neon_database.database_url
 }
 
 output "sentry_project_dsns" {
@@ -14,5 +14,8 @@ output "website_url" {
 
 output "api_url" {
   value = module.vercel_api.project_url
-  sensitive = true
+}
+
+output "vercel_api_project_name" {
+  value = module.vercel_api.project_name
 }

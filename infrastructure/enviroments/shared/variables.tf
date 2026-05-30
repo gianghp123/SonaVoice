@@ -1,6 +1,6 @@
 variable "app" {
   type = object({
-    region      = string
+    region = string
   })
 }
 
@@ -15,10 +15,10 @@ variable "upstash_credential" {
 
 variable "upstash_redis_config" {
   type = object({
-    name = string
-    region = string
+    name           = string
+    region         = string
     primary_region = string
-    tls = bool
+    tls            = bool
   })
 }
 

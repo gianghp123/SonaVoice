@@ -14,6 +14,7 @@ Local development remains unchanged::
 """
 
 import modal
+import os
 
 # Container specifications for the speech engine.
 # Piper TTS model files are downloaded automatically by the library at runtime,
@@ -26,8 +27,7 @@ image = (
     .add_local_file("main.py", remote_path="/root/main.py")
 )
 
-app = modal.App("sona-speech-engine", secrets=[modal.Secret.from_dotenv()])
-
+app = modal.App(os.environ["MODAL_APP_NAME"], secrets=[modal.Secret.from_dotenv(filename=".env.staging")])
 
 @app.function(image=image, min_containers=0, scaledown_window=60)
 @modal.concurrent(max_inputs=3)

@@ -11,6 +11,6 @@ variable "primary_region" {
 }
 
 variable "tls" {
-  type = bool
+  type    = bool
   default = true
 }

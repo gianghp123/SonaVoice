@@ -62,18 +62,18 @@ locals {
 module "vercel_api" {
   source = "../../modules/vercel"
 
-  name           = "sona-go-api"
-  environment    = var.app.environment
-  github_repo    = var.github_repo
-  framework      = var.sona_go_api.framework
-  root_directory = var.sona_go_api.root_directory
+  name            = "sona-go-api"
+  environment     = var.app.environment
+  github_repo     = var.github_repo
+  framework       = var.sona_go_api.framework
+  root_directory  = var.sona_go_api.root_directory
   default_regions = var.sona_go_api.default_regions
 
   environment_variables = local.api_env_vars
   target                = var.vercel_target
 
   ignore_command = coalesce(
-    var.sona_nextjs.ignore_command,
+    var.sona_go_api.ignore_command,
     "git diff HEAD^ HEAD --quiet -- ."
   )
 }

@@ -11,7 +11,7 @@ variable "name" {
 }
 
 variable "default_regions" {
-  type = list(string)
+  type    = list(string)
   default = null
 }
 
@@ -40,6 +40,6 @@ variable "target" {
 
 
 variable "ignore_command" {
-  type = string
+  type    = string
   default = null
 }
