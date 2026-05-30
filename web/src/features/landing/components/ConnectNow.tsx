@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { createSession } from "@/features/chat-interface/services/session.actions"
+import { createSession } from "@/features/session-history/services/session.actions"
 import { PAGE_ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@clerk/nextjs"

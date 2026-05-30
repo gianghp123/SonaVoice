@@ -1,4 +1,4 @@
-import { getSessions } from "@/features/chat-interface/services/session.get"
+import { getSessions } from "@/features/session-history/services/session.get"
 import { HomePageLayout } from "@/components/common/HomePageLayout"
 import { LandingHero } from "@/features/landing/components/LandingHero"
 

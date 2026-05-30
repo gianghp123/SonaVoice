@@ -8,8 +8,8 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getMessages } from "@/features/chat-interface/services/messages.get"
-import { getSessions } from "@/features/chat-interface/services/session.get"
+import { getMessages } from "@/features/session-history/services/messages.get"
+import { getSessions } from "@/features/session-history/services/session.get"
 import { SessionMessageList } from "@/features/session-history/components/SessionMessageList"
 import { PAGE_ROUTES } from "@/lib/routes"
 import Link from "next/link"

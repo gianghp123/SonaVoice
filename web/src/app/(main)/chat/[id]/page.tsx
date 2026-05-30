@@ -2,7 +2,7 @@
 
 import { LoadingScreen } from "@/components/common/LoadingScreen"
 import { ChatLayout } from "@/features/chat-interface/components/ChatLayout"
-import { cancelSession } from "@/features/chat-interface/services/session.actions"
+import { cancelSession } from "@/features/session-history/services/session.actions"
 import { PROXY_ROUTES } from "@/lib/routes"
 import { PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
 import * as Sentry from "@sentry/nextjs"
