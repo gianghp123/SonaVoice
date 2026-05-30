@@ -1,5 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 
+type RequestInitWithDuplex = RequestInit & {
+  duplex?: "half"
+}
+
 async function webrtcProxy(
   req: Request,
   { params }: { params: Promise<{ path: string[] }> }
@@ -32,16 +36,18 @@ async function webrtcProxy(
   if (token) forwardedHeaders.set("Authorization", `Bearer ${token}`);
 
   try {
-    const upstreamResponse = await fetch(targetUrl, {
+    const fetchOptions: RequestInitWithDuplex = {
       method: req.method,
       headers: forwardedHeaders,
       body:
         req.method !== "GET" && req.method !== "HEAD"
           ? req.body
           : undefined,
-      ...({ duplex: "half" } as any),
+      duplex: "half",
       cache: "no-store",
-    });
+    }
+
+    const upstreamResponse = await fetch(targetUrl, fetchOptions)
 
     const isStartRoute = path.endsWith("start");
 

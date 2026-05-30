@@ -23,13 +23,19 @@ export default function ChatPage() {
     enableMic: true,
   }), [])
 
-  const startBotResponseTransformer = useCallback((response: any) => {
+  const startBotResponseTransformer = useCallback((response: unknown) => {
+    const maxDuration =
+    typeof response === "object" &&
+    response !== null &&
+    typeof (response as { maxDuration?: unknown }).maxDuration === "number"
+      ? (response as { maxDuration: number }).maxDuration
+      : 0
     Sentry.logger.info("Voice session started", {
       area: "chat-page",
       sessionId,
-      maxDuration: response.maxDuration,
+      maxDuration: maxDuration,
     })
-    setMaxDuration(response.maxDuration)
+    setMaxDuration(maxDuration)
     return {
       webrtcUrl: PROXY_ROUTES.WEBRTC.OFFER(sessionId),
     }

@@ -9,7 +9,10 @@ function formatElapsed(seconds: number): string {
   const m = Math.floor((seconds % 3600) / 60)
   const s = seconds % 60
 
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(
+    2,
+    "0"
+  )}:${String(s).padStart(2, "0")}`
 }
 
 interface SessionTimerProps {
@@ -33,8 +36,20 @@ export function SessionTimer({
     transportState === "ready"
 
   useEffect(() => {
-    if (isConnected && !startTimeRef.current) {
+    if (!isConnected) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+
+      intervalRef.current = null
+      startTimeRef.current = null
+
+      return
+    }
+
+    if (!startTimeRef.current) {
       startTimeRef.current = Date.now()
+      setElapsed(0)
 
       intervalRef.current = setInterval(() => {
         setElapsed(
@@ -45,26 +60,19 @@ export function SessionTimer({
       }, 1000)
     }
 
-    if (!isConnected) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-
-      intervalRef.current = null
-      startTimeRef.current = null
-      setElapsed(0)
-    }
-
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
+        intervalRef.current = null
       }
     }
   }, [isConnected])
 
+  const displayedElapsed = isConnected ? elapsed : 0
+
   const progress =
     maxDuration && maxDuration > 0
-      ? Math.min((elapsed / maxDuration) * 100, 100)
+      ? Math.min((displayedElapsed / maxDuration) * 100, 100)
       : 0
 
   return (
@@ -73,12 +81,14 @@ export function SessionTimer({
         <span
           className={cn(
             "size-1.5 rounded-full",
-            isConnected ? "animate-pulse bg-green-500" : "bg-muted-foreground"
+            isConnected
+              ? "animate-pulse bg-green-500"
+              : "bg-muted-foreground"
           )}
         />
 
         <span className="text-lg font-bold text-primary">
-          {formatElapsed(elapsed)}
+          {formatElapsed(displayedElapsed)}
         </span>
 
         {maxDuration ? (

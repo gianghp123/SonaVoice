@@ -11,7 +11,7 @@ export interface PaginatedMeta {
 }
 
 export interface BaseResponse<T> {
-  data: T | null;
-  error: ApiError | null;
+  data?: T | null;
+  error?: ApiError | null;
   meta?: PaginatedMeta;
 }

@@ -1,16 +1,27 @@
-export function snakeToCamel<T>(obj: any): T {
-  if (obj === null || obj === undefined) return obj;
-  if (Array.isArray(obj)) {
-    return obj.map((item) => snakeToCamel(item)) as any;
-  }
-  if (typeof obj !== "object") return obj;
+type JsonObject = Record<string, unknown>
 
-  const result: any = {};
-  for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-      result[camelKey] = snakeToCamel(obj[key]);
-    }
+export function snakeToCamel<T = unknown>(obj: unknown): T {
+  if (obj === null || obj === undefined) {
+    return obj as T
   }
-  return result;
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => snakeToCamel(item)) as T
+  }
+
+  if (typeof obj !== "object") {
+    return obj as T
+  }
+
+  const result: JsonObject = {}
+
+  for (const [key, value] of Object.entries(obj)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter: string) =>
+      letter.toUpperCase()
+    )
+
+    result[camelKey] = snakeToCamel(value)
+  }
+
+  return result as T
 }

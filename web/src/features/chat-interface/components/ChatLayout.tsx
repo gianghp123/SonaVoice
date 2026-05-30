@@ -42,6 +42,12 @@ function HistoryTrigger() {
   )
 }
 
+type RTVIErrorData = {
+  error?: string
+  message?: string
+  fatal?: boolean
+}
+
 export function ChatLayout({
   maxDuration,
   handleDisconnect,
@@ -53,12 +59,14 @@ export function ChatLayout({
   handleError: () => void | Promise<void>
   initialError?: string | null
 }) {
-  const [fatalError, setFatalError] = useState<string | null>(null)
+  const [fatalError, setFatalError] = useState<string | null>(
+    initialError ?? null
+  )
 
   useRTVIClientEvent(
     RTVIEvent.Error,
     useCallback((message: RTVIMessage) => {
-      const { error, message: msg, fatal } = message.data as any
+      const { error, message: msg, fatal } = message.data as RTVIErrorData
       const text = error ?? msg ?? "Unknown RTVI error"
 
       Sentry.logger[fatal ? "error" : "warn"]("RTVI client error", {
@@ -98,8 +106,6 @@ export function ChatLayout({
           type: "pipecat-initial-error",
         },
       })
-
-      setFatalError(initialError)
     }
   }, [initialError])
 
