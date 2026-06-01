@@ -146,8 +146,7 @@ jobs:
 
           modal secret create "$MODAL_SECRET_NAME" \
             DATABASE_URL="$DATABASE_URL" \
-            API_URL="$API_URL" \
-            OPENAI_API_KEY="$OPENAI_API_KEY" \
+            API_URL="$API_URL/api/v1" \
             OPENAI_BASE_URL="$OPENAI_BASE_URL" \
             DEEPGRAM_API_KEY="$DEEPGRAM_API_KEY" \
             GOOGLE_API_KEY="$GOOGLE_API_KEY" \
