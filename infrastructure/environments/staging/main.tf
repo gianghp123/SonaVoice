@@ -1,8 +1,12 @@
 data "terraform_remote_state" "shared" {
-  backend = "local"
+  backend = "remote"
 
   config = {
-    path = "../shared/terraform.tfstate"
+    organization = "gianghp"
+
+    workspaces = {
+      name = "sona-shared"
+    }
   }
 }
 

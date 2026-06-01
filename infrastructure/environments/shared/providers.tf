@@ -5,6 +5,14 @@ terraform {
       version = "2.1.0"
     }
   }
+
+  cloud {
+    organization = "gianghp"
+
+    workspaces {
+      name = "sona-shared"
+    }
+  }
 }
 
 provider "upstash" {

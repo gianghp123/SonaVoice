@@ -53,7 +53,7 @@ variable "sona_nextjs" {
     ignore_command = optional(string)
 
     environment_variables = optional(map(object({
-      value = string
+      value     = string
       sensitive = optional(bool, false)
     })), {})
   })
@@ -67,7 +67,7 @@ variable "sona_go_api" {
     ignore_command  = optional(string)
 
     environment_variables = optional(map(object({
-      value = string
+      value     = string
       sensitive = optional(bool, false)
     })), {})
   })

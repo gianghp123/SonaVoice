@@ -88,10 +88,14 @@ jobs:
       - test-speech-engine
 
     env:
+      TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+
       MODAL_ENVIRONMENT: staging
       MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
       MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
-      MODAL_APP_NAME: sona-speech-engine
+      MODAL_APP_NAME: ${{ vars.MODAL_APP_NAME }}
+      MODAL_SECRET_NAME: ${{ vars.MODAL_SECRET_NAME }}
+
       VERCEL_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
 
       OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
@@ -115,22 +119,21 @@ jobs:
           pip install modal
 
       - name: Restore Terraform tfvars
-        working-directory: infra/staging
+        working-directory: infrastructure/environments/staging
         run: |
           cat > config.auto.tfvars <<'EOF'
           ${{ secrets.TFVARS_CONTENT }}
           EOF
 
       - name: Terraform apply staging
-        working-directory: infra/staging
+        working-directory: infrastructure/environments/staging
         run: |
           terraform init
-          terraform fmt -check
           terraform validate
           terraform apply -auto-approve
 
       - name: Read Terraform outputs
-        working-directory: infra/staging
+        working-directory: infrastructure/environments/staging
         run: |
           echo "DATABASE_URL=$(terraform output -raw database_url)" >> "$GITHUB_ENV"
           echo "API_URL=$(terraform output -raw api_url)" >> "$GITHUB_ENV"
@@ -139,7 +142,7 @@ jobs:
 
       - name: Sync secrets to Modal
         run: |
-          modal secret delete "$MODAL_SECRET_NAME" --env staging || true
+          modal secret delete "$MODAL_SECRET_NAME" --env staging --yes || true
 
           modal secret create "$MODAL_SECRET_NAME" \
             DATABASE_URL="$DATABASE_URL" \
@@ -157,29 +160,29 @@ jobs:
       - name: Deploy Modal speech engine
         working-directory: services/speech-engine
         run: |
-          modal deploy -m modal_app --env staging
+          modal deploy -m modal_app --env staging | tee deploy.log
 
-      - name: Get Modal speech service URL
-        working-directory: services/speech-engine
-        run: |
-          SPEECH_SERVICE_URL=$(modal app list --json \
-            | jq -r --arg name "$MODAL_APP_NAME" '
-                .[] | select(.name == $name) | .web_url
-              ')
+          SPEECH_SERVICE_URL=$(
+            grep -oE 'https://[^ ]+\.modal\.run' deploy.log | head -n 1
+          )
+
+          if [ -z "$SPEECH_SERVICE_URL" ]; then
+            echo "Failed to extract SPEECH_SERVICE_URL"
+            cat deploy.log
+            exit 1
+          fi
 
           echo "SPEECH_SERVICE_URL=$SPEECH_SERVICE_URL" >> "$GITHUB_ENV"
-
-      - name: Update Go API SPEECH_SERVICE_URL
+      - name: Sync SPEECH_SERVICE_URL to Vercel
         run: |
-          vercel link \
-            --yes \
-            --project "$VERCEL_API_PROJECT_NAME" \
-            --token "$VERCEL_TOKEN"
-
-          vercel env rm SPEECH_SERVICE_URL production --yes --token "$VERCEL_TOKEN" || true
-          printf "%s" "$SPEECH_SERVICE_URL" \
-            | vercel env add SPEECH_SERVICE_URL production --token "$VERCEL_TOKEN"
-
-          vercel env rm SPEECH_SERVICE_URL preview --yes --token "$VERCEL_TOKEN" || true
-          printf "%s" "$SPEECH_SERVICE_URL" \
-            | vercel env add SPEECH_SERVICE_URL preview --token "$VERCEL_TOKEN"
+          PROJECT_ID="$VERCEL_API_PROJECT_NAME"
+          
+          curl -X POST "https://api.vercel.com/v10/projects/$PROJECT_ID/env" \
+          -H "Authorization: Bearer $VERCEL_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"key\": \"SPEECH_SERVICE_URL\",
+            \"value\": \"$SPEECH_SERVICE_URL\",
+            \"target\": [\"production\", \"preview\"],
+            \"type\": \"plain\"
+          }"

@@ -22,3 +22,7 @@ variable "upstash_redis_config" {
   })
 }
 
+
+variable "terraform_api_token" {
+  type = string
+}

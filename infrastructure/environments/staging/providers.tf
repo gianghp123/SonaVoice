@@ -12,6 +12,13 @@ terraform {
       version = ">= 4.8"
     }
   }
+  cloud {
+    organization = "gianghp"
+
+    workspaces {
+      name = "sona-staging"
+    }
+  }
 }
 
 provider "neon" {
