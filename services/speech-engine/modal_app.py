@@ -1,24 +1,9 @@
-"""Modal deployment for the speech engine.
-
-This module deploys the Pipecat voice bot as a Modal ASGI application,
-keeping the same WebRTC-based transport and pipeline used during local
-development.
-
-Usage::
-
-    modal deploy modal_app.py
-
-Local development remains unchanged::
-
-    python main.py
-"""
-
 import modal
 import os
 
-# Container specifications for the speech engine.
-# Piper TTS model files are downloaded automatically by the library at runtime,
-# so they do not need to be baked into the image.
+APP_NAME = "sona-speech-engine"
+MODAL_SECRET_NAME = "sona-voice-runtime"
+
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("ffmpeg")
@@ -27,7 +12,7 @@ image = (
     .add_local_file("main.py", remote_path="/root/main.py")
 )
 
-app = modal.App(os.environ["MODAL_APP_NAME"], secrets=[modal.Secret.from_name(os.environ["MODAL_SECRET_NAME"])])
+app = modal.App(APP_NAME, secrets=[modal.Secret.from_name(MODAL_SECRET_NAME)])
 
 @app.function(image=image, min_containers=0, scaledown_window=60)
 @modal.concurrent(max_inputs=3)
