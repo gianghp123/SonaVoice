@@ -1,4 +1,9 @@
-.PHONY: dev web api speech
+.PHONY: install dev web api speech
+
+install:
+	cd web && npm install
+	cd services/api && go mod download
+	cd services/speech-engine && pip install -r requirements.txt
 
 dev:
 	$(MAKE) -j3 speech api web
