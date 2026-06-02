@@ -17,7 +17,7 @@
 
 ---
 
-> **Sona is under active development.** Core MVP is complete — staging environment is live at [sona-go-api-staging.vercel.app](https://sona-go-api-staging.vercel.app). See [Progress](#-roadmap--progress) for what's done and what's next.
+> **Sona is under active development.** Core MVP is complete — staging environment is live at [sona-nextjs-staging.vercel.app](https://sona-nextjs-staging.vercel.app). See [Progress](#-roadmap--progress) for what's done and what's next.
 
 ---
 
@@ -34,7 +34,7 @@
 | **LLM** | OpenAI-compatible API (Deepseek via OpenCode proxy) |
 | **TTS** | Piper (local model) |
 | **Memory** | Mem0 with pgvector extension |
-| **Database** | Neon PostgreSQL |
+| **Database** | Neon PostgreSQL, Goose migration |
 | **Cache** | Upstash Redis |
 | **Observability** | Sentry, Zap |
 | **Infrastructure** | Terraform (Neon, Upstash, Sentry, Vercel providers) |
@@ -184,7 +184,20 @@ cp services/speech-engine/.env.example services/speech-engine/.env
 cp web/.env.example web/.env
 ```
 
-### 2. Install dependencies
+### 2. Start local infrastructure
+
+Start PostgreSQL and Redis first:
+
+```bash
+cd services/api
+make up
+```
+
+This starts the local Docker services defined in `services/api/docker/docker-compose.yaml`.
+
+### 3. Install dependencies
+
+From the project root:
 
 ```bash
 make install
@@ -192,13 +205,25 @@ make install
 
 This installs npm packages for the web frontend, downloads Go modules for the API, and installs Python dependencies for the speech engine.
 
-### 3. Start services
+### 4. Run database migrations
+
+From the project root:
+
+```bash
+make api-migrate-up
+```
+
+This runs the API migrations using the `DATABASE_URL` from `services/api/.env`.
+
+### 5. Start services
 
 ```bash
 make dev
 ```
 
-This starts the speech engine, Go API, and Next.js frontend in parallel. Open [http://localhost:3000](http://localhost:3000) in your browser.
+This starts the speech engine, Go API, and Next.js frontend in parallel.
+
+Open http://localhost:3000 in your browser.
 
 You can also start individual services:
 
@@ -213,13 +238,18 @@ make api
 make web
 ```
 
-### 4. Local database & Redis
-
-A PostgreSQL container is provided for local development:
+### Stop local infrastructure
 
 ```bash
-cd services/api/docker
-docker compose up -d
+cd services/api
+make down
+```
+
+To remove local volumes as well:
+
+```bash
+cd services/api
+make clean
 ```
 
 ---

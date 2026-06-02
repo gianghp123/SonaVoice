@@ -140,6 +140,10 @@ jobs:
           echo "SPEECH_SENTRY_DSN=$(terraform output -json sentry_project_dsns | jq -r '."sona-python-pipecat"')" >> "$GITHUB_ENV"
           echo "VERCEL_API_PROJECT_NAME=$(terraform output -raw vercel_api_project_name)" >> "$GITHUB_ENV"
 
+      - name: Run API migrations
+        working-directory: services/api
+        run: make migrate-up
+
       - name: Sync secrets to Modal
         run: |
           modal secret delete "$MODAL_SECRET_NAME" --env staging --yes || true

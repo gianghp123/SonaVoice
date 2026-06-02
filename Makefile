@@ -1,4 +1,4 @@
-.PHONY: install dev web api speech
+.PHONY: install dev web api speech api-migrate-up
 
 install:
 	cd web && npm install
@@ -16,3 +16,6 @@ api:
 
 speech:
 	cd services/speech-engine && . .venv/bin/activate && python main.py -t webrtc
+
+api-migrate-up:
+	cd services/api && make migrate-up
