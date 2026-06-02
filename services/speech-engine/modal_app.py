@@ -1,34 +1,36 @@
 import modal
-import os
 
 APP_NAME = "sona-speech-engine"
 MODAL_SECRET_NAME = "sona-voice-runtime"
+MODEL_DIR = "/models"
+
+
+model_volume = modal.Volume.from_name("sona-models", create_if_missing=True)
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("ffmpeg")
     .pip_install_from_requirements("requirements.txt")
     .add_local_dir("src", remote_path="/root/src")
-    .add_local_dir("models", remote_path="/root/models") 
     .add_local_file("main.py", remote_path="/root/main.py")
-    .run_commands(
-        "python -m spacy download en_core_web_sm"
-    )
 )
 
 app = modal.App(APP_NAME, secrets=[modal.Secret.from_name(MODAL_SECRET_NAME)])
 
-@app.function(image=image, min_containers=0, scaledown_window=60)
+@app.function(
+    image=image,
+    volumes={MODEL_DIR: model_volume},
+    min_containers=0,
+    scaledown_window=60
+)
 @modal.concurrent(max_inputs=3)
 @modal.asgi_app()
 def fastapi_app():
-    """Create and configure the FastAPI application for Modal deployment.
-
-    This mirrors the local development server (src.runner) but runs inside
-    Modal's serverless containers. WebRTC connections are handled concurrently
-    via SmallWebRTC transport.
-    """
     import sys
+    import os
+
+    os.environ["MODEL_ENVIRONMENT"] = "production"
+    os.environ["MODELS_DIR"] = MODEL_DIR
 
     # Ensure /root is on the path so ``src`` and ``main`` are importable.
     if "/root" not in sys.path:

@@ -39,13 +39,16 @@ class Settings(BaseSettings):
     # Constants
     EMBEDDING_DIMS: int = 768
     MODEL_ENVIRONMENT: str = "production"
+    
+    MODELS_DIR: str = "./models"
+
 
     @property
     def piper_models_dir(self) -> Path:
         if self.MODEL_ENVIRONMENT == "local":
             return Path("./models")
-        return Path("/root/models")
-
+        return Path(self.MODELS_DIR)
+    
     @property
     def memory_config(self) -> Dict[str, Any]:
         """
