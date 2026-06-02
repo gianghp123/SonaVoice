@@ -119,24 +119,26 @@ func main() {
 	router := gin.Default()
 
 	// Sentry middleware - must be first to catch panics
-	router.Use(sentrygin.New(sentrygin.Options{
-		Repanic: true,
-	}))
+	if cfg.Sentry.Dsn != "" {
+		router.Use(sentrygin.New(sentrygin.Options{
+			Repanic: true,
+		}))
 
-	// Attach user info to Sentry scope when available
-	router.Use(func(c *gin.Context) {
-		if hub := sentrygin.GetHubFromContext(c); hub != nil {
-			userID := utils.GetCtx[string](c, enums.ContextKeyUserID)
-			if userID != "" {
-				hub.Scope().SetUser(sentry.User{ID: userID})
+		// Attach user info to Sentry scope when available
+		router.Use(func(c *gin.Context) {
+			if hub := sentrygin.GetHubFromContext(c); hub != nil {
+				userID := utils.GetCtx[string](c, enums.ContextKeyUserID)
+				if userID != "" {
+					hub.Scope().SetUser(sentry.User{ID: userID})
+				}
+				role := utils.GetCtx[enums.UserRole](c, enums.ContextKeyUserRole)
+				if role != "" {
+					hub.Scope().SetTag("role", string(role))
+				}
 			}
-			role := utils.GetCtx[enums.UserRole](c, enums.ContextKeyUserRole)
-			if role != "" {
-				hub.Scope().SetTag("role", string(role))
-			}
-		}
-		c.Next()
-	})
+			c.Next()
+		})
+	}
 
 	// Enable rate limiting
 	router.ForwardedByClientIP = true

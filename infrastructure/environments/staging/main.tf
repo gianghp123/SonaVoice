@@ -23,12 +23,19 @@ module "neon_database" {
 }
 
 module "sentry" {
-  source = "../../modules/sentry"
+  source   = "../../modules/sentry"
+  for_each = var.sentry_projects
 
   project             = var.app.project
   environment         = var.app.environment
   sentry_organization = var.sentry_credential.organization
-  sentry_projects     = var.sentry_projects
+  sentry_project = {
+    slug        = each.key
+    name        = each.value.name
+    platform    = each.value.platform
+    teams       = each.value.teams
+    resolve_age = each.value.resolve_age
+  }
 }
 
 
@@ -45,7 +52,7 @@ locals {
     }
 
     SENTRY_DSN = {
-      value     = module.sentry.sentry_project_dsns["sona-go-api"]
+      value     = module.sentry["sona-go-api"].dsn
       sensitive = true
     }
   })
@@ -57,8 +64,18 @@ locals {
     }
 
     SENTRY_DSN = {
-      value     = module.sentry.sentry_project_dsns["sona-nextjs"]
+      value     = module.sentry["sona-nextjs"].dsn
       sensitive = true
+    }
+
+    SENTRY_ORG = {
+      value     = module.sentry["sona-nextjs"].organization
+      sensitive = false
+    }
+
+    SENTRY_PROJECT = {
+      value     = module.sentry["sona-nextjs"].project
+      sensitive = false
     }
   })
 }

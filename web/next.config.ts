@@ -5,13 +5,14 @@ const nextConfig: NextConfig = {
   /* config options here */
 };
 
-export default withSentryConfig(nextConfig, {
+const sentryConfig = {
+
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
-  org: "giang-pham-90",
+  org: process.env.SENTRY_ORG,
 
-  project: "sona-nextjs",
+  project: process.env.SENTRY_PROJECT,
 
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
@@ -41,4 +42,10 @@ export default withSentryConfig(nextConfig, {
       removeDebugLogging: true,
     },
   }
-});
+};
+
+const finalConfig = process.env.SENTRY_DSN
+  ? withSentryConfig(nextConfig, sentryConfig)
+  : nextConfig;
+
+export default finalConfig;

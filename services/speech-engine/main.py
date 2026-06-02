@@ -80,15 +80,16 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         max_duration=max_duration,
     ).info("Runner body received")
 
-    sentry_sdk.set_user({"id": user_id})
-    sentry_sdk.set_context(
-        "voice_session",
-        {
-            "session_id": session_id,
-            "max_duration": max_duration,
-            "transport_type": type(transport).__name__,
-        },
-    )
+    if settings.SENTRY_DSN:
+        sentry_sdk.set_user({"id": user_id})
+        sentry_sdk.set_context(
+            "voice_session",
+            {
+                "session_id": session_id,
+                "max_duration": max_duration,
+                "transport_type": type(transport).__name__,
+            },
+        )
 
     log = logger.bind(
         area="bot",

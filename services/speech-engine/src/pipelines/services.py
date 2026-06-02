@@ -11,10 +11,14 @@ from src.agents.prompts import ENGLIST_TEACHER_SYSTEM_INSTRUCTION
 from src.agents.tools import summarize_conversation, summarize_function
 
 
+def _get_metrics():
+    return SentryMetrics() if settings.SENTRY_DSN else None
+
+
 def build_stt() -> DeepgramSTTService:
     return DeepgramSTTService(
         api_key=settings.DEEPGRAM_API_KEY,
-        metrics=SentryMetrics(),
+        metrics=_get_metrics(),
         ttfs_p99_latency=0.4,
         settings=DeepgramSTTService.Settings(
             interim_results=True,
@@ -28,7 +32,7 @@ def build_llm() -> OpenAILLMService:
     llm = OpenAILLMService(
         api_key=settings.OPENCODE_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
-        metrics=SentryMetrics(),
+        metrics=_get_metrics(),
         settings=OpenAILLMService.Settings(
             model=settings.LLM_NAME,
             system_instruction=ENGLIST_TEACHER_SYSTEM_INSTRUCTION.format(
@@ -43,7 +47,7 @@ def build_llm() -> OpenAILLMService:
 
 def build_tts() -> PiperTTSService:
     return PiperTTSService(
-        metrics=SentryMetrics(),
+        metrics=_get_metrics(),
         settings=PiperTTSService.Settings(
             voice="en_US-lessac-high",
         ),

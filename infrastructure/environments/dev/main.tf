@@ -40,12 +40,19 @@ module "neon_database" {
 }
 
 module "sentry" {
-  source = "../../modules/sentry"
+  source   = "../../modules/sentry"
+  for_each = var.sentry_projects
 
   project             = var.app.project
   environment         = var.app.environment
   sentry_organization = var.sentry_credential.organization
-  sentry_projects     = var.sentry_projects
+  sentry_project = {
+    slug        = each.key
+    name        = each.value.name
+    platform    = each.value.platform
+    teams       = each.value.teams
+    resolve_age = each.value.resolve_age
+  }
 }
 
 data "terraform_remote_state" "shared" {

@@ -1,20 +1,16 @@
 resource "sentry_project" "this" {
-  for_each = var.sentry_projects
-
   organization = var.sentry_organization
 
-  name     = "${each.value.name}-${var.environment}"
-  slug     = "${each.key}-${var.environment}"
-  platform = each.value.platform
-  teams    = each.value.teams
+  name     = "${var.sentry_project.name}-${var.environment}"
+  slug     = "${var.sentry_project.slug}-${var.environment}"
+  platform = var.sentry_project.platform
+  teams    = var.sentry_project.teams
 
-  resolve_age = each.value.resolve_age
+  resolve_age = var.sentry_project.resolve_age
 }
 
 resource "sentry_key" "this" {
-  for_each = sentry_project.this
-
   organization = var.sentry_organization
-  project      = each.value.slug
-  name         = "${each.value.name} Client Key"
+  project      = sentry_project.this.slug
+  name         = "${sentry_project.this.name} Client Key"
 }

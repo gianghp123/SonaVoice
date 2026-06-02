@@ -1,0 +1,34 @@
+sequenceDiagram
+    autonumber
+
+    participant Client
+    participant API as Backend
+    participant Speech as Speech Service
+
+    Note over Client, API: 1. Create Session
+    Client->>API: POST /session
+    API->>API: Check quota + create pending
+    API-->>Client: sessionId
+
+    Note over Client, API: 2. Start Session
+    Client->>API: POST /start
+    API->>Speech: /start (business limits)
+    Speech-->>API: webrtcUrl
+    API-->>Client: webrtcUrl
+
+    Note over Client, Speech: 3. WebRTC Handshake
+    Client->>API: POST /offer
+    API->>Speech: Proxy SDP
+    Speech-->>API: SDP Answer
+    API->>API: Session → active
+    API-->>Client: SDP Answer
+
+    Note over Client, Speech: 4. Real-Time Session
+    Client-->>Speech: Direct WebRTC media
+    Speech-->>Client: AI response
+    Speech->>Speech: Track usage
+
+    Note over Speech, API: 5. Close Session
+    Speech->>API: POST /api/close
+    API->>API: Deduct quota → inactive
+    API-->>Speech: OK

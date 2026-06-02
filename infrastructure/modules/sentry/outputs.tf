@@ -1,10 +1,15 @@
-output "sentry_project_dsns" {
-  description = "Sentry DSNs by project slug."
+output "dsn" {
+  description = "Sentry DSN for the project."
+  value       = sentry_key.this.dsn["public"]
+  sensitive   = true
+}
 
-  value = {
-    for slug, key in sentry_key.this :
-    slug => key.dsn["public"]
-  }
+output "organization" {
+  description = "Sentry organization slug."
+  value       = var.sentry_organization
+}
 
-  sensitive = true
+output "project" {
+  description = "Sentry project slug."
+  value       = sentry_project.this.slug
 }
