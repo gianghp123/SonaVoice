@@ -1,5 +1,6 @@
-import os
+from pathlib import Path
 from typing import Any, Dict
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 
@@ -32,8 +33,18 @@ class Settings(BaseSettings):
     # ICE / TURN Servers (JSON array of IceServer objects)
     ICE_SERVERS: str = ""
 
+    # External API URL for session + message persistence (include path prefix, e.g. https://host/api/v1)
+    API_URL: str
+
     # Constants
     EMBEDDING_DIMS: int = 768
+    MODEL_ENVIRONMENT: str = "production"
+
+    @property
+    def piper_models_dir(self) -> Path:
+        if self.MODEL_ENVIRONMENT == "local":
+            return Path("./models")
+        return Path("/root/models")
 
     @property
     def memory_config(self) -> Dict[str, Any]:
@@ -66,6 +77,11 @@ class Settings(BaseSettings):
                 }
             }
         }
+
+class RunnerBody(BaseModel):
+    user_id: str
+    session_id: str
+    max_duration: int
 
 # Instantiate settings to be used across the app
 settings = Settings()

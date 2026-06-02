@@ -1,12 +1,7 @@
 from pipecat.pipeline.runner import PipelineRunner
-from pipecat.services.openai.llm import OpenAILLMService
-from pipecat.services.deepgram.stt import DeepgramSTTService
-from src.core.config import settings
-from src.pipelines.processors import CustomMem0Processor
-from src.transports.small_webrtc import create_small_webrtc_transport
+from src.core.config import RunnerBody, settings
+from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from src.pipelines.tasks import create_voice_bot_task
-from mem0 import AsyncMemory
-from src.agents.prompts import ENGLIST_TEACHER_SYSTEM_INSTRUCTION
 from pipecat.runner.types import (
     RunnerArguments,
     SmallWebRTCRunnerArguments,
@@ -18,15 +13,9 @@ from pipecat.transports.smallwebrtc.transport import (
 from pipecat.transports.base_transport import BaseTransport
 from loguru import logger
 from dotenv import load_dotenv
-from src.agents.tools import summarize_conversation, save_user_preferences
-from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.adapters.schemas.tools_schema import ToolsSchema
-from src.agents.tools import summarize_function, save_memory_function
-from pipecat.services.piper.tts import PiperTTSService
+from src.pipelines.services import build_stt, build_llm, build_tts, build_context, build_memory
 import time
 import sentry_sdk
-from pipecat.processors.metrics.sentry import SentryMetrics
-
 load_dotenv()
 
 if settings.SENTRY_DSN:
@@ -49,8 +38,8 @@ async def bot(runner_args: RunnerArguments):
 
             webrtc_connection: SmallWebRTCConnection = runner_args.webrtc_connection
 
-            transport = create_small_webrtc_transport(
-                webrtc_connection,
+            transport = SmallWebRTCTransport(
+                webrtc_connection=webrtc_connection,
                 params=TransportParams(
                     audio_in_enabled=True,
                     audio_out_enabled=True,
@@ -76,32 +65,20 @@ async def bot(runner_args: RunnerArguments):
 
 
 async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
-    user_id = "anonymous"
-    session_id = None
-    max_duration = None
-    memory_client = None
-    tools = None
+    if not runner_args.body:
+        raise ValueError("runner body is required")
 
-    if runner_args.body:
-        user_id = runner_args.body.get("user_id") or "anonymous"
-        session_id = runner_args.body.get("session_id")
-        max_duration = runner_args.body.get("max_duration")
+    body = RunnerBody(**runner_args.body)
+    user_id = body.user_id
+    session_id = body.session_id
+    max_duration = body.max_duration
 
-        logger.bind(
-            area="bot",
-            user_id=user_id,
-            session_id=session_id,
-            max_duration=max_duration,
-        ).info("Runner body received")
-    else:
-        max_duration = 60 * 5
-
-        logger.bind(
-            area="bot",
-            user_id=user_id,
-            session_id=session_id,
-            max_duration=max_duration,
-        ).warning("No runner body received, using default max duration")
+    logger.bind(
+        area="bot",
+        user_id=user_id,
+        session_id=session_id,
+        max_duration=max_duration,
+    ).info("Runner body received")
 
     sentry_sdk.set_user({"id": user_id})
     sentry_sdk.set_context(
@@ -126,49 +103,12 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     try:
         log.info("Initializing voice services")
 
-        stt = DeepgramSTTService(
-            api_key=settings.DEEPGRAM_API_KEY,
-            metrics=SentryMetrics(),
-        )
-
-        llm = OpenAILLMService(
-            api_key=settings.OPENCODE_API_KEY,
-            base_url=settings.OPENAI_BASE_URL,
-            metrics=SentryMetrics(),
-            settings=OpenAILLMService.Settings(
-                model=settings.LLM_NAME,
-                system_instruction=ENGLIST_TEACHER_SYSTEM_INSTRUCTION.format(
-                    name=settings.BOT_NAME
-                ),
-                extra={"extra_body": {"thinking": {"type": "disabled"}}},
-            ),
-        )
-
-        llm.register_function("summarize_conversation", summarize_conversation)
-        llm.register_function("save_user_preferences", save_user_preferences)
-
-        tts = PiperTTSService(
-            metrics=SentryMetrics(),
-            settings=PiperTTSService.Settings(
-                voice="en_US-lessac-high",
-            ),
-        )
-
-        if session_id is None or session_id == "":
-            tools = ToolsSchema([summarize_function])
-            log.info("Memory disabled for anonymous session")
-        else:
-            tools = ToolsSchema([summarize_function, save_memory_function])
-            memory_client = AsyncMemory.from_config(settings.memory_config)
-            log.info("Memory enabled for session")
-
-        context = LLMContext(tools=tools)
-
-        memory_processor = CustomMem0Processor(
-            memory_client=memory_client,
-            user_id=user_id,
-            session_id=session_id,
-        )
+        stt = build_stt()
+        llm = build_llm()
+        tts = build_tts()
+        context = build_context()
+        memory_processor = build_memory(user_id, session_id)
+        log.info("Memory enabled for session")
 
         task = await create_voice_bot_task(
             transport,

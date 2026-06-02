@@ -81,7 +81,6 @@ def build_ice_servers() -> list[PipecatIceServer]:
 
 try:
     import uvicorn
-    from dotenv import load_dotenv
     from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import RedirectResponse
@@ -91,10 +90,6 @@ except ImportError as e:
     raise ImportError(
         "Runner dependencies required. Install with: pip install pipecat-ai[runner]"
     ) from e
-
-
-load_dotenv(override=True)
-os.environ["ENV"] = "local"
 
 RUNNER_DOWNLOADS_FOLDER: str | None = None
 RUNNER_HOST: str = "localhost"
@@ -115,50 +110,6 @@ Import this to add custom routes from other packages before calling
     if __name__ == "__main__":
         main()
 """
-
-
-def _get_bot_module():
-    """Get the bot module from the calling script."""
-    import importlib.util
-
-    # Get the main module (the file that was executed)
-    main_module = sys.modules["__main__"]
-
-    # Check if it has a bot function
-    if hasattr(main_module, "bot"):
-        return main_module
-
-    # Try to import 'bot' module from current directory
-    try:
-        import bot  # type: ignore[import-untyped]
-
-        return bot
-    except ImportError:
-        pass
-
-    # Look for any .py file in current directory that has a bot function
-    # (excluding server.py).
-    cwd = os.getcwd()
-    for filename in os.listdir(cwd):
-        if filename.endswith(".py") and filename != "server.py":
-            try:
-                module_name = filename[:-3]  # Remove .py extension
-                spec = importlib.util.spec_from_file_location(
-                    module_name, os.path.join(cwd, filename)
-                )
-                if spec is None or spec.loader is None:
-                    continue
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-
-                if hasattr(module, "bot"):
-                    return module
-            except Exception:
-                continue
-
-    raise ImportError(
-        "Could not find 'bot' function. Make sure your bot file has a 'bot' function."
-    )
 
 
 def _setup_webrtc_routes(app: FastAPI, args: argparse.Namespace, bot_module=None):
@@ -224,7 +175,7 @@ def _setup_webrtc_routes(app: FastAPI, args: argparse.Namespace, bot_module=None
 
         # Prepare runner arguments with the callback to run your bot
         async def webrtc_connection_callback(connection: SmallWebRTCConnection):
-            resolved_bot_module = bot_module or _get_bot_module()
+            resolved_bot_module = bot_module
 
             runner_args = SmallWebRTCRunnerArguments(
                 webrtc_connection=connection, body=request.request_data
@@ -452,7 +403,8 @@ def main(parser: argparse.ArgumentParser | None = None):
     RUNNER_PORT = args.port
 
     # Use the module-level app so any pre-added custom routes are preserved.
-    web_app = create_app(args, web_app=app)
+    import main as bot_module
+    web_app = create_app(args, bot_module=bot_module, web_app=app)
 
     # Run the server
     uvicorn.run(web_app, host=args.host, port=args.port)

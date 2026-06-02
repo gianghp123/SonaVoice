@@ -1,6 +1,8 @@
 from typing import Any
-import os
+
 import aiohttp
+
+from src.core.config import settings
 from src.types.messages import SessionMessage
 
 
@@ -10,11 +12,7 @@ class MessageServiceError(Exception):
 
 class MessageService:
     def __init__(self) -> None:
-        self.base_url = os.getenv("API_URL")
-        if not self.base_url:
-            raise MessageServiceError("API_URL is not set")
-
-        self.base_url = self.base_url.rstrip("/")
+        self.base_url = settings.API_URL.rstrip("/")
 
     async def save_messages(
         self,

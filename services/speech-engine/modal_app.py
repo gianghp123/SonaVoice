@@ -9,7 +9,11 @@ image = (
     .apt_install("ffmpeg")
     .pip_install_from_requirements("requirements.txt")
     .add_local_dir("src", remote_path="/root/src")
+    .add_local_dir("models", remote_path="/root/models") 
     .add_local_file("main.py", remote_path="/root/main.py")
+    .run_commands(
+        "python -m spacy download en_core_web_sm"
+    )
 )
 
 app = modal.App(APP_NAME, secrets=[modal.Secret.from_name(MODAL_SECRET_NAME)])

@@ -1,7 +1,8 @@
-import os
 from typing import Any
 
 import aiohttp
+
+from src.core.config import settings
 
 
 class SessionServiceError(Exception):
@@ -10,11 +11,7 @@ class SessionServiceError(Exception):
 
 class SessionService:
     def __init__(self) -> None:
-        self.base_url = os.getenv("API_URL")
-        if not self.base_url:
-            raise SessionServiceError("API_URL is not set")
-
-        self.base_url = self.base_url.rstrip("/")
+        self.base_url = settings.API_URL.rstrip("/")
 
     async def close_session(self, session_id: str, actual_usage: int) -> dict[str, Any]:
         url = f"{self.base_url}/sessions/{session_id}/close"
