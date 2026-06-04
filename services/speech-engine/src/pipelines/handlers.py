@@ -85,16 +85,16 @@ def register_event_handlers(
                 )
             )
 
-    @user_aggregator.event_handler("on_user_turn_idle")
-    async def on_user_turn_idle(aggregator):
-        if task.has_finished():
-            return
-        log.info("User idle")
-        msg = {
-            "role": "system",
-            "content": "The user is quiet. Ask if they are there.",
-        }
-        await aggregator.push_frame(LLMMessagesAppendFrame([msg], run_llm=True))
+    # @user_aggregator.event_handler("on_user_turn_idle")
+    # async def on_user_turn_idle(aggregator):
+    #     if task.has_finished():
+    #         return
+    #     log.info("User idle")
+    #     msg = {
+    #         "role": "system",
+    #         "content": "The user is quiet. Ask if they are there.",
+    #     }
+    #     await aggregator.push_frame(LLMMessagesAppendFrame([msg], run_llm=True))
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):

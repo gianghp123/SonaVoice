@@ -45,7 +45,6 @@ async def create_voice_bot_task(
         context,
         user_params=LLMUserAggregatorParams(
             vad_analyzer=SileroVADAnalyzer(),
-            user_idle_timeout=10.0, 
         ),
         assistant_params=LLMAssistantAggregatorParams(
             enable_auto_context_summarization=True,
