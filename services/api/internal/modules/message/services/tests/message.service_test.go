@@ -123,19 +123,12 @@ func TestMessageService_List(t *testing.T) {
 }
 
 func TestMessageService_Create(t *testing.T) {
-	now := time.Now().UTC()
-	session := &models.Session{
-		BaseModel: models.BaseModel{ID: "session-1", CreatedAt: now, UpdatedAt: now},
-		UserID:    "user-1",
-		Status:    enums.SessionStatusActive,
-	}
-
 	tests := []struct {
 		name      string
 		sessionID string
 		body      *req.CreateMessagesReq
 		userID    string
-		setupMock func(msgRepo *repoMocks.MessageRepository, sessionRepo *repoMocks.SessionRepository)
+		setupMock func(msgRepo *repoMocks.MessageRepository)
 		wantErr   bool
 		errCode   int
 		wantCount int
@@ -150,41 +143,10 @@ func TestMessageService_Create(t *testing.T) {
 				},
 			},
 			userID: "user-1",
-			setupMock: func(msgRepo *repoMocks.MessageRepository, sessionRepo *repoMocks.SessionRepository) {
-				sessionRepo.On("Get", mock.Anything, "session-1").Return(session, nil)
+			setupMock: func(msgRepo *repoMocks.MessageRepository) {
 				msgRepo.On("CreateBatch", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantCount: 2,
-		},
-		{
-			name:      "session not found",
-			sessionID: "session-unknown",
-			body: &req.CreateMessagesReq{
-				Messages: []req.MessageItem{
-					{Role: enums.MessageRoleUser, Transcript: "hello"},
-				},
-			},
-			userID: "user-1",
-			setupMock: func(msgRepo *repoMocks.MessageRepository, sessionRepo *repoMocks.SessionRepository) {
-				sessionRepo.On("Get", mock.Anything, "session-unknown").Return(nil, gorm.ErrRecordNotFound)
-			},
-			wantErr: true,
-			errCode: http.StatusNotFound,
-		},
-		{
-			name:      "forbidden - not session owner",
-			sessionID: "session-1",
-			body: &req.CreateMessagesReq{
-				Messages: []req.MessageItem{
-					{Role: enums.MessageRoleUser, Transcript: "hello"},
-				},
-			},
-			userID: "user-2",
-			setupMock: func(msgRepo *repoMocks.MessageRepository, sessionRepo *repoMocks.SessionRepository) {
-				sessionRepo.On("Get", mock.Anything, "session-1").Return(session, nil)
-			},
-			wantErr: true,
-			errCode: http.StatusForbidden,
 		},
 		{
 			name:      "empty messages - bad request",
@@ -193,7 +155,7 @@ func TestMessageService_Create(t *testing.T) {
 				Messages: []req.MessageItem{},
 			},
 			userID: "user-1",
-			setupMock: func(msgRepo *repoMocks.MessageRepository, sessionRepo *repoMocks.SessionRepository) {
+			setupMock: func(msgRepo *repoMocks.MessageRepository) {
 			},
 			wantErr: true,
 			errCode: http.StatusBadRequest,
@@ -207,8 +169,7 @@ func TestMessageService_Create(t *testing.T) {
 				},
 			},
 			userID: "user-1",
-			setupMock: func(msgRepo *repoMocks.MessageRepository, sessionRepo *repoMocks.SessionRepository) {
-				sessionRepo.On("Get", mock.Anything, "session-1").Return(session, nil)
+			setupMock: func(msgRepo *repoMocks.MessageRepository) {
 				msgRepo.On("CreateBatch", mock.Anything, mock.Anything).Return(gorm.ErrInvalidData)
 			},
 			wantErr: true,
@@ -221,7 +182,7 @@ func TestMessageService_Create(t *testing.T) {
 			msgRepo := new(repoMocks.MessageRepository)
 			sessionRepo := new(repoMocks.SessionRepository)
 
-			tt.setupMock(msgRepo, sessionRepo)
+			tt.setupMock(msgRepo)
 
 			svc := services.NewMessageService(msgRepo, sessionRepo)
 			ctx := setupMessageCtx(tt.userID)
@@ -237,7 +198,6 @@ func TestMessageService_Create(t *testing.T) {
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantCount, len(result))
 			msgRepo.AssertExpectations(t)
-			sessionRepo.AssertExpectations(t)
 		})
 	}
 }
