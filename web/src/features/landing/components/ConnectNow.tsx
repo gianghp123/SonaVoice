@@ -6,6 +6,7 @@ import { createSession } from "@/features/session-history/services/session.actio
 import { PAGE_ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@clerk/nextjs"
+import { useT } from "next-i18next/client"
 import * as Sentry from "@sentry/nextjs"
 import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -19,13 +20,14 @@ type ConnectNowProps = React.ComponentProps<typeof Button> & {
 export function ConnectNow({
   className,
   size = "lg",
-  text = "Connect Now",
+  text,
   disabled,
   children,
   ...props
 }: ConnectNowProps) {
   const router = useRouter()
   const { isSignedIn, isLoaded } = useAuth()
+  const { t } = useT('common')
   const [loading, setLoading] = useState(false)
 
   const handleConnect = async () => {
@@ -47,7 +49,7 @@ export function ConnectNow({
           code: res.error.code,
         })
 
-        toast.error(res.error.message || "Failed to create session")
+        toast.error(res.error.message || t('failed_create_session'))
         return
       }
 
@@ -59,7 +61,7 @@ export function ConnectNow({
           action: "create-session",
         })
 
-        toast.error("Failed to create session")
+        toast.error(t('failed_create_session'))
         return
       }
 
@@ -72,7 +74,7 @@ export function ConnectNow({
         },
       })
 
-      toast.error("Something went wrong. Please try again or contact support.")
+      toast.error(t('something_wrong'))
     } finally {
       setLoading(false)
     }
@@ -91,7 +93,7 @@ export function ConnectNow({
       {...props}
     >
       {loading && <Loader2 className="size-4 animate-spin" />}
-      {children ?? text}
+      {children ?? (text ?? t('connect_now'))}
     </Button>
   )
 }
