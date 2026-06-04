@@ -1,0 +1,9 @@
+{
+  "new_session": "New Session",
+  "recent_sessions": "Recently sessions",
+  "no_sessions": "No sessions yet",
+  "connect_now": "Connect Now",
+  "failed_create_session": "Failed to create session",
+  "something_wrong": "Something went wrong. Please try again or contact support.",
+  "language": "Language"
+}
