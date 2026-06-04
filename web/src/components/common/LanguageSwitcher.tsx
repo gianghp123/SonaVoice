@@ -1,7 +1,5 @@
 "use client"
 
-import { usePathname, useRouter } from "next/navigation"
-import { useT } from "next-i18next/client"
 import {
   Select,
   SelectContent,
@@ -9,32 +7,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, FALLBACK_LANGUAGE } from "@/lib/i18n"
-import { getLocaleFromPathname } from "@/lib/utils/path"
+import { FALLBACK_LANGUAGE, isSupportedLanguage, LANGUAGE_LABELS, SUPPORTED_LANGUAGES } from "@/lib/i18n"
+import { useT } from "next-i18next/client"
+import { usePathname, useRouter } from "next/navigation"
 
 export function LanguageSwitcher() {
   const pathname = usePathname()
   const router = useRouter()
   const { i18n } = useT()
-
-  const currentLng = i18n?.language || FALLBACK_LANGUAGE
+  const currentLng = i18n.language
 
   const switchLocale = (locale: string) => {
-    const segments = pathname.split('/')
-    const existingLocale = getLocaleFromPathname(pathname)
+    const segments = pathname.split('/').filter(Boolean)
+    const pathWithoutLocale = isSupportedLanguage(segments[0])
+      ? segments.slice(1)
+      : segments
+    const nextPath =
+      locale === FALLBACK_LANGUAGE
+        ? `/${pathWithoutLocale.join('/')}`
+        : `/${locale}/${pathWithoutLocale.join('/')}`
 
-    if (existingLocale) {
-      if (locale === FALLBACK_LANGUAGE) {
-        segments.splice(1, 1)
-      } else {
-        segments[1] = locale
-      }
-    } else {
-      if (locale !== FALLBACK_LANGUAGE) {
-        segments.splice(1, 0, locale)
-      }
-    }
-    router.push(segments.join('/') || '/')
+    router.push(nextPath === '/' ? '/' : nextPath.replace(/\/$/, ''))
   }
 
   return (
