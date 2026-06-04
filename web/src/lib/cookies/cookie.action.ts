@@ -2,9 +2,8 @@
 
 import { cookies } from 'next/headers'
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '@/lib/i18n/i18n'
+import { COOKIE_MAX_AGE, LOCALE_COOKIE } from './cookie.contants'
 
-const LOCALE_COOKIE = 'NEXT_LOCALE'
-const COOKIE_MAX_AGE = 365 * 24 * 60 * 60 // 1 year
 
 export async function setLocale(locale: string) {
   if (!isSupportedLanguage(locale)) return

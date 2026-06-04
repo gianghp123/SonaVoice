@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { FALLBACK_LANGUAGE, isSupportedLanguage, LANGUAGE_LABELS, SUPPORTED_LANGUAGES } from "@/lib/i18n/i18n"
-import { setLocale } from "@/lib/cookies"
+import { setLocale } from "@/lib/cookies/cookie.action"
 import { getLocaleFromPathname } from "@/lib/utils/path"
 import { usePathname, useRouter } from "next/navigation"
 
