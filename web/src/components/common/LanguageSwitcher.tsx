@@ -8,14 +8,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { FALLBACK_LANGUAGE, isSupportedLanguage, LANGUAGE_LABELS, SUPPORTED_LANGUAGES } from "@/lib/i18n"
-import { useT } from "next-i18next/client"
+import { getLocaleFromPathname } from "@/lib/utils/path"
 import { usePathname, useRouter } from "next/navigation"
 
 export function LanguageSwitcher() {
   const pathname = usePathname()
   const router = useRouter()
-  const { i18n } = useT()
-  const currentLng = i18n.language
+
+  const currentLng = getLocaleFromPathname(pathname) ?? FALLBACK_LANGUAGE
 
   const switchLocale = (locale: string) => {
     const segments = pathname.split('/').filter(Boolean)
@@ -29,6 +29,8 @@ export function LanguageSwitcher() {
 
     router.push(nextPath === '/' ? '/' : nextPath.replace(/\/$/, ''))
   }
+
+  console.log(currentLng)
 
   return (
     <Select value={currentLng} onValueChange={switchLocale}>

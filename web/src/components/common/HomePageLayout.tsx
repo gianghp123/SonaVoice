@@ -19,13 +19,14 @@ import {
 import { ConnectNow } from "@/features/landing/components/ConnectNow"
 import { PAGE_ROUTES } from "@/lib/routes"
 import type { ISession } from "@/lib/types/session.interface"
+import { stripLocalePrefix } from "@/lib/utils/path"
 import { Show } from "@clerk/nextjs"
 import { Plus } from "lucide-react"
-import Link from "next/link"
 import { useT } from "next-i18next/client"
+import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { stripLocalePrefix } from "@/lib/utils/path"
 import { Separator } from "../ui/separator"
+import { LanguageSwitcher } from "./LanguageSwitcher"
 interface HomePageContentProps {
   sessions: ISession[]
   children: React.ReactNode
@@ -90,12 +91,14 @@ export function HomePageLayout({ sessions, children, breadcrumb }: HomePageConte
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b">
-          <div className="flex items-center gap-2 px-3">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-3">
+          <div className="flex items-center gap-2">
             <SidebarTrigger />
             <Separator orientation="vertical" className="my-auto mr-2 h-4" />
             {breadcrumb}
           </div>
+
+          <LanguageSwitcher />
         </header>
         {children}
       </SidebarInset>

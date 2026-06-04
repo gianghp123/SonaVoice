@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button"
-import {Show, SignInButton, UserButton } from "@clerk/nextjs"
-import { LanguageSwitcher } from "@/components/common/LanguageSwitcher"
+import { Show, SignInButton, UserButton } from "@clerk/nextjs"
 
 export function SidebarFooterUI() {
   return (
@@ -31,10 +30,6 @@ export function SidebarFooterUI() {
           </SignInButton>
         </div>
       </Show>
-
-      <div className="mt-4">
-        <LanguageSwitcher />
-      </div>
     </div>
   )
 }

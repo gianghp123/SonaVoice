@@ -1,9 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 import { match as matchLocale } from "@formatjs/intl-localematcher"
 import Negotiator from "negotiator"
-import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { SUPPORTED_LANGUAGES, FALLBACK_LANGUAGE } from "./lib/i18n"
+import { NextResponse } from "next/server"
+import { FALLBACK_LANGUAGE, SUPPORTED_LANGUAGES } from "./lib/i18n"
 import { PAGE_ROUTES } from "./lib/routes"
 
 const locales: string[] = [...SUPPORTED_LANGUAGES]
@@ -29,19 +29,30 @@ const isProtectedRoute = createRouteMatcher(["/(.*)/sessions(.*)", "/(.*)/chat(.
 export default clerkMiddleware(async (auth, req) => {
   const { isAuthenticated } = await auth()
 
-  if (!isAuthenticated && isProtectedRoute(req)) {
-    return NextResponse.redirect(new URL(PAGE_ROUTES.HOME, req.url))
-  }
-
   const pathname = req.nextUrl.pathname
 
+  // Skip if locale already exists
   if (hasLocalePrefix(pathname)) {
+    if (!isAuthenticated && isProtectedRoute(req)) {
+      const locale = getLocale(req)
+
+      return NextResponse.redirect(
+        new URL(`/${locale}${PAGE_ROUTES.HOME}`, req.url)
+      )
+    }
+
     return NextResponse.next()
   }
 
-  const locale = getLocale(req)
-  const newUrl = new URL(`/${locale}${pathname}`, req.url)
-  return NextResponse.redirect(newUrl)
+  // NO redirect for fallback locale
+  if (!hasLocalePrefix(pathname)) {
+    const url = req.nextUrl.clone()
+    url.pathname = `/${FALLBACK_LANGUAGE}${pathname}`
+
+    return NextResponse.rewrite(url)
+  }
+
+  return NextResponse.next()
 })
 
 export const config = {
