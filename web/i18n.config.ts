@@ -1,5 +1,5 @@
 import type { I18nConfig } from 'next-i18next/proxy'
-import { FALLBACK_LANGUAGE, SUPPORTED_LANGUAGES } from './src/lib/i18n'
+import { FALLBACK_LANGUAGE, SUPPORTED_LANGUAGES } from './src/lib/i18n/i18n'
 
 const i18nConfig: I18nConfig = {
   supportedLngs: [...SUPPORTED_LANGUAGES],

@@ -1,4 +1,4 @@
-import { SUPPORTED_LANGUAGES } from '@/lib/i18n'
+import { SUPPORTED_LANGUAGES } from '@/lib/i18n/i18n'
 
 export function stripLocalePrefix(pathname: string): string {
   const segments = pathname.split('/')

@@ -9,6 +9,8 @@ import { Toaster } from "sonner"
 import { initServerI18next, getT, getResources, generateI18nStaticParams } from "next-i18next/server"
 import { I18nProvider } from "next-i18next/client"
 import i18nConfig from "../../../i18n.config"
+import { getClerkLanguageKey } from "@/lib/i18n/clerk-localization"
+import { SupportedLanguage } from "@/lib/i18n/i18n"
 
 initServerI18next(i18nConfig)
 
@@ -54,6 +56,7 @@ export default async function RootLayout({
           signUpUrl={AUTH_ROUTES.SIGN_UP}
           signInFallbackRedirectUrl={PAGE_ROUTES.HOME}
           signUpFallbackRedirectUrl={PAGE_ROUTES.HOME}
+          localization={getClerkLanguageKey(lng as SupportedLanguage)}
         >
           <I18nProvider language={lng} resources={resources}>
             <TooltipProvider>{children}</TooltipProvider>

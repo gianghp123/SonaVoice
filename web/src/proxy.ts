@@ -3,19 +3,28 @@ import { match as matchLocale } from "@formatjs/intl-localematcher"
 import Negotiator from "negotiator"
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
-import { FALLBACK_LANGUAGE, SUPPORTED_LANGUAGES } from "./lib/i18n"
+import { FALLBACK_LANGUAGE, SUPPORTED_LANGUAGES } from "./lib/i18n/i18n"
 import { PAGE_ROUTES } from "./lib/routes"
 
 const locales: string[] = [...SUPPORTED_LANGUAGES]
 const defaultLocale = FALLBACK_LANGUAGE
+const LOCALE_COOKIE = "NEXT_LOCALE"
 
-function getLocale(request: NextRequest): string {
+function getLocaleFromHeaders(request: NextRequest): string {
   const headers: Record<string, string> = {}
   request.headers.forEach((value, key) => {
     headers[key] = value
   })
   const languages = new Negotiator({ headers }).languages(locales)
   return matchLocale(languages, locales, defaultLocale)
+}
+
+function getLocale(request: NextRequest): string {
+  const cookieLocale = request.cookies.get(LOCALE_COOKIE)?.value
+  if (cookieLocale && locales.includes(cookieLocale)) {
+    return cookieLocale
+  }
+  return getLocaleFromHeaders(request)
 }
 
 function hasLocalePrefix(pathname: string): boolean {
@@ -28,31 +37,22 @@ const isProtectedRoute = createRouteMatcher(["/(.*)/sessions(.*)", "/(.*)/chat(.
 
 export default clerkMiddleware(async (auth, req) => {
   const { isAuthenticated } = await auth()
-
   const pathname = req.nextUrl.pathname
 
-  // Skip if locale already exists
   if (hasLocalePrefix(pathname)) {
     if (!isAuthenticated && isProtectedRoute(req)) {
       const locale = getLocale(req)
-
       return NextResponse.redirect(
         new URL(`/${locale}${PAGE_ROUTES.HOME}`, req.url)
       )
     }
-
     return NextResponse.next()
   }
 
-  // NO redirect for fallback locale
-  if (!hasLocalePrefix(pathname)) {
-    const url = req.nextUrl.clone()
-    url.pathname = `/${FALLBACK_LANGUAGE}${pathname}`
-
-    return NextResponse.rewrite(url)
-  }
-
-  return NextResponse.next()
+  const locale = getLocale(req)
+  const url = req.nextUrl.clone()
+  url.pathname = `/${locale}${pathname}`
+  return NextResponse.rewrite(url)
 })
 
 export const config = {

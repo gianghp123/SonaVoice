@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@clerk/localizations": "^4.7.1",
     "@clerk/nextjs": "^7.3.3",
     "@formatjs/intl-localematcher": "^0.8.9",
     "@pipecat-ai/client-js": "^1.7.0",

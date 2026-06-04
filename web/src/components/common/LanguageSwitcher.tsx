@@ -7,7 +7,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { FALLBACK_LANGUAGE, isSupportedLanguage, LANGUAGE_LABELS, SUPPORTED_LANGUAGES } from "@/lib/i18n"
+import { FALLBACK_LANGUAGE, isSupportedLanguage, LANGUAGE_LABELS, SUPPORTED_LANGUAGES } from "@/lib/i18n/i18n"
+import { setLocale } from "@/lib/cookies"
 import { getLocaleFromPathname } from "@/lib/utils/path"
 import { usePathname, useRouter } from "next/navigation"
 
@@ -17,7 +18,9 @@ export function LanguageSwitcher() {
 
   const currentLng = getLocaleFromPathname(pathname) ?? FALLBACK_LANGUAGE
 
-  const switchLocale = (locale: string) => {
+  const switchLocale = async (locale: string) => {
+    await setLocale(locale)
+
     const segments = pathname.split('/').filter(Boolean)
     const pathWithoutLocale = isSupportedLanguage(segments[0])
       ? segments.slice(1)
@@ -29,8 +32,6 @@ export function LanguageSwitcher() {
 
     router.push(nextPath === '/' ? '/' : nextPath.replace(/\/$/, ''))
   }
-
-  console.log(currentLng)
 
   return (
     <Select value={currentLng} onValueChange={switchLocale}>
