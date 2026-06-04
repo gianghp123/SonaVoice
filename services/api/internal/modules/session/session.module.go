@@ -17,6 +17,7 @@ func SetupModule(
 	db *gorm.DB, httpClient httpclient.IHttpClient,
 	authMiddleware gin.HandlerFunc,
 	sessionLimiter gin.HandlerFunc,
+	internalSecretMiddleware gin.HandlerFunc,
 ) {
 	sessionRepo := repositories.NewSessionRepository(db)
 	configRepo := repositories.NewSessionConfigRepository(db)
@@ -42,7 +43,7 @@ func SetupModule(
 	sessGroup.GET("", authMiddleware, sessionController.HandleListSessions)
 	sessGroup.GET("/:sessionId", authMiddleware, sessionController.HandleGetSession)
 	sessGroup.POST("/:sessionId/cancel", authMiddleware, sessionController.HandleCancelSession)
-	sessGroup.POST("/:sessionId/close", sessionController.HandleCloseSession)
+	sessGroup.POST("/:sessionId/close", internalSecretMiddleware, sessionController.HandleCloseSession)
 
 	scGroup := sessGroup.Group("/config")
 	scGroup.GET("", sessionConfigController.HandleGet)

@@ -87,6 +87,8 @@ def register_event_handlers(
 
     @user_aggregator.event_handler("on_user_turn_idle")
     async def on_user_turn_idle(aggregator):
+        if task.has_finished():
+            return
         log.info("User idle")
         msg = {
             "role": "system",
@@ -96,9 +98,54 @@ def register_event_handlers(
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
+        log.info("Client disconnected")
+        await task.cancel()
+        
+
+    async def session_timer(task, aggregator, timeout_secs=300):
+        await asyncio.sleep(timeout_secs)
+        
+        if task.has_finished():
+            return
+                
+        actual_duration = time.time() - start_time
+        log.info(
+            "Session timer finished",
+            actual_duration=actual_duration,
+        )
+    
+        log.info(
+            "Session max duration reached",
+            timeout_secs=timeout_secs,
+        )
+        await aggregator.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
+        
+
+    @transport.event_handler("on_client_connected")
+    async def on_client_connected(transport, client):
+        log.info("Client connected")
+        context.add_message(
+            {
+                "role": "system",
+                "content": "Say hello and briefly introduce yourself.",
+            }
+        )
+        await task.queue_frames([LLMRunFrame()])
+
+        if max_duration is not None:
+            asyncio.create_task(
+                session_timer(
+                    task,
+                    user_aggregator,
+                    timeout_secs=max_duration,
+                )
+            )
+
+    @task.event_handler("on_pipeline_finished")
+    async def on_pipeline_finished(task, frame):
         actual_usage = int(time.time() - start_time)
         log.info(
-            "Client disconnected",
+            "Pipeline finished",
             actual_usage=actual_usage,
             message_count=len(session_messages),
         )
@@ -127,66 +174,6 @@ def register_event_handlers(
                 actual_usage=actual_usage,
                 message_count=len(session_messages),
             )
-        finally:
-            await task.cancel()
-
-    async def session_timer(task, aggregator, timeout_secs=300):
-        await asyncio.sleep(timeout_secs)
-        log.info(
-            "Session max duration reached",
-            timeout_secs=timeout_secs,
-        )
-        await aggregator.push_frame(
-            LLMMessagesAppendFrame(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Say goodbye to the user since the session is over.",
-                    }
-                ],
-                run_llm=True,
-            )
-        )
-        await aggregator.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
-        actual_duration = time.time() - start_time
-        log.info(
-            "Session timer finished",
-            actual_duration=actual_duration,
-        )
-
-    @transport.event_handler("on_client_connected")
-    async def on_client_connected(transport, client):
-        log.info("Client connected")
-        context.add_message(
-            {
-                "role": "system",
-                "content": "Say hello and briefly introduce yourself.",
-            }
-        )
-        await task.queue_frames([LLMRunFrame()])
-
-        if max_duration is not None:
-            asyncio.create_task(
-                session_timer(
-                    task,
-                    user_aggregator,
-                    timeout_secs=max_duration,
-                )
-            )
-
-    @task.event_handler("on_pipeline_finished")
-    async def on_pipeline_finished(task, frame):
-        log.info("Pipeline finished")
-        await task.queue_frames(
-            [
-                LLMSummarizeContextFrame(
-                    config=LLMContextSummaryConfig(
-                        target_context_tokens=4000,
-                        min_messages_after_summary=0,
-                    )
-                )
-            ]
-        )
 
     @tts.event_handler("on_connection_error")
     async def on_tts_connection_error(service, error):

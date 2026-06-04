@@ -35,7 +35,11 @@ func (s *speechProxyService) StartConnection(ctx context.Context, connReq *req.S
 		ctx,
 		http.MethodPost,
 		fmt.Sprintf("%s/start", utils.GetEnv("SPEECH_SERVICE_URL", "")),
-		map[string]string{"Content-Type": "application/json"},
+		map[string]string{
+			"Content-Type": "application/json",
+			"Modal-Key":    utils.GetEnv("MODAL_TOKEN_KEY", ""),
+			"Modal-Secret": utils.GetEnv("MODAL_TOKEN_SECRET", ""),
+		},
 		connReq,
 	)
 	if appErr != nil {
@@ -64,7 +68,11 @@ func (s *speechProxyService) ProxyOffer(ctx context.Context, speechSessionID, me
 		ctx,
 		method,
 		fmt.Sprintf("%s/sessions/%s/api/offer", utils.GetEnv("SPEECH_SERVICE_URL", ""), speechSessionID),
-		map[string]string{"Content-Type": "application/json"},
+		map[string]string{
+			"Content-Type": "application/json",
+			"Modal-Key":    utils.GetEnv("MODAL_TOKEN_KEY", ""),
+			"Modal-Secret": utils.GetEnv("MODAL_TOKEN_SECRET", ""),
+		},
 		json.RawMessage(body),
 	)
 	if appErr != nil {

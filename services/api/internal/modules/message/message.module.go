@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func SetupModule(router *gin.RouterGroup, db *gorm.DB, authMiddlware gin.HandlerFunc) {
+func SetupModule(router *gin.RouterGroup, db *gorm.DB, authMiddlware gin.HandlerFunc, internalSecretMiddleware gin.HandlerFunc) {
 	messageRepo := repositories.NewMessageRepository(db)
 	sessionRepo := sessionrepos.NewSessionRepository(db)
 	messageService := services.NewMessageService(messageRepo, sessionRepo)
@@ -17,5 +17,5 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB, authMiddlware gin.Handler
 
 	msgGroup := router.Group("/sessions/:sessionId/messages")
 	msgGroup.GET("", authMiddlware, messageController.HandleListMessages)
-	msgGroup.POST("", messageController.HandleCreateMessages)
+	msgGroup.POST("", internalSecretMiddleware, messageController.HandleCreateMessages)
 }

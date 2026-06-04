@@ -107,6 +107,7 @@ func main() {
 		"5-M",
 	)
 	auth := middlewares.ClerkAuthMiddleware()
+	internalSecret := middlewares.InternalSecretMiddleware()
 
 	// Init Gin
 	router := gin.Default()
@@ -164,8 +165,8 @@ func main() {
 
 	// Register modules
 	httpClient := httpclient.NewHttpClient()
-	session.SetupModule(router.Group("/"), db, httpClient, auth, sessionLimiter)
-	message.SetupModule(router.Group("/"), db, auth)
+	session.SetupModule(router.Group("/"), db, httpClient, auth, sessionLimiter, internalSecret)
+	message.SetupModule(router.Group("/"), db, auth, internalSecret)
 
 	// Swagger
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

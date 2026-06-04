@@ -24,7 +24,7 @@ app = modal.App(APP_NAME, secrets=[modal.Secret.from_name(MODAL_SECRET_NAME)])
     scaledown_window=60
 )
 @modal.concurrent(max_inputs=3)
-@modal.asgi_app()
+@modal.asgi_app(requires_proxy_auth=True)
 def fastapi_app():
     import sys
     import os

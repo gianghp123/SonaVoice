@@ -1,3 +1,4 @@
+import os
 from typing import Any
 
 import aiohttp
@@ -21,9 +22,11 @@ class SessionService:
             "actual_usage": actual_usage,
         }
 
+        headers = {"X-Internal-Secret": os.getenv("INTERNAL_SECRET", "")}
+
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, timeout=10) as response:
+                async with session.post(url, json=payload, headers=headers, timeout=10) as response:
                     response.raise_for_status()
 
                     if response.content_length == 0:
