@@ -7,11 +7,14 @@ import {
   ItemHeader
 } from "@/components/ui/item"
 import { ConnectNow } from "@/features/landing/components/ConnectNow"
+import { useT } from "next-i18next/client"
 import { Show, SignInButton } from "@clerk/nextjs"
+import { Trans } from "react-i18next"
 
 const audioBars = [30, 60, 90, 70, 40, 80, 50]
 
 export function LandingHero() {
+  const { t } = useT('home')
   return (
     <section className="relative flex min-h-[calc(100vh-4rem)] flex-1 items-center justify-center overflow-hidden px-4 py-16">
       <div className="absolute inset-0 -z-10 bg-background" />
@@ -33,15 +36,15 @@ export function LandingHero() {
         <ItemHeader>
           <div className="w-full max-w-5xl mx-auto px-4 py-12 flex flex-col items-center justify-center text-center gap-6">
             <h1 className="text-4xl font-bold tracking-tight text-primary lg:text-5xl leading-[1.15]">
-              Real-time voice practice with{" "}
-              <span className="inline-block text-[#5c539b]">
-                Sona.
-              </span>
+              <Trans
+                t={t}
+                i18nKey="hero_title"
+                components={{ 1: <span className="inline-block text-[#5c539b]" /> }}
+              />
             </h1>
 
             <p className="max-w-2xl text-lg text-muted-foreground leading-relaxed">
-              Practice speaking naturally with real-time AI conversation
-              and instant voice feedback.
+              {t('hero_subtitle')}
             </p>
           </div>
         </ItemHeader>
@@ -71,11 +74,11 @@ export function LandingHero() {
           <Show when="signed-out">
             <div className="flex flex-col items-center gap-4">
               <p className="text-sm text-muted-foreground">
-                Please sign in to start a conversation.
+                {t('sign_in_prompt')}
               </p>
               <SignInButton>
                 <Button size="lg" className="rounded-xl px-8">
-                  Sign in to continue
+                  {t('sign_in_button')}
                 </Button>
               </SignInButton>
             </div>
