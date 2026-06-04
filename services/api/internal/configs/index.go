@@ -12,6 +12,7 @@ type Config struct {
 	Logger    LoggerConfig
 	Redis     RedisConfig
 	Sentry    SentryConfig
+	Server    ServerConfig
 }
 
 func Load() *Config {
@@ -26,5 +27,6 @@ func Load() *Config {
 		Logger:    loadLoggerConfig(),
 		Redis:     loadRedisConfig(),
 		Sentry:    loadSentryConfig(),
+		Server:    loadServerConfig(),
 	}
 }

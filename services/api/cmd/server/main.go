@@ -6,6 +6,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
+	"github.com/gin-contrib/cors"
 
 	"github.com/gianghp123/SonaVoice/api/internal/configs"
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
@@ -25,13 +26,6 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
-
-func getServerConfig() *configs.ServerConfig {
-	return &configs.ServerConfig{
-		Mode: utils.GetEnv("MODE", "debug"),
-		Port: utils.GetEnv("PORT", "8080"),
-	}
-}
 
 // @title           Session API
 // @version         1.0
@@ -74,8 +68,7 @@ func main() {
 	logger := zapLogger.S()
 
 	// Set gin mode
-	serverCfg := getServerConfig()
-	gin.SetMode(serverCfg.Mode)
+	gin.SetMode(cfg.Server.Mode)
 
 	// Connect database
 	db, err := gorm.Open(postgres.Open(cfg.Database.DatabaseUrl), &gorm.Config{})
@@ -118,6 +111,23 @@ func main() {
 	// Init Gin
 	router := gin.Default()
 
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = cfg.Server.AllowUrls
+	corsConfig.AllowHeaders = []string{
+		"Origin",
+		"Content-Type",
+		"Accept",
+		"Authorization",
+		// "X-Requested-With",
+		// "X-CSRF-Token",
+		// "svix-id",
+		// "svix-timestamp",
+		// "svix-signature",
+	}
+	corsConfig.AllowWebSockets = true
+
+	router.Use(cors.New(corsConfig))
+
 	// Sentry middleware - must be first to catch panics
 	if cfg.Sentry.Dsn != "" {
 		router.Use(sentrygin.New(sentrygin.Options{
@@ -144,11 +154,12 @@ func main() {
 	router.ForwardedByClientIP = true
 	router.Use(globalLimiter)
 
-	router.Use(gin.Recovery())
-	router.Use(gin.Logger())
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 
 	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
+		c.JSON(200, gin.H{"status": "/health ok"})
 	})
 
 	// Register modules
@@ -160,7 +171,7 @@ func main() {
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Server address
-	addr := fmt.Sprintf(":%s", serverCfg.Port)
+	addr := fmt.Sprintf(":%s", cfg.Server.Port)
 
 	logger.Infof("session server running on %s", addr)
 	logger.Infof("swagger running on %s/swagger/index.html", addr)

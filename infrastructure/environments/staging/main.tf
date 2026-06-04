@@ -58,11 +58,6 @@ locals {
   })
 
   web_env_vars = merge(var.sona_nextjs.environment_variables, {
-    API_URL = {
-      value     = "${module.vercel_api.project_url}/api/v1"
-      sensitive = false
-    }
-
     SENTRY_DSN = {
       value     = module.sentry["sona-nextjs"].dsn
       sensitive = true
@@ -90,6 +85,8 @@ module "vercel_api" {
   root_directory  = var.sona_go_api.root_directory
   default_regions = var.sona_go_api.default_regions
 
+  preview_deployments_disabled = var.sona_go_api.preview_deployments_disabled
+
   environment_variables = local.api_env_vars
   target                = var.vercel_target
 
@@ -107,6 +104,8 @@ module "vercel_web" {
   github_repo    = var.github_repo
   framework      = var.sona_nextjs.framework
   root_directory = var.sona_nextjs.root_directory
+
+  preview_deployments_disabled = var.sona_nextjs.preview_deployments_disabled
 
   environment_variables = local.web_env_vars
   target                = var.vercel_target

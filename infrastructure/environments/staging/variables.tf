@@ -52,6 +52,8 @@ variable "sona_nextjs" {
     root_directory = string
     ignore_command = optional(string)
 
+    preview_deployments_disabled = optional(bool, false)
+
     environment_variables = optional(map(object({
       value     = string
       sensitive = optional(bool, false)
@@ -66,6 +68,8 @@ variable "sona_go_api" {
     default_regions = list(string)
     ignore_command  = optional(string)
 
+    preview_deployments_disabled = optional(bool, false)
+
     environment_variables = optional(map(object({
       value     = string
       sensitive = optional(bool, false)
@@ -75,5 +79,5 @@ variable "sona_go_api" {
 
 variable "vercel_target" {
   type    = list(string)
-  default = ["production", "preview", "development"]
+  default = ["production"]
 }

@@ -43,3 +43,8 @@ variable "ignore_command" {
   type    = string
   default = null
 }
+
+variable "preview_deployments_disabled" {
+  type = bool
+  default = false
+}

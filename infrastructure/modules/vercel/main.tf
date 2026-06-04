@@ -12,6 +12,8 @@ resource "vercel_project" "this" {
     function_default_regions = var.default_regions
   } : null
 
+  preview_deployments_disabled = var.preview_deployments_disabled
+
   ignore_command = var.ignore_command != null ? var.ignore_command : null
 
   environment = [
