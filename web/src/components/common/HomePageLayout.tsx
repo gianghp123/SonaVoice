@@ -31,8 +31,18 @@ interface HomePageContentProps {
   breadcrumb?: React.ReactNode
 }
 
+const SUPPORTED_LANGS = ['en', 'vi']
+
+function stripLocalePrefix(pathname: string): string {
+  const segments = pathname.split('/')
+  if (segments[1] && SUPPORTED_LANGS.includes(segments[1])) {
+    return '/' + segments.slice(2).join('/')
+  }
+  return pathname
+}
+
 export function HomePageLayout({ sessions, children, breadcrumb }: HomePageContentProps) {
-  const pathname = usePathname()
+  const pathname = stripLocalePrefix(usePathname())
   const { t } = useT('common')
 
   return (
