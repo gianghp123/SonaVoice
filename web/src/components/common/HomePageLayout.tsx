@@ -24,21 +24,12 @@ import { Plus } from "lucide-react"
 import Link from "next/link"
 import { useT } from "next-i18next/client"
 import { usePathname } from "next/navigation"
+import { stripLocalePrefix } from "@/lib/utils/path"
 import { Separator } from "../ui/separator"
 interface HomePageContentProps {
   sessions: ISession[]
   children: React.ReactNode
   breadcrumb?: React.ReactNode
-}
-
-const SUPPORTED_LANGS = ['en', 'vi']
-
-function stripLocalePrefix(pathname: string): string {
-  const segments = pathname.split('/')
-  if (segments[1] && SUPPORTED_LANGS.includes(segments[1])) {
-    return '/' + segments.slice(2).join('/')
-  }
-  return pathname
 }
 
 export function HomePageLayout({ sessions, children, breadcrumb }: HomePageContentProps) {
