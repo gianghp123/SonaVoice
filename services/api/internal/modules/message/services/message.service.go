@@ -58,19 +58,8 @@ func (s *messageService) List(ctx context.Context, sessionID string, q req.Messa
 }
 
 func (s *messageService) Create(ctx context.Context, sessionID string, body *req.CreateMessagesReq) ([]*models.Message, *errors.AppError) {
-	userID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
-
 	if len(body.Messages) == 0 {
 		return nil, errors.BadRequest("messages must not be empty")
-	}
-
-	session, err := s.sessionRepo.Get(ctx, sessionID)
-	if err != nil {
-		return nil, errors.MapRepoError(err)
-	}
-
-	if appErr := utils.EnforceOwnership(session.UserID, userID); appErr != nil {
-		return nil, appErr
 	}
 
 	var messages []*models.Message

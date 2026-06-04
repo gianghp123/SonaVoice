@@ -10,6 +10,47 @@ from src.core.config import settings
 from src.agents.prompts import ENGLIST_TEACHER_SYSTEM_INSTRUCTION
 from src.agents.tools import summarize_conversation, summarize_function
 
+import re
+
+
+async def clean_for_tts(text: str, type: str) -> str:
+    if not text:
+        return ""
+
+    # Remove code blocks
+    text = re.sub(r"```[\s\S]*?```", " code omitted ", text)
+
+    # Remove inline code
+    text = re.sub(r"`([^`]*)`", r"\1", text)
+
+    # Markdown links: [text](url) -> text
+    text = re.sub(r"\[([^\]]+)\]\((.*?)\)", r"\1", text)
+
+    # Remove raw URLs
+    text = re.sub(r"https?://\S+", "", text)
+
+    # Remove markdown formatting
+    text = re.sub(r"[*_~>#|]", "", text)
+
+    # Speak-friendly replacements
+    replacements = {
+        "&": " and ",
+        "@": " at ",
+        "%": " percent ",
+        "$": " dollars ",
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+
+    # Remove excessive punctuation
+    text = re.sub(r"[!?]{2,}", ".", text)
+    text = re.sub(r"\.{3,}", ".", text)
+
+    # Normalize whitespace
+    text = re.sub(r"\s+", " ", text)
+
+    return text.strip()
+
 
 def _get_metrics():
     return SentryMetrics() if settings.SENTRY_DSN else None
@@ -46,14 +87,16 @@ def build_llm() -> OpenAILLMService:
 
 
 def build_tts() -> PiperTTSService:
-    return PiperTTSService(
+    tts = PiperTTSService(
         metrics=_get_metrics(),
         settings=PiperTTSService.Settings(
             voice="en_US-lessac-high",
         ),
         download_dir=settings.piper_models_dir,
     )
-
+    
+    tts.add_text_transformer(clean_for_tts, "*")
+    return tts
 
 def build_context() -> LLMContext:
     tools = ToolsSchema([summarize_function])

@@ -89,7 +89,7 @@ def register_event_handlers(
     async def on_user_turn_idle(aggregator):
         log.info("User idle")
         msg = {
-            "role": "developer",
+            "role": "system",
             "content": "The user is quiet. Ask if they are there.",
         }
         await aggregator.push_frame(LLMMessagesAppendFrame([msg], run_llm=True))

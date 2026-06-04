@@ -5,9 +5,16 @@ import { MessageBubble } from "../../../components/common/MessageBubble"
 import { MessageRole } from "@/lib/enums/message-role.enum"
 import { AnalysisCard } from "../../../components/common/AnalysisCard"
 import { HistoryHeader } from "./HistoryHeader"
+import { useEffect, useRef } from "react"
 
 export function HistoryPanelContent() {
   const { messages } = usePipecatConversation()
+  const bottomRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    })
+  }, [messages])
 
   return (
     <div className="px-5">
@@ -56,6 +63,7 @@ export function HistoryPanelContent() {
             </MessageBubble>
           )
         })}
+        <div ref={bottomRef} />
       </div>
     </div>
   )
