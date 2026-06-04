@@ -22,6 +22,7 @@ import type { ISession } from "@/lib/types/session.interface"
 import { Show } from "@clerk/nextjs"
 import { Plus } from "lucide-react"
 import Link from "next/link"
+import { useT } from "next-i18next/client"
 import { usePathname } from "next/navigation"
 import { Separator } from "../ui/separator"
 interface HomePageContentProps {
@@ -32,6 +33,7 @@ interface HomePageContentProps {
 
 export function HomePageLayout({ sessions, children, breadcrumb }: HomePageContentProps) {
   const pathname = usePathname()
+  const { t } = useT('common')
 
   return (
     <SidebarProvider>
@@ -49,13 +51,13 @@ export function HomePageLayout({ sessions, children, breadcrumb }: HomePageConte
                     className="justify-start px-2 font-normal"
                   >
                     <Plus className="size-4" />
-                    <span>New Session</span>
+                    <span>{t('new_session')}</span>
                   </ConnectNow>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
             <SidebarGroup>
-              <SidebarGroupLabel>Recently sessions</SidebarGroupLabel>
+              <SidebarGroupLabel>{t('recent_sessions')}</SidebarGroupLabel>
               <SidebarMenu>
                 {sessions.map((session) => (
                   <SidebarMenuItem key={session.id}>
@@ -74,7 +76,7 @@ export function HomePageLayout({ sessions, children, breadcrumb }: HomePageConte
                 {sessions.length === 0 && (
                   <SidebarMenuItem>
                     <p className="px-2 text-sm text-muted-foreground">
-                      No sessions yet
+                      {t('no_sessions')}
                     </p>
                   </SidebarMenuItem>
                 )}
