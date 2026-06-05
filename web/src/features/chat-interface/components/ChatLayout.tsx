@@ -97,7 +97,7 @@ export function ChatLayout({
       if (fatal) {
         setFatalError(text)
       }
-    }, [])
+    }, [t])
   )
 
   useEffect(() => {

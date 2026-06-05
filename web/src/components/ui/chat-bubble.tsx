@@ -8,14 +8,12 @@ import * as React from "react"
 
 interface ChatBubbleProps {
   variant?: "sent" | "received"
-  layout?: "default" | "ai"
   className?: string
   children: React.ReactNode
 }
 
 export function ChatBubble({
   variant = "received",
-  layout = "default",
   className,
   children,
 }: ChatBubbleProps) {

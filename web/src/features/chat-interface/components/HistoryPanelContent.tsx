@@ -23,7 +23,6 @@ export function HistoryPanelContent() {
         {messages.map((message, i) => {
           // function call
           if (message.role === "function_call" && message.functionCall) {
-            const args = (message.functionCall.args ?? {})
             return (
               <MessageBubble key={i} role={MessageRole.Analysis}>
                 <AnalysisCard

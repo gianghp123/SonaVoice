@@ -10,7 +10,7 @@ export async function upsertProfile(data: IUpsertProfileDto) {
   const result = await apiFetch<IUserProfile>(API_ROUTES.PROFILE.UPSERT, {
     method: "POST",
     withCredentials: true,
-    body: JSON.stringify(data),
+    body: data,
   })
 
   if (!result.error) {

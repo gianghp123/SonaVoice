@@ -100,14 +100,6 @@ func (s *userProfileService) Upsert(ctx context.Context, userID string, body *re
 			return err
 		}
 
-		saved, err := p.UserProfile().GetByUserID(ctx, userID)
-		if err != nil {
-			logger.Errorw("Failed to fetch saved profile", "userId", userID, "error", err)
-			sentry.CaptureException(err)
-			return err
-		}
-		savedProfile = saved
-
 		return nil
 	})
 

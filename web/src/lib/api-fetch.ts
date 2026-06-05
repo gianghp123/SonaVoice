@@ -1,16 +1,17 @@
-'use server'
+"use server"
 
 import { auth } from "@clerk/nextjs/server"
 import * as Sentry from "@sentry/nextjs"
 import "server-only"
 import type { BaseResponse, PaginatedMeta } from "./base-response"
-import { snakeToCamel } from "./case"
+import { camelToSnake, snakeToCamel } from "./case"
 
 type ApiFetchOptions = {
   baseUrl?: string
   withCredentials?: boolean
   query?: Record<string, unknown>
-} & RequestInit
+  body?: unknown
+} & Omit<RequestInit, "body">
 
 type ApiResponseShape<T> = {
   data?: T
@@ -21,11 +22,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
+function isBodyInit(value: unknown): value is BodyInit {
+  return (
+    typeof value === "string" ||
+    value instanceof FormData ||
+    value instanceof Blob ||
+    value instanceof ArrayBuffer ||
+    value instanceof URLSearchParams ||
+    value instanceof ReadableStream
+  )
+}
+
 function getErrorMessage(errorData: unknown): string {
   if (!isRecord(errorData)) return "Unknown error"
-
   const message = errorData.message
-
   if (typeof message === "string") return message
 
   const error = errorData.error
@@ -33,23 +43,37 @@ function getErrorMessage(errorData: unknown): string {
   if (isRecord(error) && typeof error.message === "string") {
     return error.message
   }
-
   return "Unknown error"
 }
 
 function getErrorCode(error: unknown): number {
   if (!isRecord(error)) return 500
-
   const code = error.code
 
   if (typeof code === "number") return code
-
   if (typeof code === "string") {
     const parsed = Number(code)
     return Number.isFinite(parsed) ? parsed : 500
   }
 
   return 500
+}
+
+function buildQueryString(query?: Record<string, unknown>) {
+  const searchParams = new URLSearchParams()
+
+  if (!query) return ""
+
+  Object.entries(query).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return
+    if (typeof value === "object") {
+      searchParams.append(key, JSON.stringify(camelToSnake(value)))
+    } else {
+      searchParams.append(key, String(value))
+    }
+  })
+
+  return searchParams.toString()
 }
 
 export async function apiFetch<T>(
@@ -63,6 +87,7 @@ export async function apiFetch<T>(
       withCredentials = false,
       baseUrl = process.env.API_URL,
       query,
+      body: inputBody,
       ...fetchOptions
     } = options || {}
 
@@ -84,6 +109,19 @@ export async function apiFetch<T>(
 
     headers.set("apikey", process.env.API_KEY || "")
 
+    let body: BodyInit | null | undefined
+
+    if (inputBody !== undefined && inputBody !== null) {
+      if (isBodyInit(inputBody)) {
+        body = inputBody
+      } else {
+        headers.set("Content-Type", "application/json")
+        body = JSON.stringify(camelToSnake(inputBody))
+      }
+    } else if (inputBody === null) {
+      body = null
+    }
+
     if (withCredentials) {
       const { getToken } = await auth()
       const token = await getToken()
@@ -99,27 +137,14 @@ export async function apiFetch<T>(
       }
     }
 
-    const searchParams = new URLSearchParams()
-
-    if (query) {
-      Object.entries(query).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === "") return
-
-        if (typeof value === "object") {
-          searchParams.append(key, JSON.stringify(value))
-        } else {
-          searchParams.append(key, String(value))
-        }
-      })
-    }
-
-    const queryString = searchParams.toString()
+    const queryString = buildQueryString(query)
     const fullUrl = `${baseUrl}${url}${queryString ? `?${queryString}` : ""}`
 
     const response = await fetch(fullUrl, {
-      method,
       ...fetchOptions,
+      method,
       headers,
+      body,
     })
 
     const durationMs = Date.now() - startedAt
