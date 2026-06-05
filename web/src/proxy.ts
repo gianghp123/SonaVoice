@@ -3,6 +3,7 @@ import { match as matchLocale } from "@formatjs/intl-localematcher"
 import Negotiator from "negotiator"
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
+
 import { FALLBACK_LANGUAGE, SUPPORTED_LANGUAGES } from "./lib/i18n/i18n"
 import { PAGE_ROUTES } from "./lib/routes"
 import { LOCALE_COOKIE } from "./lib/cookies/cookie.contants"
@@ -11,13 +12,9 @@ const locales: string[] = [...SUPPORTED_LANGUAGES]
 const defaultLocale = FALLBACK_LANGUAGE
 
 function getLocaleFromHeaders(request: NextRequest): string {
-  const headers: Record<string, string> = {}
-
-  request.headers.forEach((value, key) => {
-    headers[key] = value
-  })
-
+  const headers = Object.fromEntries(request.headers.entries())
   const languages = new Negotiator({ headers }).languages(locales)
+
   return matchLocale(languages, locales, defaultLocale)
 }
 
@@ -31,32 +28,23 @@ function getLocale(request: NextRequest): string {
   return getLocaleFromHeaders(request)
 }
 
-function splitLocale(pathname: string): {
-  pathLocale: string | null
-  pathnameWithoutLocale: string
-} {
+function stripLocale(pathname: string): string {
   const segments = pathname.split("/")
   const maybeLocale = segments[1]
 
   if (!locales.includes(maybeLocale)) {
-    return {
-      pathLocale: null,
-      pathnameWithoutLocale: pathname,
-    }
+    return pathname
   }
 
-  const rest = `/${segments.slice(2).join("/")}`
+  const pathWithoutLocale = `/${segments.slice(2).join("/")}`
 
-  return {
-    pathLocale: maybeLocale,
-    pathnameWithoutLocale: rest === "/" ? "/" : rest,
-  }
+  return pathWithoutLocale === "/" ? "/" : pathWithoutLocale
 }
 
-function withPublicLocale(locale: string, path: string): string {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`
+function withPublicLocale(locale: string, pathname: string): string {
+  const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`
 
-  if (locale === FALLBACK_LANGUAGE) {
+  if (locale === defaultLocale) {
     return normalizedPath
   }
 
@@ -75,37 +63,34 @@ function isProtectedPath(pathname: string): boolean {
 function redirectTo(req: NextRequest, pathname: string) {
   const url = req.nextUrl.clone()
   url.pathname = pathname
+
   return NextResponse.redirect(url)
+}
+
+function rewriteTo(req: NextRequest, pathname: string) {
+  const url = req.nextUrl.clone()
+  url.pathname = pathname
+
+  return NextResponse.rewrite(url)
 }
 
 export default clerkMiddleware(async (auth, req) => {
   const { isAuthenticated } = await auth()
 
-  const pathname = req.nextUrl.pathname
-  const preferredLocale = getLocale(req)
+  const locale = getLocale(req)
 
-  const { pathLocale, pathnameWithoutLocale } = splitLocale(pathname)
-
-  const effectiveLocale = pathLocale ?? preferredLocale
+  const pathnameWithoutLocale = stripLocale(req.nextUrl.pathname)
+  const canonicalPathname = withPublicLocale(locale, pathnameWithoutLocale)
 
   if (!isAuthenticated && isProtectedPath(pathnameWithoutLocale)) {
-    return redirectTo(req, withPublicLocale(effectiveLocale, PAGE_ROUTES.HOME))
+    return redirectTo(req, withPublicLocale(locale, PAGE_ROUTES.HOME))
   }
 
-  if (pathLocale) {
-    const canonicalPath = withPublicLocale(pathLocale, pathnameWithoutLocale)
-
-    if (pathname !== canonicalPath) {
-      return redirectTo(req, canonicalPath)
-    }
-
-    return NextResponse.next()
+  if (req.nextUrl.pathname !== canonicalPathname) {
+    return redirectTo(req, canonicalPathname)
   }
 
-  const url = req.nextUrl.clone()
-  url.pathname = `/${preferredLocale}${pathname === "/" ? "" : pathname}`
-
-  return NextResponse.rewrite(url)
+  return rewriteTo(req, `/${locale}${pathnameWithoutLocale === "/" ? "" : pathnameWithoutLocale}`)
 })
 
 export const config = {
