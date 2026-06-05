@@ -18,6 +18,7 @@ import { Loader2 } from "lucide-react"
 import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { toast } from "sonner"
+import { useT } from "next-i18next/client"
 import {
   ENGLISH_LEVELS,
   IMPROVEMENT_GOALS,
@@ -49,6 +50,7 @@ function mapProfileToFormValues(profile: IUserProfile): EditProfileFormValues {
 
 export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
   const [loading, setLoading] = useState(false)
+  const { t } = useT("onboarding")
 
   const form = useForm<EditProfileFormValues>({
     resolver: zodResolver(editProfileSchema),
@@ -78,14 +80,14 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
       const result = await updateProfile(data)
 
       if (result.error) {
-        toast.error(result.error.message || "Failed to update profile")
+        toast.error(t("failed_update_profile"))
         return
       }
 
-      toast.success("Profile updated!")
+      toast.success(t("profile_updated"))
       onSuccess?.()
     } catch {
-      toast.error("Something went wrong")
+      toast.error(t("something_went_wrong"))
     } finally {
       setLoading(false)
     }
@@ -100,12 +102,12 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="displayName">
-                What should we call you? *
+                {t("what_should_we_call_you")} *
               </FieldLabel>
               <Input
                 {...field}
                 id="displayName"
-                placeholder='e.g. "Giang"'
+                placeholder={t("display_name_placeholder")}
                 aria-invalid={fieldState.invalid}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -118,12 +120,12 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="nativeLanguage">
-                What is your native language?
+                {t("native_language")}
               </FieldLabel>
               <Input
                 {...field}
                 id="nativeLanguage"
-                placeholder='e.g. "Vietnamese"'
+                placeholder={t("native_language_placeholder")}
                 aria-invalid={fieldState.invalid}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -135,9 +137,9 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
           control={form.control}
           render={({ field, fieldState }) => (
             <FieldSet data-invalid={fieldState.invalid}>
-              <FieldLabel>What is your English level? *</FieldLabel>
+              <FieldLabel>{t("what_is_english_level")} *</FieldLabel>
               <FieldDescription>
-                This helps us adjust the difficulty of conversations.
+                {t("english_level_help")}
               </FieldDescription>
               <RadioGroup
                 name={field.name}
@@ -151,7 +153,7 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
                     htmlFor={`edit-english-level-${level.value}`}
                     className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer has-data-[state=checked]:border-foreground has-data-[state=checked]:bg-muted"
                   >
-                    <span className="flex-1">{level.label}</span>
+                    <span className="flex-1">{t(level.i18nKey)}</span>
                     <RadioGroupItem
                       value={level.value}
                       id={`edit-english-level-${level.value}`}
@@ -168,28 +170,28 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
           control={form.control}
           render={({ field, fieldState }) => (
             <FieldSet data-invalid={fieldState.invalid}>
-              <FieldLabel>What do you want to improve most?</FieldLabel>
-              <FieldDescription>Select all that apply.</FieldDescription>
+              <FieldLabel>{t("what_to_improve")}</FieldLabel>
+              <FieldDescription>{t("select_all_apply")}</FieldDescription>
               <FieldGroup className="grid grid-cols-2 gap-2">
                 {IMPROVEMENT_GOALS.map((goal) => (
                   <FieldLabel
-                    key={goal}
-                    htmlFor={`edit-goal-${goal}`}
+                    key={goal.value}
+                    htmlFor={`edit-goal-${goal.value}`}
                     className="flex items-center gap-2"
                   >
                     <Checkbox
-                      id={`edit-goal-${goal}`}
-                      checked={field.value?.includes(goal)}
+                      id={`edit-goal-${goal.value}`}
+                      checked={field.value?.includes(goal.value)}
                       onCheckedChange={(checked) => {
                         const current = field.value || []
                         if (checked) {
-                          field.onChange([...current, goal])
+                          field.onChange([...current, goal.value])
                         } else {
-                          field.onChange(current.filter((g) => g !== goal))
+                          field.onChange(current.filter((g) => g !== goal.value))
                         }
                       }}
                     />
-                    <span>{goal}</span>
+                    <span>{t(goal.i18nKey)}</span>
                   </FieldLabel>
                 ))}
               </FieldGroup>
@@ -202,28 +204,28 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
           control={form.control}
           render={({ field, fieldState }) => (
             <FieldSet data-invalid={fieldState.invalid}>
-              <FieldLabel>What topics do you enjoy talking about?</FieldLabel>
-              <FieldDescription>Select all that apply.</FieldDescription>
+              <FieldLabel>{t("what_topics_enjoy")}</FieldLabel>
+              <FieldDescription>{t("select_all_apply")}</FieldDescription>
               <FieldGroup className="grid grid-cols-2 gap-2">
                 {TOPICS.map((topic) => (
                   <FieldLabel
-                    key={topic}
-                    htmlFor={`edit-topic-${topic}`}
+                    key={topic.value}
+                    htmlFor={`edit-topic-${topic.value}`}
                     className="flex items-center gap-2"
                   >
                     <Checkbox
-                      id={`edit-topic-${topic}`}
-                      checked={field.value?.includes(topic)}
+                      id={`edit-topic-${topic.value}`}
+                      checked={field.value?.includes(topic.value)}
                       onCheckedChange={(checked) => {
                         const current = field.value || []
                         if (checked) {
-                          field.onChange([...current, topic])
+                          field.onChange([...current, topic.value])
                         } else {
-                          field.onChange(current.filter((t) => t !== topic))
+                          field.onChange(current.filter((t) => t !== topic.value))
                         }
                       }}
                     />
-                    <span>{topic}</span>
+                    <span>{t(topic.i18nKey)}</span>
                   </FieldLabel>
                 ))}
               </FieldGroup>
@@ -238,15 +240,15 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="edit-customTopics">
-                  What other topics?
+                  {t("what_other_topics")}
                 </FieldLabel>
                 <FieldDescription>
-                  Separate topics with commas.
+                  {t("separate_topics_commas")}
                 </FieldDescription>
                 <Input
                   {...field}
                   id="edit-customTopics"
-                  placeholder='e.g. "AI, blockchain, music"'
+                  placeholder={t("custom_topics_placeholder")}
                   aria-invalid={fieldState.invalid}
                 />
                 {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -259,28 +261,28 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
           control={form.control}
           render={({ field, fieldState }) => (
             <FieldSet data-invalid={fieldState.invalid}>
-              <FieldLabel>Why are you learning English?</FieldLabel>
-              <FieldDescription>Select all that apply.</FieldDescription>
+              <FieldLabel>{t("why_learning_english")}</FieldLabel>
+              <FieldDescription>{t("select_all_apply")}</FieldDescription>
               <FieldGroup className="grid grid-cols-2 gap-2">
                 {LEARNING_REASONS.map((reason) => (
                   <FieldLabel
-                    key={reason}
-                    htmlFor={`edit-reason-${reason}`}
+                    key={reason.value}
+                    htmlFor={`edit-reason-${reason.value}`}
                     className="flex items-center gap-2"
                   >
                     <Checkbox
-                      id={`edit-reason-${reason}`}
-                      checked={field.value?.includes(reason)}
+                      id={`edit-reason-${reason.value}`}
+                      checked={field.value?.includes(reason.value)}
                       onCheckedChange={(checked) => {
                         const current = field.value || []
                         if (checked) {
-                          field.onChange([...current, reason])
+                          field.onChange([...current, reason.value])
                         } else {
-                          field.onChange(current.filter((r) => r !== reason))
+                          field.onChange(current.filter((r) => r !== reason.value))
                         }
                       }}
                     />
-                    <span>{reason}</span>
+                    <span>{t(reason.i18nKey)}</span>
                   </FieldLabel>
                 ))}
               </FieldGroup>
@@ -295,15 +297,15 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="edit-customLearningReason">
-                  What other reasons?
+                  {t("what_other_reasons")}
                 </FieldLabel>
                 <FieldDescription>
-                  Separate reasons with commas.
+                  {t("separate_reasons_commas")}
                 </FieldDescription>
                 <Textarea
                   {...field}
                   id="edit-customLearningReason"
-                  placeholder='e.g. "For remote work, for travel"'
+                  placeholder={t("custom_reasons_placeholder")}
                   aria-invalid={fieldState.invalid}
                   className="min-h-20"
                 />
@@ -315,7 +317,7 @@ export function EditProfileForm({ profile, onSuccess }: EditProfileFormProps) {
       </FieldGroup>
       <Button type="submit" disabled={loading} className="w-full rounded-xl py-5">
         {loading && <Loader2 className="size-4 animate-spin mr-2" />}
-        Save
+        {t("save")}
       </Button>
     </form>
   )

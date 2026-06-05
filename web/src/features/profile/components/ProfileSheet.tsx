@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sheet"
 import { EditProfileForm } from "@/features/profile/components/EditProfileForm"
 import type { IUserProfile } from "@/lib/types/user-profile.interface"
+import { useT } from "next-i18next/client"
 
 interface ProfileSheetProps {
   open: boolean
@@ -17,13 +18,15 @@ interface ProfileSheetProps {
 }
 
 export function ProfileSheet({ open, onOpenChange, profile }: ProfileSheetProps) {
+  const { t } = useT("onboarding")
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Edit Profile</SheetTitle>
+          <SheetTitle>{t("edit_profile")}</SheetTitle>
           <SheetDescription>
-            Update your learning preferences.
+            {t("update_preferences")}
           </SheetDescription>
         </SheetHeader>
         <div className="px-4 pb-4">
