@@ -1,6 +1,7 @@
 "use client"
 
 import { MessageBubble } from "@/components/common/MessageBubble"
+import { useT } from "next-i18next/client"
 import type { IMessage } from "@/lib/types/message.interface"
 
 interface SessionMessageListProps {
@@ -8,10 +9,11 @@ interface SessionMessageListProps {
 }
 
 export function SessionMessageList({ messages }: SessionMessageListProps) {
+  const { t } = useT('session')
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">No messages in this session</p>
+        <p className="text-sm text-muted-foreground">{t('no_messages')}</p>
       </div>
     )
   }

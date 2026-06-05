@@ -18,9 +18,13 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
 
-export const metadata: Metadata = {
-  title: "Sona Voice",
-  description: "Real-time voice practice with AI",
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT('common')
+
+  return {
+    title: t('site_title'),
+    description: t('site_description'),
+  }
 }
 
 export async function generateStaticParams() {

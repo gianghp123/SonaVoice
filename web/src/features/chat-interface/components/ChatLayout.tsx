@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/sidebar"
 import { HistoryPanelContent } from "@/features/chat-interface/components/HistoryPanelContent"
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
+import { useT } from "next-i18next/client"
 import { RTVIEvent, RTVIMessage } from "@pipecat-ai/client-js"
 import { useRTVIClientEvent } from "@pipecat-ai/client-react"
 import * as Sentry from "@sentry/nextjs"
@@ -59,6 +60,7 @@ export function ChatLayout({
   handleError: () => void | Promise<void>
   initialError?: string | null
 }) {
+  const { t } = useT('chat')
   const [fatalError, setFatalError] = useState<string | null>(
     initialError ?? null
   )
@@ -88,7 +90,7 @@ export function ChatLayout({
         })
       }
 
-      toast.error("An error occurred: " + text, {
+      toast.error(t('an_error_occurred', { text }), {
         duration: 10000,
       })
 
@@ -128,15 +130,15 @@ export function ChatLayout({
               onEscapeKeyDown={(event) => event.preventDefault()}
             >
               <AlertDialogHeader>
-                <AlertDialogTitle>Session ended</AlertDialogTitle>
+                <AlertDialogTitle>{t('session_ended')}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  {fatalError || "The bot runtime stopped unexpectedly."}
+                  {fatalError || t('bot_stopped')}
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
               <AlertDialogFooter>
                 <AlertDialogAction onClick={handleError}>
-                  Return home
+                  {t('return_home')}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

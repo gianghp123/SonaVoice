@@ -1,7 +1,10 @@
+"use client"
+
 import * as React from "react"
 import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { useT } from "next-i18next/client"
 import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
@@ -93,6 +96,7 @@ function BreadcrumbEllipsis({
   className,
   ...props
 }: React.ComponentProps<"span">) {
+  const { t } = useT('common')
   return (
     <span
       data-slot="breadcrumb-ellipsis"
@@ -106,7 +110,7 @@ function BreadcrumbEllipsis({
     >
       <MoreHorizontalIcon
       />
-      <span className="sr-only">More</span>
+      <span className="sr-only">{t('more')}</span>
     </span>
   )
 }

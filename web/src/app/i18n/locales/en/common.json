@@ -5,5 +5,15 @@
   "connect_now": "Connect Now",
   "failed_create_session": "Failed to create session",
   "something_wrong": "Something went wrong. Please try again or contact support.",
-  "language": "Language"
+  "language": "Language",
+  "sidebar": "Sidebar",
+  "displays_mobile_sidebar": "Displays the mobile sidebar.",
+  "toggle_sidebar": "Toggle Sidebar",
+  "close": "Close",
+  "more": "More",
+  "get_responses_tailored": "Get responses tailored to you",
+  "login_description": "Log in to get answers based on saved chats",
+  "login": "Log in",
+  "site_title": "Sona Voice",
+  "site_description": "Real-time voice practice with AI"
 }

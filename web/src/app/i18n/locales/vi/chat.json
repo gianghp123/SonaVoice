@@ -1,0 +1,16 @@
+{
+  "an_error_occurred": "Đã xảy ra lỗi: {{text}}",
+  "session_ended": "Phiên đã kết thúc",
+  "bot_stopped": "Bot đã dừng bất ngờ.",
+  "return_home": "Về trang chủ",
+  "mic_muted": "Mic đã tắt",
+  "unmute": "Bật mic",
+  "session_via": "Phiên qua {{transportType}}",
+  "session": "Phiên",
+  "history": "Lịch sử",
+  "analysis": "PHÂN TÍCH",
+  "sona": "SONA",
+  "interrupted": "Đã ngắt",
+  "suggestions": "Gợi ý",
+  "pronunciation": "Phát âm"
+}

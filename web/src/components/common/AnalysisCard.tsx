@@ -1,3 +1,6 @@
+"use client"
+
+import { useT } from "next-i18next/client"
 import { Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -22,13 +25,14 @@ export function AnalysisCard({
   suggestions,
   pronunciation,
 }: AnalysisCardProps) {
+  const { t } = useT('chat')
   return (
     <Card className="border-secondary shadow-sm">
       <CardContent className="flex flex-col gap-4">
         {suggestions && (
           <div className="flex flex-col gap-2">
             <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-              Suggestions
+              {t('suggestions')}
             </span>
             <div className="flex flex-wrap items-center gap-1 rounded-md border border-secondary/50 bg-muted p-2 text-sm">
               {suggestions.hint && (
@@ -47,7 +51,7 @@ export function AnalysisCard({
         {pronunciation && (
           <div className="flex flex-col gap-2">
             <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-              Pronunciation
+              {t('pronunciation')}
             </span>
             <div className="flex items-center justify-between rounded-md border border-secondary/50 bg-muted p-2">
               <div className="flex items-center gap-2">

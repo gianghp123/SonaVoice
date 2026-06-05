@@ -1,0 +1,16 @@
+{
+  "an_error_occurred": "An error occurred: {{text}}",
+  "session_ended": "Session ended",
+  "bot_stopped": "The bot runtime stopped unexpectedly.",
+  "return_home": "Return home",
+  "mic_muted": "Mic Muted",
+  "unmute": "Unmute",
+  "session_via": "Session via {{transportType}}",
+  "session": "Session",
+  "history": "History",
+  "analysis": "ANALYSIS",
+  "sona": "SONA",
+  "interrupted": "Interrupted",
+  "suggestions": "Suggestions",
+  "pronunciation": "Pronunciation"
+}

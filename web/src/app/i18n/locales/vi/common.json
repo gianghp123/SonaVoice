@@ -5,5 +5,15 @@
   "connect_now": "Kết nối ngay",
   "failed_create_session": "Không thể tạo phiên",
   "something_wrong": "Đã xảy ra lỗi. Vui lòng thử lại hoặc liên hệ hỗ trợ.",
-  "language": "Ngôn ngữ"
+  "language": "Ngôn ngữ",
+  "sidebar": "Thanh bên",
+  "displays_mobile_sidebar": "Hiển thị thanh bên trên di động.",
+  "toggle_sidebar": "Chuyển đổi thanh bên",
+  "close": "Đóng",
+  "more": "Thêm",
+  "get_responses_tailored": "Nhận phản hồi phù hợp với bạn",
+  "login_description": "Đăng nhập để nhận câu trả lời dựa trên các cuộc trò chuyện đã lưu",
+  "login": "Đăng nhập",
+  "site_title": "Sona Voice",
+  "site_description": "Luyện nói thời gian thực với AI"
 }

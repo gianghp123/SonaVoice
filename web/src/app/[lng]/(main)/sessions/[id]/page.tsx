@@ -12,6 +12,7 @@ import { getMessages } from "@/features/session-history/services/messages.get"
 import { getSessions } from "@/features/session-history/services/session.get"
 import { SessionMessageList } from "@/features/session-history/components/SessionMessageList"
 import { PAGE_ROUTES } from "@/lib/routes"
+import { getT } from "next-i18next/server"
 import Link from "next/link"
 
 export default async function SessionPage({
@@ -20,6 +21,7 @@ export default async function SessionPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const { t } = await getT('session')
   const [sessionRes, messagesRes] = await Promise.all([
     getSessions(),
     getMessages(id),
@@ -33,23 +35,23 @@ export default async function SessionPage({
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={PAGE_ROUTES.HOME}>Home</Link>
+                <Link href={PAGE_ROUTES.HOME}>{t('home')}</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>Session</BreadcrumbPage>
+              <BreadcrumbPage>{t('session')}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
         <div className="flex flex-1 items-center justify-center p-8">
           <Card className="max-w-md w-full">
             <CardHeader>
-              <CardTitle>Error</CardTitle>
+              <CardTitle>{t('error')}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                {messagesRes.error.message || "Failed to load messages"}
+                {messagesRes.error.message || t('failed_to_load_messages')}
               </p>
             </CardContent>
           </Card>
@@ -63,13 +65,13 @@ export default async function SessionPage({
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href={PAGE_ROUTES.HOME}>Home</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Session History</BreadcrumbPage>
+              <BreadcrumbLink asChild>
+                <Link href={PAGE_ROUTES.HOME}>{t('home')}</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{t('session_history')}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
