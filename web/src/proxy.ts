@@ -7,6 +7,7 @@ import { NextResponse } from "next/server"
 import { FALLBACK_LANGUAGE, SUPPORTED_LANGUAGES } from "./lib/i18n/i18n"
 import { PAGE_ROUTES } from "./lib/routes"
 import { LOCALE_COOKIE } from "./lib/cookies/cookie.contants"
+import { stripLocalePrefix } from "./lib/utils/path"
 
 const locales: string[] = [...SUPPORTED_LANGUAGES]
 const defaultLocale = FALLBACK_LANGUAGE
@@ -28,18 +29,6 @@ function getLocale(request: NextRequest): string {
   return getLocaleFromHeaders(request)
 }
 
-function stripLocale(pathname: string): string {
-  const segments = pathname.split("/")
-  const maybeLocale = segments[1]
-
-  if (!locales.includes(maybeLocale)) {
-    return pathname
-  }
-
-  const pathWithoutLocale = `/${segments.slice(2).join("/")}`
-
-  return pathWithoutLocale === "/" ? "/" : pathWithoutLocale
-}
 
 function withPublicLocale(locale: string, pathname: string): string {
   const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`
@@ -79,7 +68,7 @@ export default clerkMiddleware(async (auth, req) => {
 
   const locale = getLocale(req)
 
-  const pathnameWithoutLocale = stripLocale(req.nextUrl.pathname)
+  const pathnameWithoutLocale = stripLocalePrefix(req.nextUrl.pathname)
   const canonicalPathname = withPublicLocale(locale, pathnameWithoutLocale)
 
   if (!isAuthenticated && isProtectedPath(pathnameWithoutLocale)) {
