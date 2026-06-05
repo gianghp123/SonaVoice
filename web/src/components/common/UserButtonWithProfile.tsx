@@ -5,6 +5,7 @@ import { useState } from "react"
 import { ProfileSheet } from "@/features/profile/components/ProfileSheet"
 import type { IUserProfile } from "@/lib/types/user-profile.interface"
 import { UserIcon } from "lucide-react"
+import { useT } from "next-i18next/client"
 
 interface UserButtonWithProfileProps {
   profile: IUserProfile | null
@@ -12,13 +13,14 @@ interface UserButtonWithProfileProps {
 
 export function UserButtonWithProfile({ profile }: UserButtonWithProfileProps) {
   const [open, setOpen] = useState(false)
+  const { t } = useT("common")
 
   return (
     <>
       <UserButton>
         <UserButton.MenuItems>
           <UserButton.Action
-            label="Edit Profile"
+            label={t("edit_profile")}
             labelIcon={<UserIcon className="size-4" />}
             onClick={() => setOpen(true)}
           />

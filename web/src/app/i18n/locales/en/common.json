@@ -15,5 +15,6 @@
   "login_description": "Log in to get answers based on saved chats",
   "login": "Log in",
   "site_title": "Sona Voice",
-  "site_description": "Real-time voice practice with AI"
+  "site_description": "Real-time voice practice with AI",
+  "edit_profile": "Edit Profile"
 }
