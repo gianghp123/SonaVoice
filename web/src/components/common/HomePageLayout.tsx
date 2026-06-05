@@ -1,7 +1,6 @@
 "use client"
 
 import { Logo } from "@/components/common/Logo"
-import { SidebarFooterUI } from "@/components/common/SidebarFooter"
 import {
   Sidebar,
   SidebarContent,
@@ -31,9 +30,10 @@ interface HomePageContentProps {
   sessions: ISession[]
   children: React.ReactNode
   breadcrumb?: React.ReactNode
+  sidebarFooter?: React.ReactNode
 }
 
-export function HomePageLayout({ sessions, children, breadcrumb }: HomePageContentProps) {
+export function HomePageLayout({ sessions, children, breadcrumb, sidebarFooter }: HomePageContentProps) {
   const pathname = stripLocalePrefix(usePathname())
   const { t } = useT('common')
 
@@ -87,7 +87,7 @@ export function HomePageLayout({ sessions, children, breadcrumb }: HomePageConte
           </Show>
         </SidebarContent>
         <SidebarFooter>
-          <SidebarFooterUI />
+          {sidebarFooter}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>

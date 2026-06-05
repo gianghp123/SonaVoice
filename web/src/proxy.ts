@@ -71,6 +71,19 @@ export default clerkMiddleware(async (auth, req) => {
   const pathnameWithoutLocale = stripLocalePrefix(req.nextUrl.pathname)
   const canonicalPathname = withPublicLocale(locale, pathnameWithoutLocale)
 
+  if (isAuthenticated) {
+    const { sessionClaims } = await auth()
+    const publicMetadata = sessionClaims?.metadata
+    const onboardingCompleted = publicMetadata?.onboardingCompleted ?? false
+
+    if (onboardingCompleted !== true) {
+      const isOnboardingPath = pathnameWithoutLocale === "/onboarding" || pathnameWithoutLocale.startsWith("/onboarding/")
+      if (!isOnboardingPath) {
+        return redirectTo(req, withPublicLocale(locale, "/onboarding"))
+      }
+    }
+  }
+
   if (!isAuthenticated && isProtectedPath(pathnameWithoutLocale)) {
     return redirectTo(req, withPublicLocale(locale, PAGE_ROUTES.HOME))
   }

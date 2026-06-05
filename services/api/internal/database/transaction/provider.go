@@ -6,6 +6,7 @@ import (
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	messagerepo "github.com/gianghp123/SonaVoice/api/internal/modules/message/repositories"
 	sessionrepo "github.com/gianghp123/SonaVoice/api/internal/modules/session/repositories"
+	userprofilerepo "github.com/gianghp123/SonaVoice/api/internal/modules/user_profile/repositories"
 )
 
 type IProvider interface {
@@ -13,6 +14,7 @@ type IProvider interface {
 	Session() repository_interfaces.ISessionRepository
 	UserQuota() repository_interfaces.IUserQuotaRepository
 	Message() repository_interfaces.IMessageRepository
+	UserProfile() repository_interfaces.IUserProfileRepository
 }
 
 type gormProvider struct {
@@ -21,6 +23,7 @@ type gormProvider struct {
 	sessionRepo      repository_interfaces.ISessionRepository
 	userQuotaRepo    repository_interfaces.IUserQuotaRepository
 	messageRepo      repository_interfaces.IMessageRepository
+	userProfileRepo  repository_interfaces.IUserProfileRepository
 }
 
 func NewGormProvider(tx *gorm.DB) IProvider {
@@ -55,4 +58,11 @@ func (p *gormProvider) Message() repository_interfaces.IMessageRepository {
 		p.messageRepo = messagerepo.NewMessageRepository(p.tx)
 	}
 	return p.messageRepo
+}
+
+func (p *gormProvider) UserProfile() repository_interfaces.IUserProfileRepository {
+	if p.userProfileRepo == nil {
+		p.userProfileRepo = userprofilerepo.NewUserProfileRepository(p.tx)
+	}
+	return p.userProfileRepo
 }

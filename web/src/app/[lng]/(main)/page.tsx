@@ -1,5 +1,6 @@
 import { getSessions } from "@/features/session-history/services/session.get"
 import { HomePageLayout } from "@/components/common/HomePageLayout"
+import { SidebarFooter } from "@/components/common/SidebarFooterWrapper"
 import { LandingHero } from "@/features/landing/components/LandingHero"
 
 export default async function HomePage(props: {
@@ -13,7 +14,7 @@ export default async function HomePage(props: {
   const sessions = res.data ?? []
 
   return (
-    <HomePageLayout sessions={sessions}>
+    <HomePageLayout sessions={sessions} sidebarFooter={<SidebarFooter />}>
       <LandingHero />
     </HomePageLayout>
   )

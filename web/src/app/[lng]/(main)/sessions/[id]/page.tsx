@@ -1,4 +1,5 @@
 import { HomePageLayout } from "@/components/common/HomePageLayout"
+import { SidebarFooter } from "@/components/common/SidebarFooterWrapper"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -30,7 +31,7 @@ export default async function SessionPage({
 
   if (messagesRes.error) {
     return (
-      <HomePageLayout sessions={sessions}>
+      <HomePageLayout sessions={sessions} sidebarFooter={<SidebarFooter />}>
         <Breadcrumb className="px-8 pt-4">
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -61,7 +62,7 @@ export default async function SessionPage({
   }
 
   return (
-    <HomePageLayout sessions={sessions} breadcrumb={
+    <HomePageLayout sessions={sessions} sidebarFooter={<SidebarFooter />} breadcrumb={
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
