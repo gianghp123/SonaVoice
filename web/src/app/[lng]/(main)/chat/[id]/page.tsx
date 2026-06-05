@@ -1,7 +1,7 @@
 "use client"
 
 import { LoadingScreen } from "@/components/common/LoadingScreen"
-import { ChatLayout } from "@/features/chat-interface/components/ChatLayout"
+import { ChatInterface } from "@/features/chat-interface/components/ChatInterface"
 import { cancelSession } from "@/features/session-history/services/session.actions"
 import { PROXY_ROUTES } from "@/lib/routes"
 import { PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
@@ -77,7 +77,7 @@ export default function ChatPage() {
         }
 
         return (
-          <ChatLayout
+          <ChatInterface
             maxDuration={maxDuration}
             handleError={handleSessionError}
             handleDisconnect={handleSessionDisconnect}

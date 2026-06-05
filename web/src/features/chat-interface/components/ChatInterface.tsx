@@ -1,6 +1,5 @@
 'use client'
 
-import { SidebarFooterUI } from "@/components/common/SidebarFooter"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,18 +13,17 @@ import { Button } from "@/components/ui/button"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarInset,
   SidebarProvider,
-  useSidebar,
+  useSidebar
 } from "@/components/ui/sidebar"
 import { HistoryPanelContent } from "@/features/chat-interface/components/HistoryPanelContent"
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
-import { useT } from "next-i18next/client"
 import { RTVIEvent, RTVIMessage } from "@pipecat-ai/client-js"
 import { useRTVIClientEvent } from "@pipecat-ai/client-react"
 import * as Sentry from "@sentry/nextjs"
 import { PanelRight } from "lucide-react"
+import { useT } from "next-i18next/client"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -49,7 +47,7 @@ type RTVIErrorData = {
   fatal?: boolean
 }
 
-export function ChatLayout({
+export function ChatInterface({
   maxDuration,
   handleDisconnect,
   handleError,
@@ -150,9 +148,6 @@ export function ChatLayout({
         <SidebarContent>
           <HistoryPanelContent />
         </SidebarContent>
-        <SidebarFooter className="border-t-[0.5px]">
-          <SidebarFooterUI />
-        </SidebarFooter>
       </Sidebar>
     </SidebarProvider>
   )
