@@ -18,10 +18,10 @@ import Link from "next/link"
 export default async function SessionPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ lng: string; id: string }>
 }) {
-  const { id } = await params
-  const { t } = await getT('session')
+  const { id, lng } = await params
+  const { t } = await getT('session', { lng })
   const [sessionRes, messagesRes] = await Promise.all([
     getSessions(),
     getMessages(id),

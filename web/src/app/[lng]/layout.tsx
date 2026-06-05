@@ -18,8 +18,9 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
 
-export async function generateMetadata(): Promise<Metadata> {
-  const { t } = await getT('common')
+export async function generateMetadata({ params }: { params: Promise<{ lng: string }> }): Promise<Metadata> {
+  const { lng } = await params
+  const { t } = await getT('common', { lng })
 
   return {
     title: t('site_title'),
@@ -39,7 +40,7 @@ export default async function RootLayout({
   params: Promise<{ lng: string }>
 }) {
   const { lng } = await params
-  const { i18n } = await getT()
+  const { i18n } = await getT(undefined, { lng })
   const resources = getResources(i18n)
 
   return (
