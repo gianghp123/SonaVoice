@@ -18,7 +18,8 @@ import (
 
 type IUserProfileService interface {
 	GetByUserID(ctx context.Context, userID string) (*models.UserProfile, *errors.AppError)
-	Upsert(ctx context.Context, userID string, body *req.UpsertProfileReq) (*models.UserProfile, *errors.AppError)
+	Onboard(ctx context.Context, userID string, body *req.UpsertProfileReq) *errors.AppError
+	Update(ctx context.Context, userID string, body *req.UpdateProfileReq) *errors.AppError
 }
 
 type userProfileService struct {
@@ -49,7 +50,7 @@ func (s *userProfileService) GetByUserID(ctx context.Context, userID string) (*m
 	return profile, nil
 }
 
-func (s *userProfileService) Upsert(ctx context.Context, userID string, body *req.UpsertProfileReq) (*models.UserProfile, *errors.AppError) {
+func (s *userProfileService) Onboard(ctx context.Context, userID string, body *req.UpsertProfileReq) *errors.AppError {
 	logger := zapLogger.S()
 
 	preferences := map[string]interface{}{
@@ -65,7 +66,7 @@ func (s *userProfileService) Upsert(ctx context.Context, userID string, body *re
 	if err != nil {
 		logger.Errorw("Failed to marshal preferences", "userId", userID, "error", err)
 		sentry.CaptureException(err)
-		return nil, errors.Internal("failed to marshal preferences")
+		return errors.Internal("failed to marshal preferences")
 	}
 
 	profile := &models.UserProfile{
@@ -75,8 +76,6 @@ func (s *userProfileService) Upsert(ctx context.Context, userID string, body *re
 		Preferences:  datatypes.JSON(prefsJSON),
 	}
 
-	var savedProfile *models.UserProfile
-
 	err = s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
 		if err := p.UserProfile().Upsert(ctx, profile); err != nil {
 			logger.Errorw("Failed to upsert profile in DB", "userId", userID, "error", err)
@@ -85,8 +84,8 @@ func (s *userProfileService) Upsert(ctx context.Context, userID string, body *re
 		}
 
 		metadata := map[string]interface{}{
-			"onboarding_completed": true,
-			"role":                 enums.UserRoleUser,
+			"onboardingCompleted": true,
+			"role":                enums.UserRoleUser,
 		}
 		metadataJSON, _ := json.Marshal(metadata)
 		rawMetadata := json.RawMessage(metadataJSON)
@@ -106,8 +105,67 @@ func (s *userProfileService) Upsert(ctx context.Context, userID string, body *re
 	if err != nil {
 		logger.Errorw("Failed to upsert user profile", "userId", userID, "error", err)
 		sentry.CaptureException(err)
-		return nil, errors.Internal("failed to upsert user profile")
+		return errors.Internal("failed to upsert user profile")
 	}
 
-	return savedProfile, nil
+	return nil
+}
+
+func (s *userProfileService) Update(ctx context.Context, userID string, body *req.UpdateProfileReq) *errors.AppError {
+	logger := zapLogger.S()
+
+	existing, err := s.profileRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		logger.Errorw("Failed to get user profile for update", "userId", userID, "error", err)
+		sentry.CaptureException(err)
+		return errors.MapRepoError(err)
+	}
+
+	if body.DisplayName != nil {
+		existing.DisplayName = *body.DisplayName
+	}
+	if body.EnglishLevel != nil {
+		existing.EnglishLevel = *body.EnglishLevel
+	}
+
+	var prefs map[string]interface{}
+	if err := json.Unmarshal(existing.Preferences, &prefs); err != nil {
+		prefs = map[string]interface{}{}
+	}
+
+	if body.NativeLanguage != nil {
+		prefs["native_language"] = *body.NativeLanguage
+	}
+	if body.ImprovementGoals != nil {
+		prefs["improvement_goals"] = *body.ImprovementGoals
+	}
+	if body.Topics != nil {
+		prefs["topics"] = *body.Topics
+	}
+	if body.CustomTopics != nil {
+		prefs["custom_topics"] = *body.CustomTopics
+	}
+	if body.LearningReason != nil {
+		prefs["learning_reason"] = *body.LearningReason
+	}
+	if body.CustomLearningReason != nil {
+		prefs["custom_learning_reason"] = *body.CustomLearningReason
+	}
+
+	prefsJSON, err := json.Marshal(prefs)
+	if err != nil {
+		logger.Errorw("Failed to marshal preferences", "userId", userID, "error", err)
+		sentry.CaptureException(err)
+		return errors.Internal("failed to marshal preferences")
+	}
+
+	existing.Preferences = datatypes.JSON(prefsJSON)
+
+	if err := s.profileRepo.Upsert(ctx, existing); err != nil {
+		logger.Errorw("Failed to update user profile", "userId", userID, "error", err)
+		sentry.CaptureException(err)
+		return errors.Internal("failed to update user profile")
+	}
+
+	return nil
 }

@@ -4,10 +4,10 @@ import Negotiator from "negotiator"
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 
+import { LOCALE_COOKIE } from "./lib/cookies/cookie.contants"
 import { FALLBACK_LANGUAGE, SUPPORTED_LANGUAGES } from "./lib/i18n/i18n"
 import { PAGE_ROUTES } from "./lib/routes"
-import { LOCALE_COOKIE } from "./lib/cookies/cookie.contants"
-import { stripLocalePrefix } from "./lib/utils/path"
+import { getLocaleFromPathname, stripLocalePrefix } from "./lib/utils/path"
 
 const locales: string[] = [...SUPPORTED_LANGUAGES]
 const defaultLocale = FALLBACK_LANGUAGE
@@ -64,23 +64,32 @@ function rewriteTo(req: NextRequest, pathname: string) {
 }
 
 export default clerkMiddleware(async (auth, req) => {
-  const { isAuthenticated } = await auth()
+  const { isAuthenticated, sessionClaims } = await auth()
 
-  const locale = getLocale(req)
+  const locale =
+    getLocaleFromPathname(req.nextUrl.pathname) ?? getLocale(req)
 
   const pathnameWithoutLocale = stripLocalePrefix(req.nextUrl.pathname)
   const canonicalPathname = withPublicLocale(locale, pathnameWithoutLocale)
 
-  if (isAuthenticated) {
-    const { sessionClaims } = await auth()
-    const publicMetadata = sessionClaims?.metadata
-    const onboardingCompleted = publicMetadata?.onboardingCompleted ?? false
+  // 1. Normalize locale URL first
+  if (req.nextUrl.pathname !== canonicalPathname) {
+    return redirectTo(req, canonicalPathname)
+  }
 
-    if (onboardingCompleted !== true) {
-      const isOnboardingPath = pathnameWithoutLocale === "/onboarding" || pathnameWithoutLocale.startsWith("/onboarding/")
-      if (!isOnboardingPath) {
-        return redirectTo(req, withPublicLocale(locale, "/onboarding"))
-      }
+  // 2. Auth/onboarding guard
+  if (isAuthenticated) {
+    const publicMetadata = sessionClaims?.metadata
+
+    const onboardingCompleted =
+      publicMetadata?.onboardingCompleted === true
+
+    const isOnboardingPath =
+      pathnameWithoutLocale === "/onboarding" ||
+      pathnameWithoutLocale.startsWith("/onboarding/")
+
+    if (!onboardingCompleted && !isOnboardingPath) {
+      return redirectTo(req, withPublicLocale(locale, "/onboarding"))
     }
   }
 
@@ -88,13 +97,12 @@ export default clerkMiddleware(async (auth, req) => {
     return redirectTo(req, withPublicLocale(locale, PAGE_ROUTES.HOME))
   }
 
-  if (req.nextUrl.pathname !== canonicalPathname) {
-    return redirectTo(req, canonicalPathname)
-  }
-
-  return rewriteTo(req, `/${locale}${pathnameWithoutLocale === "/" ? "" : pathnameWithoutLocale}`)
+  // 3. Internal rewrite
+  return rewriteTo(
+    req,
+    `/${locale}${pathnameWithoutLocale === "/" ? "" : pathnameWithoutLocale}`
+  )
 })
-
 export const config = {
   matcher: [
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",

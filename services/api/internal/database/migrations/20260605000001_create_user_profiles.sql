@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_profiles_user_id
-ON user_profiles (user_id) WHERE deleted_at IS NULL;
+ON user_profiles (user_id);
 
 -- +goose StatementEnd
 

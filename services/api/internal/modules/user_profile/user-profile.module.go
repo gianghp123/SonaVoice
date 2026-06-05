@@ -17,5 +17,6 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB, authMiddleware gin.Handle
 
 	profileGroup := router.Group("/profile")
 	profileGroup.GET("", authMiddleware, profileController.HandleGetProfile)
-	profileGroup.POST("", authMiddleware, profileController.HandleUpsertProfile)
+	profileGroup.POST("", authMiddleware, profileController.HandleOnboardProfile)
+	profileGroup.PATCH("", authMiddleware, profileController.HandleUpdateProfile)
 }

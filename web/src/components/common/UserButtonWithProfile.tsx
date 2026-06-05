@@ -2,7 +2,7 @@
 
 import { UserButton } from "@clerk/nextjs"
 import { useState } from "react"
-import { ProfileSheet } from "@/features/onboarding/components/ProfileSheet"
+import { ProfileSheet } from "@/features/profile/components/ProfileSheet"
 import type { IUserProfile } from "@/lib/types/user-profile.interface"
 import { UserIcon } from "lucide-react"
 

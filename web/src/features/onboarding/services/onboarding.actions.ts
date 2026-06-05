@@ -4,10 +4,10 @@ import { apiFetch } from "@/lib/api-fetch"
 import { API_ROUTES } from "@/lib/routes"
 import { tags } from "@/lib/tags"
 import { updateTag } from "next/cache"
-import type { IUserProfile, IUpsertProfileDto } from "@/lib/types/user-profile.interface"
+import type { IUpsertProfileDto } from "@/lib/types/user-profile.interface"
 
-export async function upsertProfile(data: IUpsertProfileDto) {
-  const result = await apiFetch<IUserProfile>(API_ROUTES.PROFILE.UPSERT, {
+export async function completeOnboarding(data: IUpsertProfileDto) {
+  const result = await apiFetch<boolean>(API_ROUTES.PROFILE.UPSERT, {
     method: "POST",
     withCredentials: true,
     body: data,

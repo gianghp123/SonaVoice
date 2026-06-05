@@ -7,28 +7,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { OnboardingForm } from "./OnboardingForm"
+import { EditProfileForm } from "@/features/profile/components/EditProfileForm"
 import type { IUserProfile } from "@/lib/types/user-profile.interface"
-import type { OnboardingFormValues } from "../schemas/onboarding.schema"
 
 interface ProfileSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   profile: IUserProfile | null
-}
-
-function mapProfileToFormValues(profile: IUserProfile): Partial<OnboardingFormValues> {
-  const prefs = profile.preferences || {}
-  return {
-    displayName: profile.displayName,
-    englishLevel: profile.englishLevel as OnboardingFormValues["englishLevel"],
-    nativeLanguage: prefs.nativeLanguage,
-    improvementGoals: prefs.improvementGoals,
-    topics: prefs.topics,
-    customTopics: prefs.customTopics,
-    learningReason: prefs.learningReason,
-    customLearningReason: prefs.customLearningReason,
-  }
 }
 
 export function ProfileSheet({ open, onOpenChange, profile }: ProfileSheetProps) {
@@ -42,8 +27,8 @@ export function ProfileSheet({ open, onOpenChange, profile }: ProfileSheetProps)
           </SheetDescription>
         </SheetHeader>
         <div className="px-4 pb-4">
-          <OnboardingForm
-            defaultValues={profile ? mapProfileToFormValues(profile) : undefined}
+          <EditProfileForm
+            profile={profile}
             onSuccess={() => onOpenChange(false)}
           />
         </div>

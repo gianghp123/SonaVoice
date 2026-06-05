@@ -1,4 +1,4 @@
-import { getProfile } from "@/features/onboarding/services/profile.get"
+import { getProfile } from "@/features/profile/services/profile.get"
 import { SidebarFooterUI } from "./SidebarFooter"
 
 export async function SidebarFooter() {

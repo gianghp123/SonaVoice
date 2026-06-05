@@ -8,6 +8,7 @@ export const API_ROUTES = {
   PROFILE: {
     GET: "/profile",
     UPSERT: "/profile",
+    UPDATE: "/profile",
   },
 } as const
 

@@ -30,7 +30,7 @@ import {
   TOPICS,
 } from "../constants/onboarding.constants"
 import { onboardingSchema, type OnboardingFormValues } from "../schemas/onboarding.schema"
-import { upsertProfile } from "../services/profile.actions"
+import { completeOnboarding } from "../services/onboarding.actions"
 
 interface OnboardingFormProps {
   defaultValues?: Partial<OnboardingFormValues>
@@ -92,7 +92,7 @@ export function OnboardingForm({ defaultValues, onSuccess }: OnboardingFormProps
     setLoading(true)
 
     try {
-      const result = await upsertProfile(data)
+      const result = await completeOnboarding(data)
 
       if (result.error) {
         toast.error(result.error.message || "Failed to save profile")
