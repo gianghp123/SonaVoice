@@ -19,11 +19,14 @@ import {
 import { ConnectNow } from "@/features/landing/components/ConnectNow"
 import { PAGE_ROUTES } from "@/lib/routes"
 import type { ISession } from "@/lib/types/session.interface"
+import { stripLocalePrefix } from "@/lib/utils/path"
 import { Show } from "@clerk/nextjs"
 import { Plus } from "lucide-react"
+import { useT } from "next-i18next/client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Separator } from "../ui/separator"
+import { LanguageSwitcher } from "./LanguageSwitcher"
 interface HomePageContentProps {
   sessions: ISession[]
   children: React.ReactNode
@@ -31,7 +34,8 @@ interface HomePageContentProps {
 }
 
 export function HomePageLayout({ sessions, children, breadcrumb }: HomePageContentProps) {
-  const pathname = usePathname()
+  const pathname = stripLocalePrefix(usePathname())
+  const { t } = useT('common')
 
   return (
     <SidebarProvider>
@@ -49,13 +53,13 @@ export function HomePageLayout({ sessions, children, breadcrumb }: HomePageConte
                     className="justify-start px-2 font-normal"
                   >
                     <Plus className="size-4" />
-                    <span>New Session</span>
+                    <span>{t('new_session')}</span>
                   </ConnectNow>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
             <SidebarGroup>
-              <SidebarGroupLabel>Recently sessions</SidebarGroupLabel>
+              <SidebarGroupLabel>{t('recent_sessions')}</SidebarGroupLabel>
               <SidebarMenu>
                 {sessions.map((session) => (
                   <SidebarMenuItem key={session.id}>
@@ -74,7 +78,7 @@ export function HomePageLayout({ sessions, children, breadcrumb }: HomePageConte
                 {sessions.length === 0 && (
                   <SidebarMenuItem>
                     <p className="px-2 text-sm text-muted-foreground">
-                      No sessions yet
+                      {t('no_sessions')}
                     </p>
                   </SidebarMenuItem>
                 )}
@@ -87,12 +91,14 @@ export function HomePageLayout({ sessions, children, breadcrumb }: HomePageConte
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b">
-          <div className="flex items-center gap-2 px-3">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-3">
+          <div className="flex items-center gap-2">
             <SidebarTrigger />
             <Separator orientation="vertical" className="my-auto mr-2 h-4" />
             {breadcrumb}
           </div>
+
+          <LanguageSwitcher />
         </header>
         {children}
       </SidebarInset>

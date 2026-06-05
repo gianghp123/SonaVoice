@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import {Show, SignInButton, UserButton } from "@clerk/nextjs"
+import { Show, SignInButton, UserButton } from "@clerk/nextjs"
 
 export function SidebarFooterUI() {
   return (
