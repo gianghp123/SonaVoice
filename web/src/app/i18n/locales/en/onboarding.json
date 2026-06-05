@@ -27,7 +27,7 @@
   "profile_updated": "Profile updated!",
   "profile_saved": "Profile saved!",
   "failed_update_profile": "Failed to update profile",
-  "failed_save_profile": "Failed to save profile",
+  "failed_save_profile": "Failed to save profile. Please try again.",
   "something_went_wrong": "Something went wrong",
   "edit_profile": "Edit Profile",
   "update_preferences": "Update your learning preferences.",

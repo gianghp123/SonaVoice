@@ -19,7 +19,5 @@ export default async function OnboardingPage() {
     redirect(PAGE_ROUTES.HOME)
   }
 
-  return <OnboardingForm onSuccess={() => {
-    redirect(PAGE_ROUTES.HOME)
-  }} />
+  return <OnboardingForm/>
 }

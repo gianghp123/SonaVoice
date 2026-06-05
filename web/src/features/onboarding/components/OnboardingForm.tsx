@@ -35,7 +35,6 @@ import { completeOnboarding } from "../services/onboarding.actions"
 
 interface OnboardingFormProps {
   defaultValues?: Partial<OnboardingFormValues>
-  onSuccess?: () => void
 }
 
 const TOTAL_STEPS = 3
@@ -46,7 +45,7 @@ const STEP_FIELDS: Record<number, (keyof OnboardingFormValues)[]> = {
   3: ["topics", "customTopics", "learningReason", "customLearningReason"],
 }
 
-export function OnboardingForm({ defaultValues, onSuccess }: OnboardingFormProps) {
+export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
   const router = useRouter()
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
@@ -103,7 +102,6 @@ export function OnboardingForm({ defaultValues, onSuccess }: OnboardingFormProps
 
       toast.success(t("profile_saved"))
       await user?.reload()
-      onSuccess?.()
       router.push(PAGE_ROUTES.HOME)
     } catch {
       toast.error(t("something_went_wrong"))

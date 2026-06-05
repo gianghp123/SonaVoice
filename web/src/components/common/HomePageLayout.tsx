@@ -26,14 +26,16 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Separator } from "../ui/separator"
 import { LanguageSwitcher } from "./LanguageSwitcher"
+import { SupportedLanguage } from "@/lib/i18n/i18n"
 interface HomePageContentProps {
   sessions: ISession[]
   children: React.ReactNode
   breadcrumb?: React.ReactNode
   sidebarFooter?: React.ReactNode
+  currentLanguage: SupportedLanguage
 }
 
-export function HomePageLayout({ sessions, children, breadcrumb, sidebarFooter }: HomePageContentProps) {
+export function HomePageLayout({ sessions, children, breadcrumb, sidebarFooter, currentLanguage }: HomePageContentProps) {
   const pathname = stripLocalePrefix(usePathname())
   const { t } = useT('common')
 
@@ -98,7 +100,7 @@ export function HomePageLayout({ sessions, children, breadcrumb, sidebarFooter }
             {breadcrumb}
           </div>
 
-          <LanguageSwitcher />
+          <LanguageSwitcher currentLanguage={currentLanguage} />
         </header>
         {children}
       </SidebarInset>

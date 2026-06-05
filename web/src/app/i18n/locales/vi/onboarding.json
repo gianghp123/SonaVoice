@@ -27,7 +27,7 @@
   "profile_updated": "Đã cập nhật hồ sơ!",
   "profile_saved": "Đã lưu hồ sơ!",
   "failed_update_profile": "Không thể cập nhật hồ sơ",
-  "failed_save_profile": "Không thể lưu hồ sơ",
+  "failed_save_profile": "Không thể lưu hồ sơ. Vui lòng thử lại.",
   "something_went_wrong": "Đã xảy ra lỗi",
   "edit_profile": "Chỉnh sửa hồ sơ",
   "update_preferences": "Cập nhật sở thích học tập của bạn.",

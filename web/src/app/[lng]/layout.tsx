@@ -54,6 +54,7 @@ export default async function RootLayout({
         "font-sans",
         inter.variable
       )}
+    suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
         <ClerkProvider
