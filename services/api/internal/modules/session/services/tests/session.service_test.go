@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	appErrors "github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
+	appErrors "github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repoMocks "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces/mocks"
@@ -30,17 +30,16 @@ func setupSessionCtx(userID string) context.Context {
 	return ctx
 }
 
-func TestOrchestratorService_CreateSession(t *testing.T) {
+func TestSessionService_CreateSession(t *testing.T) {
 	configPayload := `{"enabled":true,"limits":{"user":{"daily_voice_seconds":300,"daily_request_count":100}}}`
 
 	tests := []struct {
 		name      string
 		setupMock func(
 			configSvc *svcMocks.SessionConfigService,
-			sessionSvc *svcMocks.SessionService,
+			quotaRepo *repoMocks.UserQuotaRepository,
 			speechSvc *svcMocks.SpeechProxyService,
 			startConnSvc *svcMocks.StartConnectionService,
-			quotaSvc *svcMocks.QuotaService,
 			uow *svcMocks.UnitOfWork,
 			provider *svcMocks.Provider,
 			sessionRepo *repoMocks.SessionRepository,
@@ -50,9 +49,9 @@ func TestOrchestratorService_CreateSession(t *testing.T) {
 	}{
 		{
 			name: "success",
-			setupMock: func(configSvc *svcMocks.SessionConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork, provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
+			setupMock: func(configSvc *svcMocks.SessionConfigService, quotaRepo *repoMocks.UserQuotaRepository, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, uow *svcMocks.UnitOfWork, provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
 				configSvc.On("Get", mock.Anything).Return(&models.SessionConfig{Config: datatypes.JSON(configPayload)}, (*appErrors.AppError)(nil))
-				quotaSvc.On("CheckRemaining", mock.Anything, "user-1", int64(300)).Return(int64(300), nil)
+				quotaRepo.On("GetOrCreate", mock.Anything, "user-1", "voice", mock.Anything, int64(300)).Return(int64(300), nil)
 				provider.On("Session").Return(sessionRepo)
 				sessionRepo.On("GetPendingByUserIDForUpdate", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
 				sessionRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
@@ -61,18 +60,18 @@ func TestOrchestratorService_CreateSession(t *testing.T) {
 		},
 		{
 			name: "quota exceeded",
-			setupMock: func(configSvc *svcMocks.SessionConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork, provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
+			setupMock: func(configSvc *svcMocks.SessionConfigService, quotaRepo *repoMocks.UserQuotaRepository, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, uow *svcMocks.UnitOfWork, provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
 				configSvc.On("Get", mock.Anything).Return(&models.SessionConfig{Config: datatypes.JSON(configPayload)}, (*appErrors.AppError)(nil))
-				quotaSvc.On("CheckRemaining", mock.Anything, "user-1", int64(300)).Return(int64(0), nil)
+				quotaRepo.On("GetOrCreate", mock.Anything, "user-1", "voice", mock.Anything, int64(300)).Return(int64(0), nil)
 			},
 			wantErr: true,
 			errCode: http.StatusForbidden,
 		},
 		{
 			name: "create session conflict error",
-			setupMock: func(configSvc *svcMocks.SessionConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork, provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
+			setupMock: func(configSvc *svcMocks.SessionConfigService, quotaRepo *repoMocks.UserQuotaRepository, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, uow *svcMocks.UnitOfWork, provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
 				configSvc.On("Get", mock.Anything).Return(&models.SessionConfig{Config: datatypes.JSON(configPayload)}, (*appErrors.AppError)(nil))
-				quotaSvc.On("CheckRemaining", mock.Anything, "user-1", int64(300)).Return(int64(300), nil)
+				quotaRepo.On("GetOrCreate", mock.Anything, "user-1", "voice", mock.Anything, int64(300)).Return(int64(300), nil)
 				provider.On("Session").Return(sessionRepo)
 				sessionRepo.On("GetPendingByUserIDForUpdate", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
 				sessionRepo.On("Create", mock.Anything, mock.Anything).Return(&pgconn.PgError{Code: "23505"})
@@ -86,19 +85,19 @@ func TestOrchestratorService_CreateSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			configSvc := new(svcMocks.SessionConfigService)
-			sessionSvc := new(svcMocks.SessionService)
+			quotaRepo := new(repoMocks.UserQuotaRepository)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
-			quotaSvc := new(svcMocks.QuotaService)
 			uow := new(svcMocks.UnitOfWork)
 			provider := new(svcMocks.Provider)
 			sessionRepo := new(repoMocks.SessionRepository)
 
-			tt.setupMock(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow, provider, sessionRepo)
+			tt.setupMock(configSvc, quotaRepo, speechSvc, startConnSvc, uow, provider, sessionRepo)
 
 			uow.SetProvider(provider)
 
-			svc := services.NewOrchestratorService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
+			userProfileRepo := new(repoMocks.UserProfileRepository)
+			svc := services.NewSessionService(sessionRepo, configSvc, speechSvc, startConnSvc, quotaRepo, uow, userProfileRepo)
 			ctx := setupSessionCtx("user-1")
 			result, appErr := svc.CreateSession(ctx)
 
@@ -113,58 +112,75 @@ func TestOrchestratorService_CreateSession(t *testing.T) {
 	}
 }
 
-func TestOrchestratorService_StartConnection(t *testing.T) {
+func TestSessionService_StartConnection(t *testing.T) {
 	tests := []struct {
 		name      string
 		setupMock func(
 			configSvc *svcMocks.SessionConfigService,
-			sessionSvc *svcMocks.SessionService,
+			sessionRepo *repoMocks.SessionRepository,
 			speechSvc *svcMocks.SpeechProxyService,
 			startConnSvc *svcMocks.StartConnectionService,
-			quotaSvc *svcMocks.QuotaService,
+			quotaRepo *repoMocks.UserQuotaRepository,
 			uow *svcMocks.UnitOfWork,
+			userProfileRepo *repoMocks.UserProfileRepository,
 		)
 		wantErr bool
 		errCode int
 	}{
 		{
 			name: "success",
-			setupMock: func(configSvc *svcMocks.SessionConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork) {
-				sessionSvc.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending, MaxDuration: 300}, (*appErrors.AppError)(nil))
-				startConnSvc.On("Start", mock.Anything, mock.Anything, "user-1").Return(&res.WebRTCConnectionRes{SessionID: "speech-s1"}, (*appErrors.AppError)(nil))
+			setupMock: func(configSvc *svcMocks.SessionConfigService, sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaRepo *repoMocks.UserQuotaRepository, uow *svcMocks.UnitOfWork, userProfileRepo *repoMocks.UserProfileRepository) {
+				sessionRepo.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending, MaxDuration: 300}, nil)
+				userProfileRepo.On("GetByUserID", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
+				startConnSvc.On("Start", mock.Anything, mock.Anything, mock.Anything).Return(&res.WebRTCConnectionRes{SessionID: "speech-s1"}, (*appErrors.AppError)(nil))
 			},
 		},
 		{
 			name: "session not startable",
-			setupMock: func(configSvc *svcMocks.SessionConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork) {
-				sessionSvc.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive}, (*appErrors.AppError)(nil))
+			setupMock: func(configSvc *svcMocks.SessionConfigService, sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaRepo *repoMocks.UserQuotaRepository, uow *svcMocks.UnitOfWork, userProfileRepo *repoMocks.UserProfileRepository) {
+				sessionRepo.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive}, nil)
+				userProfileRepo.On("GetByUserID", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
 			},
 			wantErr: true,
 			errCode: http.StatusBadRequest,
 		},
 		{
 			name: "start connection service error",
-			setupMock: func(configSvc *svcMocks.SessionConfigService, sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaSvc *svcMocks.QuotaService, uow *svcMocks.UnitOfWork) {
-				sessionSvc.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending, MaxDuration: 300}, (*appErrors.AppError)(nil))
-				startConnSvc.On("Start", mock.Anything, mock.Anything, "user-1").Return((*res.WebRTCConnectionRes)(nil), appErrors.Internal("speech engine error"))
+			setupMock: func(configSvc *svcMocks.SessionConfigService, sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaRepo *repoMocks.UserQuotaRepository, uow *svcMocks.UnitOfWork, userProfileRepo *repoMocks.UserProfileRepository) {
+				sessionRepo.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending, MaxDuration: 300}, nil)
+				userProfileRepo.On("GetByUserID", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
+				startConnSvc.On("Start", mock.Anything, mock.Anything, mock.Anything).Return((*res.WebRTCConnectionRes)(nil), appErrors.Internal("speech engine error"))
 			},
 			wantErr: true,
 			errCode: http.StatusInternalServerError,
+		},
+		{
+			name: "success with profile",
+			setupMock: func(configSvc *svcMocks.SessionConfigService, sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, quotaRepo *repoMocks.UserQuotaRepository, uow *svcMocks.UnitOfWork, userProfileRepo *repoMocks.UserProfileRepository) {
+				sessionRepo.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusPending, MaxDuration: 300}, nil)
+				userProfileRepo.On("GetByUserID", mock.Anything, "user-1").Return(&models.UserProfile{
+					UserID:       "user-1",
+					DisplayName:  "John",
+					EnglishLevel: "intermediate",
+				}, nil)
+				startConnSvc.On("Start", mock.Anything, mock.Anything, mock.Anything).Return(&res.WebRTCConnectionRes{SessionID: "speech-s1"}, (*appErrors.AppError)(nil))
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			configSvc := new(svcMocks.SessionConfigService)
-			sessionSvc := new(svcMocks.SessionService)
+			sessionRepo := new(repoMocks.SessionRepository)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
-			quotaSvc := new(svcMocks.QuotaService)
+			quotaRepo := new(repoMocks.UserQuotaRepository)
 			uow := new(svcMocks.UnitOfWork)
+			userProfileRepo := new(repoMocks.UserProfileRepository)
 
-			tt.setupMock(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
+			tt.setupMock(configSvc, sessionRepo, speechSvc, startConnSvc, quotaRepo, uow, userProfileRepo)
 
-			svc := services.NewOrchestratorService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
+			svc := services.NewSessionService(sessionRepo, configSvc, speechSvc, startConnSvc, quotaRepo, uow, userProfileRepo)
 			ctx := setupSessionCtx("user-1")
 			result, appErr := svc.StartConnection(ctx, "s1")
 
@@ -180,22 +196,22 @@ func TestOrchestratorService_StartConnection(t *testing.T) {
 	}
 }
 
-func TestOrchestratorService_ProxyOffer(t *testing.T) {
+func TestSessionService_ProxyOffer(t *testing.T) {
 	responseBody := []byte(`{"sdp":"test-sdp"}`)
 	errorBody := []byte(`{"error":"bad"}`)
 
 	tests := []struct {
-		name          string
-		sessionID     string
-		method        string
-		body          []byte
-		session       *models.Session
+		name              string
+		sessionID         string
+		method            string
+		body              []byte
+		session           *models.Session
 		setupProviderMock func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService)
-		setupMocks func(
-			sessionSvc *svcMocks.SessionService,
+		setupMocks        func(
+			sessionRepo *repoMocks.SessionRepository,
 			speechSvc *svcMocks.SpeechProxyService,
 		)
-		wantErr       bool
+		wantErr        bool
 		wantStatusCode int
 	}{
 		{
@@ -210,8 +226,8 @@ func TestOrchestratorService_ProxyOffer(t *testing.T) {
 				sessionRepo.On("SetSessionActive", mock.Anything, "s1", mock.Anything).Return(nil)
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(responseBody, http.StatusOK, (*appErrors.AppError)(nil))
 			},
-			setupMocks: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
-				sessionSvc.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", SpeechSessionID: "speech-s1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
+			setupMocks: func(sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService) {
+				sessionRepo.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", SpeechSessionID: "speech-s1", Status: enums.SessionStatusPending}, nil)
 			},
 			wantStatusCode: http.StatusOK,
 		},
@@ -227,8 +243,8 @@ func TestOrchestratorService_ProxyOffer(t *testing.T) {
 				sessionRepo.On("SetSessionFailed", mock.Anything, "s1").Return(nil)
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return([]byte{}, 0, appErrors.Internal("proxy error"))
 			},
-			setupMocks: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
-				sessionSvc.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", SpeechSessionID: "speech-s1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
+			setupMocks: func(sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService) {
+				sessionRepo.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", SpeechSessionID: "speech-s1", Status: enums.SessionStatusPending}, nil)
 			},
 			wantErr: true,
 		},
@@ -244,8 +260,8 @@ func TestOrchestratorService_ProxyOffer(t *testing.T) {
 				sessionRepo.On("SetSessionFailed", mock.Anything, "s1").Return(nil)
 				speechSvc.On("ProxyOffer", mock.Anything, "speech-s1", http.MethodPost, mock.Anything).Return(errorBody, http.StatusBadGateway, appErrors.Internal("proxy error"))
 			},
-			setupMocks: func(sessionSvc *svcMocks.SessionService, speechSvc *svcMocks.SpeechProxyService) {
-				sessionSvc.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", SpeechSessionID: "speech-s1", Status: enums.SessionStatusPending}, (*appErrors.AppError)(nil))
+			setupMocks: func(sessionRepo *repoMocks.SessionRepository, speechSvc *svcMocks.SpeechProxyService) {
+				sessionRepo.On("Get", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", SpeechSessionID: "speech-s1", Status: enums.SessionStatusPending}, nil)
 			},
 			wantErr: true,
 		},
@@ -254,23 +270,23 @@ func TestOrchestratorService_ProxyOffer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			configSvc := new(svcMocks.SessionConfigService)
-			sessionSvc := new(svcMocks.SessionService)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
-			quotaSvc := new(svcMocks.QuotaService)
+			quotaRepo := new(repoMocks.UserQuotaRepository)
 
 			sessionRepo := new(repoMocks.SessionRepository)
 			provider := new(svcMocks.Provider)
 			tt.setupProviderMock(provider, sessionRepo, speechSvc)
-			tt.setupMocks(sessionSvc, speechSvc)
+			tt.setupMocks(sessionRepo, speechSvc)
 
-		uow := new(svcMocks.UnitOfWork)
-		uow.SetProvider(provider)
-		uow.On("Do", mock.Anything, mock.Anything).Return(nil)
+			uow := new(svcMocks.UnitOfWork)
+			uow.SetProvider(provider)
+			uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 
-		svc := services.NewOrchestratorService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
-		ctx := setupSessionCtx("user-1")
-		respBody, statusCode, appErr := svc.ProxyOffer(ctx, tt.sessionID, tt.method, tt.body)
+			userProfileRepo := new(repoMocks.UserProfileRepository)
+			svc := services.NewSessionService(sessionRepo, configSvc, speechSvc, startConnSvc, quotaRepo, uow, userProfileRepo)
+			ctx := setupSessionCtx("user-1")
+			respBody, statusCode, appErr := svc.ProxyOffer(ctx, tt.sessionID, tt.method, tt.body)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)
@@ -285,16 +301,16 @@ func TestOrchestratorService_ProxyOffer(t *testing.T) {
 	}
 }
 
-func TestOrchestratorService_FinalizeSession(t *testing.T) {
+func TestSessionService_FinalizeSession(t *testing.T) {
 	quotaDate := time.Date(2026, 5, 19, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name            string
-		session         *models.Session
-		actualUsage     int
+		name              string
+		session           *models.Session
+		actualUsage       int
 		setupProviderMock func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository)
-		wantErr         bool
-		errCode         int
+		wantErr           bool
+		errCode           int
 	}{
 		{
 			name:        "close active session with unused quota",
@@ -357,19 +373,18 @@ func TestOrchestratorService_FinalizeSession(t *testing.T) {
 			tt.setupProviderMock(provider, sessionRepo, quotaRepo)
 
 			configSvc := new(svcMocks.SessionConfigService)
-			sessionSvc := new(svcMocks.SessionService)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
-			quotaSvc := new(svcMocks.QuotaService)
 
-		uow := new(svcMocks.UnitOfWork)
-		uow.SetProvider(provider)
-		uow.On("Do", mock.Anything, mock.Anything).Return(nil)
+			uow := new(svcMocks.UnitOfWork)
+			uow.SetProvider(provider)
+			uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 
-		svc := services.NewOrchestratorService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
-		ctx := setupSessionCtx("user-1")
+			userProfileRepo := new(repoMocks.UserProfileRepository)
+			svc := services.NewSessionService(sessionRepo, configSvc, speechSvc, startConnSvc, quotaRepo, uow, userProfileRepo)
+			ctx := setupSessionCtx("user-1")
 
-		reqBody := &req.FinalizeSessionReq{
+			reqBody := &req.FinalizeSessionReq{
 				SessionID:   "s1",
 				ActualUsage: tt.actualUsage,
 			}
@@ -385,14 +400,14 @@ func TestOrchestratorService_FinalizeSession(t *testing.T) {
 	}
 }
 
-func TestOrchestratorService_CancelSession(t *testing.T) {
+func TestSessionService_CancelSession(t *testing.T) {
 	tests := []struct {
-		name            string
-		sessionID       string
-		session         *models.Session
+		name              string
+		sessionID         string
+		session           *models.Session
 		setupProviderMock func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository)
-		wantErr         bool
-		errCode         int
+		wantErr           bool
+		errCode           int
 	}{
 		{
 			name:      "cancel pending session",
@@ -434,18 +449,18 @@ func TestOrchestratorService_CancelSession(t *testing.T) {
 			tt.setupProviderMock(provider, sessionRepo)
 
 			configSvc := new(svcMocks.SessionConfigService)
-			sessionSvc := new(svcMocks.SessionService)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
-			quotaSvc := new(svcMocks.QuotaService)
+			quotaRepo := new(repoMocks.UserQuotaRepository)
 
-		uow := new(svcMocks.UnitOfWork)
-		uow.SetProvider(provider)
-		uow.On("Do", mock.Anything, mock.Anything).Return(nil)
+			uow := new(svcMocks.UnitOfWork)
+			uow.SetProvider(provider)
+			uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 
-		svc := services.NewOrchestratorService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
-		ctx := setupSessionCtx("user-1")
-		appErr := svc.CancelSession(ctx, tt.sessionID)
+			userProfileRepo := new(repoMocks.UserProfileRepository)
+			svc := services.NewSessionService(sessionRepo, configSvc, speechSvc, startConnSvc, quotaRepo, uow, userProfileRepo)
+			ctx := setupSessionCtx("user-1")
+			appErr := svc.CancelSession(ctx, tt.sessionID)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)
@@ -457,48 +472,36 @@ func TestOrchestratorService_CancelSession(t *testing.T) {
 	}
 }
 
-func TestOrchestratorService_ListSessions(t *testing.T) {
-	inactive := enums.SessionStatusInactive
-
+func TestSessionService_ListSessions(t *testing.T) {
 	tests := []struct {
 		name      string
 		query     req.SessionListQuery
-		setupMock func(sessionSvc *svcMocks.SessionService)
+		setupMock func(sessionRepo *repoMocks.SessionRepository)
 		wantErr   bool
 		wantCount int
 	}{
 		{
 			name:  "success",
 			query: req.SessionListQuery{Page: 1, Limit: 10},
-			setupMock: func(sessionSvc *svcMocks.SessionService) {
-				sessionSvc.On("List", mock.Anything, req.SessionListQuery{
-					UserID: strPtr("user-1"),
-					Status: &inactive,
-					Page:   1,
-					Limit:  10,
-				}).Return(&response.PaginatedResult[*models.Session]{
+			setupMock: func(sessionRepo *repoMocks.SessionRepository) {
+				sessionRepo.On("List", mock.Anything, mock.Anything).Return(&response.PaginatedResult[*models.Session]{
 					Data: []*models.Session{
 						{BaseModel: models.BaseModel{ID: "s1"}, Status: enums.SessionStatusPending},
 						{BaseModel: models.BaseModel{ID: "s2"}, Status: enums.SessionStatusActive},
 					},
 					Meta: &response.Meta{Page: 1, Limit: 10, Total: 2, TotalPages: 1},
-				}, (*appErrors.AppError)(nil))
+				}, nil)
 			},
 			wantCount: 2,
 		},
 		{
 			name:  "empty list",
 			query: req.SessionListQuery{Page: 1, Limit: 10},
-			setupMock: func(sessionSvc *svcMocks.SessionService) {
-				sessionSvc.On("List", mock.Anything, req.SessionListQuery{
-					UserID: strPtr("user-1"),
-					Status: &inactive,
-					Page:   1,
-					Limit:  10,
-				}).Return(&response.PaginatedResult[*models.Session]{
+			setupMock: func(sessionRepo *repoMocks.SessionRepository) {
+				sessionRepo.On("List", mock.Anything, mock.Anything).Return(&response.PaginatedResult[*models.Session]{
 					Data: []*models.Session{},
 					Meta: &response.Meta{Page: 1, Limit: 10, Total: 0, TotalPages: 0},
-				}, (*appErrors.AppError)(nil))
+				}, nil)
 			},
 			wantCount: 0,
 		},
@@ -507,15 +510,16 @@ func TestOrchestratorService_ListSessions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			configSvc := new(svcMocks.SessionConfigService)
-			sessionSvc := new(svcMocks.SessionService)
+			sessionRepo := new(repoMocks.SessionRepository)
 			speechSvc := new(svcMocks.SpeechProxyService)
 			startConnSvc := new(svcMocks.StartConnectionService)
-			quotaSvc := new(svcMocks.QuotaService)
+			quotaRepo := new(repoMocks.UserQuotaRepository)
 			uow := new(svcMocks.UnitOfWork)
 
-			tt.setupMock(sessionSvc)
+			tt.setupMock(sessionRepo)
 
-			svc := services.NewOrchestratorService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
+			userProfileRepo := new(repoMocks.UserProfileRepository)
+			svc := services.NewSessionService(sessionRepo, configSvc, speechSvc, startConnSvc, quotaRepo, uow, userProfileRepo)
 			ctx := setupSessionCtx("user-1")
 			result, appErr := svc.ListSessions(ctx, tt.query)
 

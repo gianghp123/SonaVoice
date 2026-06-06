@@ -6,6 +6,7 @@ import (
 
 	clerkuser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/getsentry/sentry-go"
+	clerkclient "github.com/gianghp123/SonaVoice/api/internal/clerk-client"
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
@@ -25,15 +26,18 @@ type IUserProfileService interface {
 type userProfileService struct {
 	profileRepo repository_interfaces.IUserProfileRepository
 	uow         transaction.UnitOfWork
+	clerkClient clerkclient.IClerkClient
 }
 
 func NewUserProfileService(
 	profileRepo repository_interfaces.IUserProfileRepository,
 	uow transaction.UnitOfWork,
+	clerkClient clerkclient.IClerkClient,
 ) IUserProfileService {
 	return &userProfileService{
 		profileRepo: profileRepo,
 		uow:         uow,
+		clerkClient: clerkClient,
 	}
 }
 
@@ -90,7 +94,7 @@ func (s *userProfileService) Onboard(ctx context.Context, userID string, body *r
 		metadataJSON, _ := json.Marshal(metadata)
 		rawMetadata := json.RawMessage(metadataJSON)
 
-		_, err := clerkuser.UpdateMetadata(ctx, userID, &clerkuser.UpdateMetadataParams{
+		_, err := s.clerkClient.UpdateMetadata(ctx, userID, &clerkuser.UpdateMetadataParams{
 			PublicMetadata: &rawMetadata,
 		})
 		if err != nil {

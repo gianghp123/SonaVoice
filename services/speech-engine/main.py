@@ -105,7 +105,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         log.info("Initializing voice services")
 
         stt = build_stt()
-        llm = build_llm()
+        llm = build_llm(user_profile=body.user_profile)
         tts = build_tts()
         context = build_context()
         memory_processor = build_memory(user_id, session_id)

@@ -10,6 +10,7 @@ from src.core.config import settings
 from src.agents.prompts import ENGLIST_TEACHER_SYSTEM_INSTRUCTION
 from src.agents.tools import summarize_conversation, summarize_function
 
+import json
 import re
 
 
@@ -69,16 +70,25 @@ def build_stt() -> DeepgramSTTService:
     )
 
 
-def build_llm() -> OpenAILLMService:
+def build_llm(user_profile: dict | None = None) -> OpenAILLMService:
+    system_instruction = ENGLIST_TEACHER_SYSTEM_INSTRUCTION.format(
+        name=settings.BOT_NAME,
+        user_profile="",
+    )
+    if user_profile:
+        profile_block = json.dumps(user_profile, indent=2, ensure_ascii=False)
+        system_instruction = ENGLIST_TEACHER_SYSTEM_INSTRUCTION.format(
+            name=settings.BOT_NAME,
+            user_profile=f"USER PROFILE:\n{profile_block}",
+        )
+
     llm = OpenAILLMService(
         api_key=settings.OPENCODE_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
         metrics=_get_metrics(),
         settings=OpenAILLMService.Settings(
             model=settings.LLM_NAME,
-            system_instruction=ENGLIST_TEACHER_SYSTEM_INSTRUCTION.format(
-                name=settings.BOT_NAME
-            ),
+            system_instruction=system_instruction,
             extra={"extra_body": {"thinking": {"type": "disabled"}}},
         ),
     )

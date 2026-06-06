@@ -1,6 +1,7 @@
 package user_profile
 
 import (
+	"github.com/gianghp123/SonaVoice/api/internal/clerk-client"
 	"github.com/gianghp123/SonaVoice/api/internal/database/transaction"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/user_profile/controllers"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/user_profile/repositories"
@@ -12,7 +13,8 @@ import (
 func SetupModule(router *gin.RouterGroup, db *gorm.DB, authMiddleware gin.HandlerFunc) {
 	profileRepo := repositories.NewUserProfileRepository(db)
 	uow := transaction.NewUnitOfWork(db)
-	profileService := services.NewUserProfileService(profileRepo, uow)
+	clerkClient := clerkclient.NewClient()
+	profileService := services.NewUserProfileService(profileRepo, uow, clerkClient)
 	profileController := controllers.NewUserProfileController(profileService)
 
 	profileGroup := router.Group("/profile")
