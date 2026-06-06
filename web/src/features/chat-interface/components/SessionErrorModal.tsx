@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { PAGE_ROUTES } from "@/lib/routes"
 import { useRouter } from "next/navigation"
+import { useT } from "next-i18next/client"
 
 interface SessionErrorModalProps {
   message: string
@@ -18,17 +19,18 @@ interface SessionErrorModalProps {
 
 export function SessionErrorModal({ message }: SessionErrorModalProps) {
   const router = useRouter()
+  const { t } = useT("session")
 
   return (
     <AlertDialog open>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Session Unavailable</AlertDialogTitle>
+          <AlertDialogTitle>{t("session_unavailable")}</AlertDialogTitle>
           <AlertDialogDescription>{message}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogAction onClick={() => router.push(PAGE_ROUTES.HOME)}>
-            Return Home
+            {t("return_home")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

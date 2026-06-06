@@ -63,8 +63,8 @@ export default clerkMiddleware(async (auth, req) => {
   const refererLocale = getLocaleFromReferer(req)
 
   const locale =
-    pathnameLocale ??
     refererLocale ??
+    pathnameLocale ??
     defaultLocale
 
   const canonicalPathname = withPublicLocale(locale, pathnameWithoutLocale)

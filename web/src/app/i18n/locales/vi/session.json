@@ -4,5 +4,11 @@
   "session": "Phiên",
   "session_history": "Lịch sử phiên",
   "error": "Lỗi",
-  "failed_to_load_messages": "Không thể tải tin nhắn"
+  "failed_to_load_messages": "Không thể tải tin nhắn",
+  "session_unavailable": "Phiên không khả dụng",
+  "return_home": "Về trang chủ",
+  "failed_to_load_session": "Không thể tải phiên",
+  "session_not_found": "Không tìm thấy phiên",
+  "session_not_accessible": "Phiên này không thể truy cập hoặc không tồn tại",
+  "session_ended_start_new": "Phiên đã kết thúc, vui lòng bắt đầu phiên mới"
 }

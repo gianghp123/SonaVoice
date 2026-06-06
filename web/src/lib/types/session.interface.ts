@@ -1,7 +1,9 @@
+import { SessionStatus } from "@/lib/enums/session-status.enum"
+
 export interface ISession {
   id: string
   userId: string
-  status: "pending" | "active" | "inactive" | "failed"
+  status: SessionStatus
   maxDuration: number
   actualUsage: number
   createdAt: string
