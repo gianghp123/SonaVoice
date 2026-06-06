@@ -63,6 +63,7 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
             area: "chat-page",
             sessionId,
           })
+          await cancelSession(sessionId)
           router.push(PAGE_ROUTES.HOME)
         }
 
@@ -104,7 +105,7 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
               maxDuration={maxDuration}
               handleDisconnect={handleSessionDisconnect}
             />
-            <EventsPanel />
+            {/* <EventsPanel /> */}
           </>
         )
       }}
