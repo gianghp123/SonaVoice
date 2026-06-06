@@ -14,6 +14,7 @@ import (
 	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/middlewares"
 	message "github.com/gianghp123/SonaVoice/api/internal/modules/message"
+	user_profile "github.com/gianghp123/SonaVoice/api/internal/modules/user_profile"
 	session "github.com/gianghp123/SonaVoice/api/internal/modules/session"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -167,6 +168,7 @@ func main() {
 	httpClient := httpclient.NewHttpClient()
 	session.SetupModule(router.Group("/"), db, httpClient, auth, sessionLimiter, internalSecret)
 	message.SetupModule(router.Group("/"), db, auth, internalSecret)
+	user_profile.SetupModule(router.Group("/"), db, auth)
 
 	// Swagger
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

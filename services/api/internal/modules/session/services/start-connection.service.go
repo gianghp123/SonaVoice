@@ -15,7 +15,7 @@ import (
 )
 
 type IStartConnectionService interface {
-	Start(ctx context.Context, session *models.Session, userID string) (*res.WebRTCConnectionRes, *errors.AppError)
+	Start(ctx context.Context, session *models.Session, connReq *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError)
 }
 
 type startConnectionService struct {
@@ -30,19 +30,10 @@ func NewStartConnectionService(speechSvc ISpeechProxyService, uow transaction.Un
 	}
 }
 
-func (s *startConnectionService) Start(ctx context.Context, session *models.Session, userID string) (*res.WebRTCConnectionRes, *errors.AppError) {
+func (s *startConnectionService) Start(ctx context.Context, session *models.Session, connReq *req.StartConnectionReq) (*res.WebRTCConnectionRes, *errors.AppError) {
 	logger := zapLogger.S()
 
-	logger.Debugw("starting connection", "sessionId", session.ID, "userId", userID)
-
-	connReq := &req.StartConnectionReq{
-		EnableDefaultIceServers: true,
-		Body: req.StartConnectionBody{
-			UserID:      userID,
-			SessionID:   session.ID,
-			MaxDuration: session.MaxDuration,
-		},
-	}
+	logger.Debugw("starting connection", "sessionId", session.ID, "userId", connReq.Body.UserID)
 
 	var webrtcRes *res.WebRTCConnectionRes
 

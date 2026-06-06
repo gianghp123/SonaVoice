@@ -30,10 +30,7 @@ func (s *Session) CanBeStarted() *errors.AppError {
 	return nil
 }
 
-func (s *Session) CanBeClosed() *errors.AppError {
-	if s.Status == enums.SessionStatusInactive {
-		return errors.BadRequest("session is already closed")
-	}
+func (s *Session) CanBeFinalized() *errors.AppError {
 	if s.Status == enums.SessionStatusFailed {
 		return errors.BadRequest("session has already failed")
 	}

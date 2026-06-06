@@ -85,6 +85,7 @@ class RunnerBody(BaseModel):
     user_id: str
     session_id: str
     max_duration: int
+    user_profile: dict | None = None
 
 # Instantiate settings to be used across the app
 settings = Settings()

@@ -34,23 +34,23 @@ func TestSession_CanBeStarted(t *testing.T) {
 	}
 }
 
-func TestSession_CanBeClosed(t *testing.T) {
+func TestSession_CanBeFinalized(t *testing.T) {
 	tests := []struct {
 		name    string
 		status  enums.SessionStatus
 		wantErr bool
 		errCode int
 	}{
-		{"can close active", enums.SessionStatusActive, false, 0},
-		{"can close pending", enums.SessionStatusPending, false, 0},
-		{"cannot close failed", enums.SessionStatusFailed, true, 400},
-		{"cannot close inactive", enums.SessionStatusInactive, true, 400},
+		{"can finalize active", enums.SessionStatusActive, false, 0},
+		{"can finalize pending", enums.SessionStatusPending, false, 0},
+		{"cannot finalize failed", enums.SessionStatusFailed, true, 400},
+		{"can finalize inactive", enums.SessionStatusInactive, false, 0},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Session{Status: tt.status}
-			err := s.CanBeClosed()
+			err := s.CanBeFinalized()
 			if tt.wantErr {
 				assert.NotNil(t, err)
 				assert.Equal(t, tt.errCode, err.Code)

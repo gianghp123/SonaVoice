@@ -7,10 +7,11 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
-	"github.com/gianghp123/SonaVoice/api/internal/modules/session/domain"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/services"
+	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -36,13 +37,13 @@ func (ctrl *SessionConfigController) HandleGet(c *gin.Context) {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
 	}
-	configPayload, err := domain.ParseSessionConfig(model.Config)
+	configPayload, err := utils.ParseJSON[dtos.ConfigPayload](model.Config)
 	if err != nil {
 		sentry.CaptureException(err)
 		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
 		return
 	}
-	c.JSON(http.StatusOK, response.Success(&res.SessionConfigRes{Config: *configPayload}))
+	c.JSON(http.StatusOK, response.Success(&res.SessionConfigRes{Config: configPayload}))
 }
 
 // HandleUpdate godoc
@@ -74,11 +75,11 @@ func (ctrl *SessionConfigController) HandleUpdate(c *gin.Context) {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
 	}
-	configPayload, err := domain.ParseSessionConfig(model.Config)
+	configPayload, err := utils.ParseJSON[dtos.ConfigPayload](model.Config)
 	if err != nil {
 		sentry.CaptureException(err)
 		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
 		return
 	}
-	c.JSON(http.StatusOK, response.Success(&res.SessionConfigRes{Config: *configPayload}))
+	c.JSON(http.StatusOK, response.Success(&res.SessionConfigRes{Config: configPayload}))
 }

@@ -1,17 +1,21 @@
-import { isSupportedLanguage } from '@/lib/i18n/i18n'
+import { FALLBACK_LANGUAGE, isSupportedLanguage } from "@/lib/i18n/i18n"
 
 export function stripLocalePrefix(pathname: string): string {
-  const segments = pathname.split('/')
-  if (segments[1] && isSupportedLanguage(segments[1])) {
-    return '/' + segments.slice(2).join('/')
+  const segments = pathname.split("/").filter(Boolean)
+
+  if (segments[0] && isSupportedLanguage(segments[0])) {
+    const pathWithoutLocale = segments.slice(1).join("/")
+    return pathWithoutLocale ? `/${pathWithoutLocale}` : "/"
   }
-  return pathname
+
+  return pathname || "/"
 }
 
 export function getLocaleFromPathname(pathname: string): string | undefined {
-  const segments = pathname.split('/')
-  if (segments[1] && isSupportedLanguage(segments[1])) {
-    return segments[1]
-  }
-  return undefined
+  const segments = pathname.split("/").filter(Boolean)
+  const maybeLocale = segments[0] ?? FALLBACK_LANGUAGE
+
+  return maybeLocale && isSupportedLanguage(maybeLocale)
+    ? maybeLocale
+    : undefined
 }

@@ -60,7 +60,7 @@ export function MessageBubble({ role, children, className, timestamp, wasInterru
   }
 
   return (
-    <ChatBubble variant="received" layout="ai" className={className}>
+    <ChatBubble variant="received" className={className}>
       <ChatBubbleAvatar className="bg-primary text-primary-foreground" fallback={<AudioLines />} />
       <div className="flex flex-col gap-1 flex-1">
         <RoleBadge role={role} t={t} />

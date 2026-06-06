@@ -4,19 +4,22 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/req"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/res"
 	_ "github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/services"
+	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
 type SessionController struct {
-	svc services.IOrchestratorService
+	svc services.ISessionSevice
 }
 
-func NewSessionController(svc services.IOrchestratorService) *SessionController {
+func NewSessionController(svc services.ISessionSevice) *SessionController {
 	return &SessionController{svc: svc}
 }
 
@@ -98,19 +101,19 @@ func (ctrl *SessionController) HandleOffer(c *gin.Context) {
 	c.Data(statusCode, "application/json", respBody)
 }
 
-// HandleCloseSession handles internal session close callbacks from the speech engine.
+// HandleFinalizeSession handles internal session finalize callbacks from the speech engine.
 // No user auth — this is an internal endpoint on a private network.
-func (ctrl *SessionController) HandleCloseSession(c *gin.Context) {
+func (ctrl *SessionController) HandleFinalizeSession(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 
-	var reqBody req.CloseSessionReq
+	var reqBody req.FinalizeSessionReq
 	if err := c.ShouldBindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, response.Fail(errors.BadRequest("invalid request body")))
 		return
 	}
 	reqBody.SessionID = sessionID
 
-	if appErr := ctrl.svc.CloseSession(c.Request.Context(), &reqBody); appErr != nil {
+	if appErr := ctrl.svc.FinalizeSession(c.Request.Context(), &reqBody); appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
 	}
@@ -158,7 +161,15 @@ func (ctrl *SessionController) HandleListSessions(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response.SuccessWithMeta(result.Data, result.Meta))
+	var dto []*res.SessionListItemRes
+	err := utils.MapToDTOs(result.Data, &dto)
+	if err != nil {
+		sentry.CaptureException(err)
+		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.SuccessWithMeta(dto, result.Meta))
 }
 
 // HandleGetSession godoc
@@ -182,6 +193,13 @@ func (ctrl *SessionController) HandleGetSession(c *gin.Context) {
 	session, appErr := ctrl.svc.GetSession(c.Request.Context(), sessionID)
 	if appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))
+		return
+	}
+
+	var dto res.SessionRes
+	if err := utils.MapToDTO(session, &dto); err != nil {
+		sentry.CaptureException(err)
+		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
 		return
 	}
 

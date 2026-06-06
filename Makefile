@@ -12,10 +12,10 @@ web:
 	cd web && npm run dev
 
 api:
-	cd services/api && go run cmd/servers/session/main.go
+	cd services/api && go run cmd/server/main.go
 
 speech:
-	cd services/speech-engine && . .venv/bin/activate && python main.py -t webrtc
+	cd services/speech-engine && . .venv/bin/activate && python main.py
 
 api-migrate-up:
 	cd services/api && make migrate-up

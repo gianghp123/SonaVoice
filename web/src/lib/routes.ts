@@ -5,6 +5,11 @@ export const API_ROUTES = {
     CANCEL: (id: string) => `/sessions/${id}/cancel`,
     MESSAGES: (id: string) => `/sessions/${id}/messages`,
   },
+  PROFILE: {
+    GET: "/profile",
+    UPSERT: "/profile",
+    UPDATE: "/profile",
+  },
 } as const
 
 export const PROXY_ROUTES = {

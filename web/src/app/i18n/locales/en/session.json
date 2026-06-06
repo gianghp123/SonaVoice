@@ -4,5 +4,11 @@
   "session": "Session",
   "session_history": "Session History",
   "error": "Error",
-  "failed_to_load_messages": "Failed to load messages"
+  "failed_to_load_messages": "Failed to load messages",
+  "session_unavailable": "Session Unavailable",
+  "return_home": "Return Home",
+  "failed_to_load_session": "Failed to load session",
+  "session_not_found": "Session not found",
+  "session_not_accessible": "This session is not accessible or does not exist",
+  "session_ended_start_new": "Session ended, please start a new one"
 }

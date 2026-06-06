@@ -1,7 +1,6 @@
 "use client"
 
 import { Logo } from "@/components/common/Logo"
-import { SidebarFooterUI } from "@/components/common/SidebarFooter"
 import {
   Sidebar,
   SidebarContent,
@@ -27,13 +26,16 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Separator } from "../ui/separator"
 import { LanguageSwitcher } from "./LanguageSwitcher"
+import { SupportedLanguage } from "@/lib/i18n/i18n"
 interface HomePageContentProps {
   sessions: ISession[]
   children: React.ReactNode
   breadcrumb?: React.ReactNode
+  sidebarFooter?: React.ReactNode
+  currentLanguage: SupportedLanguage
 }
 
-export function HomePageLayout({ sessions, children, breadcrumb }: HomePageContentProps) {
+export function HomePageLayout({ sessions, children, breadcrumb, sidebarFooter, currentLanguage }: HomePageContentProps) {
   const pathname = stripLocalePrefix(usePathname())
   const { t } = useT('common')
 
@@ -87,7 +89,7 @@ export function HomePageLayout({ sessions, children, breadcrumb }: HomePageConte
           </Show>
         </SidebarContent>
         <SidebarFooter>
-          <SidebarFooterUI />
+          {sidebarFooter}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
@@ -98,7 +100,7 @@ export function HomePageLayout({ sessions, children, breadcrumb }: HomePageConte
             {breadcrumb}
           </div>
 
-          <LanguageSwitcher />
+          <LanguageSwitcher currentLanguage={currentLanguage} />
         </header>
         {children}
       </SidebarInset>

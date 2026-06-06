@@ -14,8 +14,8 @@ class SessionService:
     def __init__(self) -> None:
         self.base_url = settings.API_URL.rstrip("/")
 
-    async def close_session(self, session_id: str, actual_usage: int) -> dict[str, Any]:
-        url = f"{self.base_url}/sessions/{session_id}/close"
+    async def finalize_session(self, session_id: str, actual_usage: int) -> dict[str, Any]:
+        url = f"{self.base_url}/sessions/{session_id}/finalize"
 
         payload = {
             "session_id": session_id,

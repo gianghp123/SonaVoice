@@ -9,7 +9,14 @@ import type { ISession } from "@/lib/types/session.interface"
 export async function getSessions(dto: GetSessionsDto = {}) {
   return apiFetch<ISession[]>(API_ROUTES.SESSIONS.LIST, {
     withCredentials: true,
-    query: { ...dto},
+    query: { ...dto },
+    next: { tags: [tags.sessions] },
+  })
+}
+
+export async function getSession(sessionId: string) {
+  return apiFetch<ISession>(API_ROUTES.SESSIONS.BY_ID(sessionId), {
+    withCredentials: true,
     next: { tags: [tags.sessions] },
   })
 }
