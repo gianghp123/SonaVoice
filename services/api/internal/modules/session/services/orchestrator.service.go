@@ -27,7 +27,7 @@ type IOrchestratorService interface {
 	GetSession(ctx context.Context, sessionID string) (*res.SessionRes, *errors.AppError)
 	ListSessions(ctx context.Context, q req.SessionListQuery) (*response.PaginatedResult[*res.SessionListItemRes], *errors.AppError)
 	StartConnection(ctx context.Context, sessionID string) (*res.WebRTCConnectionRes, *errors.AppError)
-	CloseSession(ctx context.Context, reqBody *req.CloseSessionReq) *errors.AppError
+	FinalizeSession(ctx context.Context, reqBody *req.FinalizeSessionReq) *errors.AppError
 	CancelSession(ctx context.Context, sessionID string) *errors.AppError
 	ProxyOffer(ctx context.Context, sessionId string, method string, body []byte) ([]byte, int, *errors.AppError)
 }
@@ -289,7 +289,7 @@ func (s *orchestratorService) ProxyOffer(ctx context.Context, sessionId string, 
 	return responseBody, statusCode, nil
 }
 
-func (s *orchestratorService) CloseSession(ctx context.Context, reqBody *req.CloseSessionReq) *errors.AppError {
+func (s *orchestratorService) FinalizeSession(ctx context.Context, reqBody *req.FinalizeSessionReq) *errors.AppError {
 	logger := zapLogger.S()
 
 	if reqBody == nil {
@@ -298,7 +298,7 @@ func (s *orchestratorService) CloseSession(ctx context.Context, reqBody *req.Clo
 
 	sessionId := reqBody.SessionID
 
-	logger.Debugw("Closing session", "sessionId", sessionId, "actualUsage", reqBody.ActualUsage)
+	logger.Debugw("Finalizing session", "sessionId", sessionId, "actualUsage", reqBody.ActualUsage)
 
 	if sessionId == "" {
 		return errors.BadRequest("sessionId is required")
@@ -316,7 +316,7 @@ func (s *orchestratorService) CloseSession(ctx context.Context, reqBody *req.Clo
 		}
 
 		domainSession := domain.NewSessionFromModel(session)
-		if appErr := domainSession.CanBeClosed(); appErr != nil {
+		if appErr := domainSession.CanBeFinalized(); appErr != nil {
 			return appErr
 		}
 
@@ -335,7 +335,11 @@ func (s *orchestratorService) CloseSession(ctx context.Context, reqBody *req.Clo
 			return err
 		}
 
-		return sessionRepo.SetSessionInactive(ctx, session.ID, utils.NowUTC())
+		if session.Status != enums.SessionStatusInactive {
+			return sessionRepo.SetSessionInactive(ctx, session.ID, utils.NowUTC())
+		}
+
+		return nil
 	})
 
 	if err != nil {

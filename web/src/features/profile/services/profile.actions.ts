@@ -3,7 +3,7 @@
 import { apiFetch } from "@/lib/api-fetch"
 import { API_ROUTES } from "@/lib/routes"
 import { tags } from "@/lib/tags"
-import { updateTag } from "next/cache"
+import { refresh, updateTag } from "next/cache"
 import type { IUpsertProfileDto } from "@/lib/types/user-profile.interface"
 
 export async function updateProfile(data: IUpsertProfileDto) {
@@ -15,6 +15,7 @@ export async function updateProfile(data: IUpsertProfileDto) {
 
   if (!result.error) {
     updateTag(tags.profile)
+    refresh()
   }
 
   return result

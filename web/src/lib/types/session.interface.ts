@@ -1,7 +1,9 @@
 export interface ISession {
   id: string
   userId: string
-  startedAt: Date
-  endedAt: Date
-  createdAt: Date
+  status: "pending" | "active" | "inactive" | "failed"
+  maxDuration: number
+  actualUsage: number
+  createdAt: string
+  endedAt: string | null
 }

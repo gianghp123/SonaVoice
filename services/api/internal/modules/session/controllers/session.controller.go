@@ -98,19 +98,19 @@ func (ctrl *SessionController) HandleOffer(c *gin.Context) {
 	c.Data(statusCode, "application/json", respBody)
 }
 
-// HandleCloseSession handles internal session close callbacks from the speech engine.
+// HandleFinalizeSession handles internal session finalize callbacks from the speech engine.
 // No user auth — this is an internal endpoint on a private network.
-func (ctrl *SessionController) HandleCloseSession(c *gin.Context) {
+func (ctrl *SessionController) HandleFinalizeSession(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 
-	var reqBody req.CloseSessionReq
+	var reqBody req.FinalizeSessionReq
 	if err := c.ShouldBindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, response.Fail(errors.BadRequest("invalid request body")))
 		return
 	}
 	reqBody.SessionID = sessionID
 
-	if appErr := ctrl.svc.CloseSession(c.Request.Context(), &reqBody); appErr != nil {
+	if appErr := ctrl.svc.FinalizeSession(c.Request.Context(), &reqBody); appErr != nil {
 		c.JSON(appErr.Code, response.Fail(appErr))
 		return
 	}

@@ -28,3 +28,8 @@ func (p *Provider) Message() repository_interfaces.IMessageRepository {
 	args := p.Called()
 	return args.Get(0).(repository_interfaces.IMessageRepository)
 }
+
+func (p *Provider) UserProfile() repository_interfaces.IUserProfileRepository {
+	args := p.Called()
+	return args.Get(0).(repository_interfaces.IUserProfileRepository)
+}

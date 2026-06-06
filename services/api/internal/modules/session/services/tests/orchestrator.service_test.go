@@ -285,7 +285,7 @@ func TestOrchestratorService_ProxyOffer(t *testing.T) {
 	}
 }
 
-func TestOrchestratorService_CloseSession(t *testing.T) {
+func TestOrchestratorService_FinalizeSession(t *testing.T) {
 	quotaDate := time.Date(2026, 5, 19, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
@@ -336,15 +336,16 @@ func TestOrchestratorService_CloseSession(t *testing.T) {
 			errCode: http.StatusInternalServerError,
 		},
 		{
-			name:        "session already closed",
-			session:     &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive},
+			name:        "finalize already inactive session deducts quota",
+			session:     &models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive, MaxDuration: 300, QuotaDate: &quotaDate},
 			actualUsage: 60,
 			setupProviderMock: func(provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository, quotaRepo *repoMocks.UserQuotaRepository) {
 				provider.On("Session").Return(sessionRepo)
-				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive}, nil)
+				provider.On("UserQuota").Return(quotaRepo)
+				sessionRepo.On("GetForUpdate", mock.Anything, "s1").Return(&models.Session{BaseModel: models.BaseModel{ID: "s1"}, UserID: "user-1", Status: enums.SessionStatusInactive, MaxDuration: 300, QuotaDate: &quotaDate}, nil)
+				quotaRepo.On("Deduct", mock.Anything, "user-1", "voice", quotaDate, int64(60)).Return(nil)
+				sessionRepo.On("SetActualUsage", mock.Anything, "s1", int64(60)).Return(nil)
 			},
-			wantErr: true,
-			errCode: http.StatusBadRequest,
 		},
 	}
 
@@ -368,11 +369,11 @@ func TestOrchestratorService_CloseSession(t *testing.T) {
 		svc := services.NewOrchestratorService(configSvc, sessionSvc, speechSvc, startConnSvc, quotaSvc, uow)
 		ctx := setupSessionCtx("user-1")
 
-		reqBody := &req.CloseSessionReq{
+		reqBody := &req.FinalizeSessionReq{
 				SessionID:   "s1",
 				ActualUsage: tt.actualUsage,
 			}
-			appErr := svc.CloseSession(ctx, reqBody)
+			appErr := svc.FinalizeSession(ctx, reqBody)
 
 			if tt.wantErr {
 				require.NotNil(t, appErr)

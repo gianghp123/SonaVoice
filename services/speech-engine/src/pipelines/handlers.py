@@ -99,6 +99,8 @@ def register_event_handlers(
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
         log.info("Client disconnected")
+
+            
         await task.cancel()
         
 
@@ -144,6 +146,7 @@ def register_event_handlers(
     @task.event_handler("on_pipeline_finished")
     async def on_pipeline_finished(task, frame):
         actual_usage = int(time.time() - start_time)
+
         log.info(
             "Pipeline finished",
             actual_usage=actual_usage,
@@ -151,15 +154,11 @@ def register_event_handlers(
         )
 
         try:
-            await session_service.close_session(
-                session_id=session_id,
-                actual_usage=actual_usage,
-            )
-
-            if session_messages and len(session_messages) > 0:
+            if session_messages:
                 await message_service.save_messages(session_id, session_messages)
+
                 log.info(
-                    "Session closed and messages saved",
+                    "Session messages saved",
                     actual_usage=actual_usage,
                     message_count=len(session_messages),
                 )
@@ -168,12 +167,31 @@ def register_event_handlers(
                     "Session closed with no messages to save",
                     actual_usage=actual_usage,
                 )
+
         except Exception:
             log.exception(
-                "Failed to close session or save messages",
+                "Failed to save session messages",
                 actual_usage=actual_usage,
                 message_count=len(session_messages),
             )
+
+        finally:
+            try:
+                await session_service.finalize_session(
+                    session_id=session_id,
+                    actual_usage=actual_usage,
+                )
+
+                log.info(
+                    "Session closed",
+                    actual_usage=actual_usage,
+                )
+
+            except Exception:
+                log.exception(
+                    "Failed to close session",
+                    actual_usage=actual_usage,
+                )
 
     @tts.event_handler("on_connection_error")
     async def on_tts_connection_error(service, error):

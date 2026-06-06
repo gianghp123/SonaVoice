@@ -43,7 +43,7 @@ func SetupModule(
 	sessGroup.GET("", authMiddleware, sessionController.HandleListSessions)
 	sessGroup.GET("/:sessionId", authMiddleware, sessionController.HandleGetSession)
 	sessGroup.POST("/:sessionId/cancel", authMiddleware, sessionController.HandleCancelSession)
-	sessGroup.POST("/:sessionId/close", internalSecretMiddleware, sessionController.HandleCloseSession)
+	sessGroup.POST("/:sessionId/finalize", internalSecretMiddleware, sessionController.HandleFinalizeSession)
 
 	scGroup := sessGroup.Group("/config")
 	scGroup.GET("", sessionConfigController.HandleGet)
