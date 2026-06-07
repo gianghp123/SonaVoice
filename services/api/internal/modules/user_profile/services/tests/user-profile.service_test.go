@@ -11,7 +11,7 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/modules/user_profile/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/user_profile/services"
 	svcMocks "github.com/gianghp123/SonaVoice/api/internal/modules/user_profile/services/mocks"
-	clerkMocks "github.com/gianghp123/SonaVoice/api/internal/clerk-client/mocks"
+	clerkMocks "github.com/gianghp123/SonaVoice/api/internal/clients/clerk-client/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

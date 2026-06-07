@@ -3,7 +3,7 @@ package session
 import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/database/transaction"
-	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
+	httpclient "github.com/gianghp123/SonaVoice/api/internal/clients/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/middlewares"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/controllers"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/repositories"

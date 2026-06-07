@@ -11,7 +11,7 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/configs"
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
-	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
+	httpclient "github.com/gianghp123/SonaVoice/api/internal/clients/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/middlewares"
 	message "github.com/gianghp123/SonaVoice/api/internal/modules/message"
 	user_profile "github.com/gianghp123/SonaVoice/api/internal/modules/user_profile"

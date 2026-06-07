@@ -1,7 +1,7 @@
 package user_profile
 
 import (
-	"github.com/gianghp123/SonaVoice/api/internal/clerk-client"
+	"github.com/gianghp123/SonaVoice/api/internal/clients/clerk-client"
 	"github.com/gianghp123/SonaVoice/api/internal/database/transaction"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/user_profile/controllers"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/user_profile/repositories"

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	appErrors "github.com/gianghp123/SonaVoice/api/internal/core/errors"
-	httpclientmocks "github.com/gianghp123/SonaVoice/api/internal/http-client/mocks"
+	httpclientmocks "github.com/gianghp123/SonaVoice/api/internal/clients/http-client/mocks"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/services"

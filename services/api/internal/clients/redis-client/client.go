@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/gianghp123/SonaVoice/api/internal/redis-client/scripts"
+	"github.com/gianghp123/SonaVoice/api/internal/clients/redis-client/scripts"
 	"github.com/redis/go-redis/v9"
 )
 

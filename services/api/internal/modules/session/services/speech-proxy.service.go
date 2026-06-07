@@ -8,7 +8,7 @@ import (
 
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
-	httpclient "github.com/gianghp123/SonaVoice/api/internal/http-client"
+	httpclient "github.com/gianghp123/SonaVoice/api/internal/clients/http-client"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"

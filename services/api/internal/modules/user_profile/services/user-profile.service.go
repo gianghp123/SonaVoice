@@ -6,7 +6,7 @@ import (
 
 	clerkuser "github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/getsentry/sentry-go"
-	clerkclient "github.com/gianghp123/SonaVoice/api/internal/clerk-client"
+	clerkclient "github.com/gianghp123/SonaVoice/api/internal/clients/clerk-client"
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
