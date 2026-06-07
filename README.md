@@ -17,7 +17,7 @@
 
 ---
 
-> **Sona is under active development.** Core MVP is complete — staging environment is live at [sona-nextjs-staging.vercel.app](https://sona-nextjs-staging.vercel.app). See [Progress](#-roadmap--progress) for what's done and what's next.
+> **Sona is under active development.** Core MVP is complete — staging environment is live at [sona-nextjs-staging.vercel.app](https://sona-nextjs-staging.vercel.app). See [Roadmap](#roadmap) for what's done and what's next.
 
 ---
 
@@ -28,7 +28,7 @@
 | **Frontend** | Next.js 16 (App Router), TypeScript, Tailwind CSS v4, shadcn/ui |
 | **Auth** | Clerk |
 | **Voice Client** | Pipecat AI Client JS + React + SmallWebRTC Transport |
-| **API Backend** | Go, Gin, GORM, pgx |
+| **API Backend** | Go, Gin, GORM |
 | **Speech Pipeline** | Python, Pipecat AI, FastAPI |
 | **STT** | Deepgram |
 | **LLM** | OpenAI-compatible API (Deepseek via OpenCode proxy) |
@@ -93,15 +93,22 @@ sona-voice/
 ├── web/                          # Next.js frontend
 │   ├── src/
 │   │   ├── app/                  # App Router pages
-│   │   │   ├── (auth)/           # Sign-in / sign-up
-│   │   │   ├── (main)/           # Main app (chat, sessions, landing)
-│   │   │   └── api/proxy/webrtc/ # WebRTC proxy to backend for client side
+│   │   │   ├── [lng]/            # i18n locale routing
+│   │   │   │   ├── (auth)/       # Sign-in / sign-up
+│   │   │   │   ├── (main)/       # Main app (chat, sessions, landing)
+│   │   │   │   ├── (admin)/      # Admin dashboard
+│   │   │   │   └── api/proxy/    # WebRTC proxy to backend
+│   │   │   ├── i18n/             # i18n configuration
+│   │   │   │   └── locales/      # en/, vi/ translations
+│   │   │   └── globals.css
 │   │   ├── components/           # Shared UI components
 │   │   │   ├── common/           # AnalysisCard, LoadingScreen, Logo, etc.
 │   │   │   └── ui/               # shadcn/ui primitives
 │   │   ├── features/             # Feature modules
 │   │   │   ├── chat-interface/   # VoiceOrb, VoicePanel, VoiceToolbar, etc.
 │   │   │   ├── landing/          # LandingHero, ConnectNow
+│   │   │   ├── onboarding/       # User onboarding & preferences
+│   │   │   ├── profile/          # User profile
 │   │   │   └── session-history/  # SessionMessageList, services
 │   │   ├── hooks/                # Custom React hooks
 │   │   ├── lib/                  # API client, types, utilities
@@ -119,7 +126,8 @@ sona-voice/
 │   │   │   ├── middlewares/      # Auth, role, rate limiter
 │   │   │   ├── modules/
 │   │   │   │   ├── session/      # Session CRUD + WebRTC orchestration
-│   │   │   │   └── message/      # Message persistence
+│   │   │   │   ├── message/      # Message persistence
+│   │   │   │   └── user_profile/ # User profile & preferences
 │   │   │   └── utils/            # Helpers
 │   │   ├── go.mod
 │   │   └── vercel.json
@@ -297,37 +305,30 @@ GitHub Actions handles:
 
 ---
 
-## Roadmap / Progress
+## Roadmap
 
 ### Completed
 
 * [x] Real-time voice pipeline (STT → LLM → TTS over WebRTC)
+* [x] Handling interruptions or errors in real-time voice pipeline.
 * [x] User authentication (Clerk)
 * [x] Session CRUD + message history
 * [x] Mem0 long-term memory with pgvector
 * [x] Rate limiting & user quotas
 * [x] Sentry error tracking (all services)
-* [x] Zap structured logging (API)
 * [x] Terraform IaC (dev + staging)
 * [x] CI/CD with auto-deploy to staging
 * [x] Modal serverless deployment (speech engine)
 * [x] Vercel deployment (web + API)
 * [x] Unit tests for API backend
+* [x] Vietnamese i18n support
+* [x] Onboarding & user preference setup
 
-### In Progress / Planned
+### Up Next
 
-* [ ] Reduce end-to-end voice latency
 * [ ] Production Terraform environment
-* [ ] Frontend test suite
-* [ ] Speech engine test suite
-* [ ] E2E / integration tests
-* [ ] Pronunciation feedback & scoring
-* [ ] Speaking fluency analysis
-* [ ] Vocabulary suggestions after conversation
-* [ ] Grammar correction & explanation
-* [ ] Personalized speaking recommendations
-* [ ] Conversation summary + learning insights
-* [ ] Adaptive difficulty by learner level
-* [ ] Custom AI tutor personas
-* [ ] Multi-language support
+* [ ] Pronunciation feedback & fluency analysis
+* [ ] Vocabulary suggestions & grammar correction
+* [ ] Personalized recommendations & learning insights
+* [ ] Adaptive difficulty & custom AI personas
 * [ ] Admin dashboard

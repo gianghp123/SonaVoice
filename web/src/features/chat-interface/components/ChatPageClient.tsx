@@ -5,7 +5,7 @@ import { ChatInterface } from "@/features/chat-interface/components/ChatInterfac
 import { ErrorListener } from "@/features/chat-interface/components/ErrorListener"
 import { cancelSession } from "@/features/session-history/services/session.actions"
 import { PAGE_ROUTES, PROXY_ROUTES } from "@/lib/routes"
-import { EventsPanel, PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
+import { PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
 import * as Sentry from "@sentry/nextjs"
 import { useRouter } from "next/navigation"
 import { useCallback, useMemo, useState } from "react"
