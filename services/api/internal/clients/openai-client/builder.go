@@ -62,7 +62,7 @@ func (b *ResponseBuilder) Do() (string, error) {
 		return "", ErrStructuredOutputTargetNil
 	}
 
-	if isPointer(b.structuredOutput) {
+	if !isPointer(b.structuredOutput) {
 		return "", ErrStructuredOutputTargetPtr
 	}
 

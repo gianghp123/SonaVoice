@@ -3,9 +3,11 @@ package openaiclient
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/openai/openai-go/v3"
-	"github.com/openai/openai-go/v3/responses"
+	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/shared"
 )
 
 type OpenAIClient struct {
@@ -21,16 +23,25 @@ func NewOpenAIClient(sdk *openai.Client, model string) *OpenAIClient {
 }
 
 func (c *OpenAIClient) ExecuteText(ctx context.Context, prompt string) (string, error) {
-	resp, err := c.sdk.Responses.New(ctx, responses.ResponseNewParams{
-		Input: responses.ResponseNewParamsInputUnion{OfString: openai.String(prompt)},
-		Model: c.model,
-	})
-
+	resp, err := c.sdk.Chat.Completions.New(
+		ctx,
+		openai.ChatCompletionNewParams{
+			Model: openai.ChatModel(c.model),
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.UserMessage(prompt),
+			},
+		},
+		option.WithJSONSet("thinking.type", "disabled"),
+	)
 	if err != nil {
 		return "", err
 	}
 
-	return resp.OutputText(), nil
+	if len(resp.Choices) == 0 {
+		return "", fmt.Errorf("no completion choices returned")
+	}
+
+	return resp.Choices[0].Message.Content, nil
 }
 
 func (c *OpenAIClient) ExecuteStructured(
@@ -40,21 +51,39 @@ func (c *OpenAIClient) ExecuteStructured(
 	schemaName string,
 	schema map[string]any,
 ) error {
-	response, err := c.sdk.Responses.New(ctx, responses.ResponseNewParams{
-		Model: c.model,
-		Input: responses.ResponseNewParamsInputUnion{
-			OfString: openai.String(prompt),
+	resp, err := c.sdk.Chat.Completions.New(
+		ctx,
+		openai.ChatCompletionNewParams{
+			Model: openai.ChatModel(c.model),
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.UserMessage(prompt),
+			},
+			ResponseFormat: openai.ChatCompletionNewParamsResponseFormatUnion{
+				OfJSONSchema: &shared.ResponseFormatJSONSchemaParam{
+					Type: "json_schema",
+					JSONSchema: shared.ResponseFormatJSONSchemaJSONSchemaParam{
+						Name:   schemaName,
+						Schema: schema,
+						Strict: openai.Bool(true),
+					},
+				},
+			},
 		},
-		Text: responses.ResponseTextConfigParam{
-			Format: responses.ResponseFormatTextConfigParamOfJSONSchema(
-				schemaName,
-				schema,
-			),
-		},
-	})
+		option.WithJSONSet("thinking.type", "disabled"),
+	)
 	if err != nil {
 		return err
 	}
 
-	return json.Unmarshal([]byte(response.OutputText()), output)
+	if len(resp.Choices) == 0 {
+		return fmt.Errorf("no completion choices returned")
+	}
+
+	content := resp.Choices[0].Message.Content
+
+	if err := json.Unmarshal([]byte(content), output); err != nil {
+		return fmt.Errorf("failed to unmarshal structured output: %w; raw content: %s", err, content)
+	}
+
+	return nil
 }

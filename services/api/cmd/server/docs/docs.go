@@ -24,11 +24,130 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/sessions": {
+        "/learning/grammar/messages/{messageId}": {
             "post": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Analyze a message transcript for grammar and naturalness, save the result",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "learning"
+                ],
+                "summary": "Analyze grammar for a message",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Message ID",
+                        "name": "messageId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Language for the explanation (e.g. vietnamese)",
+                        "name": "explanationLanguage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of sessions belonging to the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "session"
+                ],
+                "summary": "List user sessions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionListItemRes"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Create a new session and start a WebRTC connection with the speech service",
@@ -104,7 +223,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Update the session configuration (admin only)",
@@ -163,11 +282,78 @@ const docTemplate = `{
                 }
             }
         },
-        "/sessions/{sessionId}/offer": {
+        "/sessions/{sessionId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a single session by ID (must belong to the authenticated user)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "session"
+                ],
+                "summary": "Get session details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionRes"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/api/offer": {
             "post": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Proxy a WebRTC offer request to the speech service by session ID",
@@ -221,7 +407,7 @@ const docTemplate = `{
             "patch": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Proxy a WebRTC offer request to the speech service by session ID",
@@ -273,11 +459,184 @@ const docTemplate = `{
                 }
             }
         },
+        "/sessions/{sessionId}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cancel a pending or active session, releasing all reserved quota",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "session"
+                ],
+                "summary": "Cancel a session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of messages for a session",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "message"
+                ],
+                "summary": "List messages in a session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc/desc)",
+                        "name": "order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res_MessageRes"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create new messages for a session (internal endpoint)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "message"
+                ],
+                "summary": "Create messages in a session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Messages to create",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_req.CreateMessagesReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res_MessageRes"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/sessions/{sessionId}/start": {
             "post": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Start a WebRTC connection for a pending session",
@@ -336,6 +695,32 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "github_com_gianghp123_SonaVoice_api_internal_core_enums.MessageRole": {
+            "type": "string",
+            "enum": [
+                "user",
+                "assistant"
+            ],
+            "x-enum-varnames": [
+                "MessageRoleUser",
+                "MessageRoleAssistant"
+            ]
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_core_enums.SessionStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "active",
+                "inactive",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "SessionStatusPending",
+                "SessionStatusActive",
+                "SessionStatusInactive",
+                "SessionStatusFailed"
+            ]
+        },
         "github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError": {
             "type": "object",
             "properties": {
@@ -351,6 +736,63 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {},
+                "error": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res_MessageRes": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res.MessageRes"
+                    }
+                },
+                "error": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionListItemRes": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionListItemRes"
+                    }
+                },
+                "error": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res.GrammarAIResult"
+                },
                 "error": {
                     "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError"
                 },
@@ -396,6 +838,23 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionRes": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionRes"
+                },
+                "error": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "github_com_gianghp123_SonaVoice_api_internal_core_response.Meta": {
             "type": "object",
             "properties": {
@@ -410,6 +869,95 @@ const docTemplate = `{
                 },
                 "totalPages": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res.GrammarAIResult": {
+            "type": "object",
+            "properties": {
+                "correctedText": {
+                    "type": "string"
+                },
+                "explanation": {
+                    "type": "string"
+                },
+                "hasCorrection": {
+                    "type": "boolean"
+                },
+                "metadata": {},
+                "originalText": {
+                    "type": "string"
+                },
+                "practiceFocus": {
+                    "type": "string"
+                },
+                "practiceReason": {
+                    "type": "string"
+                },
+                "practiceSentence": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                    ]
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_req.CreateMessagesReq": {
+            "type": "object",
+            "required": [
+                "messages"
+            ],
+            "properties": {
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_req.MessageItem"
+                    }
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_req.MessageItem": {
+            "type": "object",
+            "required": [
+                "role"
+            ],
+            "properties": {
+                "role": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.MessageRole"
+                },
+                "transcript": {
+                    "type": "string"
+                },
+                "was_interrupted": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res.MessageRes": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.MessageRole"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "transcript": {
+                    "type": "string"
+                },
+                "was_interrupted": {
+                    "type": "boolean"
                 }
             }
         },
@@ -517,6 +1065,37 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionListItemRes": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.SessionStatus"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionRes": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.SessionStatus"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.WebRTCConnectionRes": {
             "type": "object",
             "properties": {
@@ -527,6 +1106,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.IceConfig"
                         }
                     ]
+                },
+                "maxDuration": {
+                    "type": "integer"
                 },
                 "sessionId": {
                     "type": "string"
