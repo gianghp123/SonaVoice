@@ -9,6 +9,11 @@ export const LANGUAGE_LABELS: Record<SupportedLanguage, string> = {
   vi: '🇻🇳 Tiếng Việt',
 }
 
+export const LANGUAGE_FULL_NAMES: Record<SupportedLanguage, string> = {
+  en: 'English',
+  vi: 'Vietnamese',
+}
+
 export function isSupportedLanguage(
   locale: string | undefined
 ): locale is SupportedLanguage {
