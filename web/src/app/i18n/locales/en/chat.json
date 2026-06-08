@@ -15,5 +15,8 @@
   "pronunciation": "Pronunciation",
   "grammar": "GRAMMAR",
   "practice": "PRACTICE",
-  "no_grammar_issues": "No grammar issues found. Great job!"
+  "no_grammar_issues": "No grammar issues found. Great job!",
+  "analyze_grammar": "Analyze grammar",
+  "correction": "Correction:",
+  "focus": "Focus:"
 }

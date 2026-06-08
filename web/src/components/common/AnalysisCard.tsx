@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChevronRight, Volume2 } from "lucide-react"
 import type { IGrammarAnalysis } from "@/lib/types/grammar-analysis.interface"
+import { useT } from "next-i18next/client"
 
 interface Suggestion {
   original: string
@@ -41,6 +42,7 @@ export function AnalysisCard({
   pronunciation,
   grammar,
 }: AnalysisCardProps) {
+  const { t } = useT('chat')
   return (
     <div className="flex flex-col gap-2">
       {grammar && (
@@ -49,7 +51,7 @@ export function AnalysisCard({
             <CollapsibleTrigger className="flex w-full items-center gap-2 p-2 hover:bg-secondary/30 transition-colors">
               <ChevronRight className="h-3 w-3 transition-transform [[data-state=open]>&]:rotate-90" />
               <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                Grammar
+                {t('grammar')}
               </span>
               <SeverityBadge severity={grammar.severity} />
             </CollapsibleTrigger>
@@ -68,13 +70,13 @@ export function AnalysisCard({
                   {grammar.practiceSentence && (
                     <div className="flex flex-col gap-1">
                       <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Practice
+                        {t('practice')}
                       </span>
                       <div className="rounded-md bg-background p-2 text-sm">
                         <p className="italic">{grammar.practiceSentence}</p>
                         {grammar.practiceFocus && (
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Focus: {grammar.practiceFocus}
+                            {t('focus')} {grammar.practiceFocus}
                           </p>
                         )}
                         {grammar.practiceReason && (
@@ -87,7 +89,7 @@ export function AnalysisCard({
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-green-600">No grammar issues</p>
+                <p className="text-sm text-green-600">{t('no_grammar_issues')}</p>
               )}
             </CollapsibleContent>
           </div>
@@ -100,7 +102,7 @@ export function AnalysisCard({
             <CollapsibleTrigger className="flex w-full items-center gap-2 p-2 hover:bg-secondary/30 transition-colors">
               <ChevronRight className="h-3 w-3 transition-transform [[data-state=open]>&]:rotate-90" />
               <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                Suggestions
+                {t('suggestions')}
               </span>
             </CollapsibleTrigger>
             <CollapsibleContent className="px-2 pb-2">
@@ -126,7 +128,7 @@ export function AnalysisCard({
             <CollapsibleTrigger className="flex w-full items-center gap-2 p-2 hover:bg-secondary/30 transition-colors">
               <ChevronRight className="h-3 w-3 transition-transform [[data-state=open]>&]:rotate-90" />
               <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                Pronunciation
+                {t('pronunciation')}
               </span>
             </CollapsibleTrigger>
             <CollapsibleContent className="px-2 pb-2">

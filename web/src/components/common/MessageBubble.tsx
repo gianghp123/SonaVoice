@@ -7,6 +7,7 @@ import {
 } from "@/components/prompt-kit/message"
 import { MessageRole } from "@/lib/enums/message-role.enum"
 import { AudioLines } from "lucide-react"
+import { useT } from "next-i18next/client"
 
 interface MessageBubbleProps {
   role: MessageRole
@@ -18,8 +19,9 @@ interface MessageBubbleProps {
 }
 
 function RoleBadge({ role }: { role: MessageRole }) {
+  const { t } = useT('chat')
   if (role === MessageRole.User) return null
-  const label = role === MessageRole.Analysis ? "ANALYSIS" : "SONA"
+  const label = role === MessageRole.Analysis ? t('analysis') : t('sona')
   return (
     <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
       {label}
@@ -69,7 +71,7 @@ export function MessageBubble({
 
         {wasInterrupted && (
           <span className="inline-flex w-fit items-center rounded-md border border-destructive/50 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
-            interrupted
+            {t('interrupted')}
           </span>
         )}
       </div>

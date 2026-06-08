@@ -13,16 +13,18 @@ import { ScrollButton } from "@/components/prompt-kit/scroll-button"
 import { Button } from "@/components/ui/button"
 import { MessageRole } from "@/lib/enums/message-role.enum"
 import { usePipecatConversation } from "@pipecat-ai/client-react"
-import { Languages, Loader2, Sparkle } from "lucide-react"
+import { Loader2, Sparkle } from "lucide-react"
 import { useActionState, useEffect } from "react"
 import { toast } from "sonner"
 import { AnalysisCard } from "../../../components/common/AnalysisCard"
 import { MessageBubble } from "../../../components/common/MessageBubble"
 import { analyzeGrammarAction } from "../services/grammar.actions"
 import { HistoryHeader } from "./HistoryHeader"
+import { useT } from "next-i18next/client"
 
 export function HistoryPanelContent() {
   const { messages } = usePipecatConversation()
+  const { t } = useT('chat')
   const [grammarState, dispatchGrammar, isPending] = useActionState(
     analyzeGrammarAction,
     { result: null, error: null, index: -1 }
@@ -46,7 +48,7 @@ export function HistoryPanelContent() {
                 <MessageBubble key={i} role={MessageRole.Analysis}>
                   <AnalysisCard
                     suggestions={{
-                      hint: "Correction:",
+                      hint: t('correction'),
                       original: "",
                       corrected: "",
                     }}
@@ -81,7 +83,7 @@ export function HistoryPanelContent() {
                     <form action={dispatchGrammar}>
                       <input type="hidden" name="transcript" value={text} />
                       <input type="hidden" name="index" value={String(i)} />
-                      <MessageAction tooltip="Analyze grammar">
+                      <MessageAction tooltip={t('analyze_grammar')}>
                         <Button
                           variant="ghost"
                           size="icon"
