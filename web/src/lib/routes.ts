@@ -10,6 +10,11 @@ export const API_ROUTES = {
     UPSERT: "/profile",
     UPDATE: "/profile",
   },
+  LEARNING: {
+    GRAMMAR: {
+      ANALYZE: "/learning/grammar/analyze",
+    },
+  },
 } as const
 
 export const PROXY_ROUTES = {

@@ -15,6 +15,7 @@ import (
 
 type IGrammarService interface {
 	Analyze(ctx context.Context, messageID string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError)
+	AnalyzeText(ctx context.Context, transcript string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError)
 }
 
 type grammarService struct {
@@ -35,18 +36,10 @@ func NewGrammarService(
 	}
 }
 
-func (s *grammarService) Analyze(ctx context.Context, messageID string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError) {
+func (s *grammarService) AnalyzeText(ctx context.Context, transcript string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError) {
 	logger := zapLogger.S()
 
-	logger.Infow("analyzing grammar for message", "message_id", messageID, "explanation_language", explanationLanguage)
-	message, err := s.messageRepo.GetByID(ctx, messageID)
-
-	if err != nil {
-		logger.Errorw("failed to get message", "error", err)
-		return nil, errors.MapRepoError(err)
-	}
-
-	prompt, err := prompts.BuildGrammarAnalysisPrompt(message.Transcript, explanationLanguage)
+	prompt, err := prompts.BuildGrammarAnalysisPrompt(transcript, explanationLanguage)
 	if err != nil {
 		logger.Errorw("failed to build grammar analysis prompt", "error", err)
 		return nil, errors.Internal(err.Error())
@@ -76,8 +69,6 @@ func (s *grammarService) Analyze(ctx context.Context, messageID string, explanat
 	}
 
 	model := &models.GrammarAnalysis{
-		SessionID:        message.SessionID,
-		MessageID:        messageID,
 		OriginalText:     result.OriginalText,
 		CorrectedText:    result.CorrectedText,
 		Explanation:      result.Explanation,
@@ -88,6 +79,28 @@ func (s *grammarService) Analyze(ctx context.Context, messageID string, explanat
 		PracticeReason:   result.PracticeReason,
 		Metadata:         metadataJSON,
 	}
+
+	return model, nil
+}
+
+func (s *grammarService) Analyze(ctx context.Context, messageID string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError) {
+	logger := zapLogger.S()
+
+	logger.Infow("analyzing grammar for message", "message_id", messageID, "explanation_language", explanationLanguage)
+	message, err := s.messageRepo.GetByID(ctx, messageID)
+
+	if err != nil {
+		logger.Errorw("failed to get message", "error", err)
+		return nil, errors.MapRepoError(err)
+	}
+
+	model, appErr := s.AnalyzeText(ctx, message.Transcript, explanationLanguage)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	model.SessionID = message.SessionID
+	model.MessageID = messageID
 
 	if err := s.grammarRepo.Upsert(ctx, model); err != nil {
 		logger.Errorw("failed to save grammar analysis", "error", err)

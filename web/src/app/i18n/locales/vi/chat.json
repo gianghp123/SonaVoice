@@ -12,5 +12,8 @@
   "sona": "SONA",
   "interrupted": "Đã ngắt",
   "suggestions": "Gợi ý",
-  "pronunciation": "Phát âm"
+  "pronunciation": "Phát âm",
+  "grammar": "NGỮ PHÁP",
+  "practice": "LUYỆN TẬP",
+  "no_grammar_issues": "Không tìm thấy lỗi ngữ pháp. Làm tốt lắm!"
 }

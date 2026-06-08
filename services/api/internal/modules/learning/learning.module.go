@@ -16,6 +16,9 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB, openaiClient openaiclient
 	grammarSvc := services.NewGrammarService(openaiClient, messageRepo, grammarRepo)
 	grammarCtrl := controllers.NewGrammarController(grammarSvc)
 
-	group := router.Group("/learning/grammar/messages/:messageId")
-	group.POST("", authMiddlware, grammarCtrl.HandleAnalyze)
+	analyzeGroup := router.Group("/learning/grammar")
+	analyzeGroup.POST("/analyze", authMiddlware, grammarCtrl.HandleAnalyzeText)
+
+	messageGroup := router.Group("/learning/grammar/messages/:messageId")
+	messageGroup.POST("", authMiddlware, grammarCtrl.HandleAnalyze)
 }

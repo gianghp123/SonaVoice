@@ -12,5 +12,8 @@
   "sona": "SONA",
   "interrupted": "Interrupted",
   "suggestions": "Suggestions",
-  "pronunciation": "Pronunciation"
+  "pronunciation": "Pronunciation",
+  "grammar": "GRAMMAR",
+  "practice": "PRACTICE",
+  "no_grammar_issues": "No grammar issues found. Great job!"
 }

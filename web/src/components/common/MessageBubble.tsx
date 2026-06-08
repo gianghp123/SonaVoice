@@ -1,74 +1,78 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
-import { ChatBubble, ChatBubbleAvatar, ChatBubbleMessage } from "@/components/ui/chat-bubble"
+import {
+  Message,
+  MessageAvatar,
+  MessageContent,
+} from "@/components/prompt-kit/message"
 import { MessageRole } from "@/lib/enums/message-role.enum"
-import { useT } from "next-i18next/client"
 import { AudioLines } from "lucide-react"
 
 interface MessageBubbleProps {
   role: MessageRole
   children: React.ReactNode
+  action?: React.ReactNode
   className?: string
   timestamp?: Date
   wasInterrupted?: boolean
 }
 
-function RoleBadge({ role, t }: { role: MessageRole; t: (key: string) => string }) {
+function RoleBadge({ role }: { role: MessageRole }) {
   if (role === MessageRole.User) return null
+  const label = role === MessageRole.Analysis ? "ANALYSIS" : "SONA"
   return (
-    <Badge
-      variant="secondary"
-      className="text-[10px] font-bold uppercase tracking-widest bg-transparent px-0 hover:bg-transparent"
-    >
-      {role === MessageRole.Analysis ? t('analysis') : t('sona')}
-    </Badge>
+    <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+      {label}
+    </span>
   )
 }
 
-function MessageFooter({ timestamp, t, wasInterrupted }: { timestamp?: Date; t: (key: string) => string; wasInterrupted?: boolean }) {
-  if (!timestamp && !wasInterrupted) return null
+export function MessageBubble({
+  role,
+  children,
+  action,
+  timestamp,
+  wasInterrupted,
+}: MessageBubbleProps) {
+  const isUser = role === MessageRole.User
 
   return (
-    <div className="flex items-center gap-2 mt-1">
-      {timestamp && (
-        <span className="text-[10px] text-muted-foreground">
-          {timestamp.toLocaleString()}
-        </span>
+    <Message className={isUser ? "justify-end" : "justify-start"}>
+      {!isUser && (
+        <MessageAvatar
+          fallback={<AudioLines className="h-4 w-4" />}
+          className="h-8 w-8"
+        />
       )}
-      {wasInterrupted && (
-        <Badge variant="destructive" className="text-[10px] px-1 py-0">
-          {t('interrupted')}
-        </Badge>
-      )}
-    </div>
-  )
-}
 
-export function MessageBubble({ role, children, className, timestamp, wasInterrupted }: MessageBubbleProps) {
-  const { t } = useT('chat')
+      <div className="flex flex-col gap-1">
+        <RoleBadge role={role} />
 
-  if (role === MessageRole.User) {
-    return (
-      <ChatBubble variant="sent" className={className}>
-        <ChatBubbleMessage variant="sent" className="font-medium max-w-[85%]">
+        <MessageContent
+          className={
+            isUser
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted"
+          }
+        >
           {children}
-          <MessageFooter timestamp={timestamp} wasInterrupted={wasInterrupted} t={t} />
-        </ChatBubbleMessage>
-      </ChatBubble>
-    )
-  }
+        </MessageContent>
 
-  return (
-    <ChatBubble variant="received" className={className}>
-      <ChatBubbleAvatar className="bg-primary text-primary-foreground" fallback={<AudioLines />} />
-      <div className="flex flex-col gap-1 flex-1">
-        <RoleBadge role={role} t={t} />
-        <ChatBubbleMessage variant="received" className="bg-card border-[0.5px]">
-          {children}
-          <MessageFooter timestamp={timestamp} wasInterrupted={wasInterrupted} t={t} />
-        </ChatBubbleMessage>
+        
+        {action}
+
+        {timestamp && (
+          <span className="text-[10px] text-muted-foreground">
+            {timestamp.toLocaleTimeString()}
+          </span>
+        )}
+
+        {wasInterrupted && (
+          <span className="inline-flex w-fit items-center rounded-md border border-destructive/50 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+            interrupted
+          </span>
+        )}
       </div>
-    </ChatBubble>
+    </Message>
   )
 }

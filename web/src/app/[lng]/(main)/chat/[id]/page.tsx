@@ -30,5 +30,7 @@ export default async function ChatPage({ params }: {
     return <SessionErrorModal message={t("session_ended_start_new")} />
   }
 
+  console.log(session)
+
   return <ChatPageClient sessionId={id} />
 }

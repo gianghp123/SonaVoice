@@ -9,7 +9,6 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/res"
-	_ "github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/services"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -213,5 +212,5 @@ func (ctrl *SessionController) HandleGetSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response.Success(session))
+	c.JSON(http.StatusOK, response.Success(dto))
 }
