@@ -36,6 +36,7 @@ export function MessageBubble({
   timestamp,
   wasInterrupted,
 }: MessageBubbleProps) {
+  const { t } = useT('chat')
   const isUser = role === MessageRole.User
 
   return (

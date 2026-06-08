@@ -1,5 +1,6 @@
 "use client"
 
+import { BrowserNavigationGuard } from "@/components/common/BrowserNavigationGuard"
 import { LoadingScreen } from "@/components/common/LoadingScreen"
 import { ChatInterface } from "@/features/chat-interface/components/ChatInterface"
 import { ErrorListener } from "@/features/chat-interface/components/ErrorListener"
@@ -17,6 +18,7 @@ interface ChatPageClientProps {
 export function ChatPageClient({ sessionId }: ChatPageClientProps) {
   const router = useRouter()
   const [maxDuration, setMaxDuration] = useState(0)
+  const [navigationGuardEnabled, setNavigationGuardEnabled] = useState(true)
 
   const startBotParams = useMemo(() => ({
     endpoint: PROXY_ROUTES.WEBRTC.START(sessionId),
@@ -64,6 +66,7 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
             sessionId,
           })
           await cancelSession(sessionId)
+          setNavigationGuardEnabled(false)
           router.push(PAGE_ROUTES.HOME)
         }
 
@@ -91,12 +94,13 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
           }
 
           await handleDisconnect?.()
-
+          setNavigationGuardEnabled(false)
           router.push(PAGE_ROUTES.HOME)
         }
 
         return (
           <>
+            <BrowserNavigationGuard enabled={navigationGuardEnabled} />
             <ErrorListener
               handleError={handleSessionError}
               initialError={error}
