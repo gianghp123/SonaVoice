@@ -1,15 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getMessages } from "@/features/session-history/services/messages.get"
 import { SessionMessageList } from "@/features/session-history/components/SessionMessageList"
+import { getMessages } from "@/features/session-history/services/messages.get"
 import { getT } from "next-i18next/server"
 
 export default async function SessionPage({
   params,
 }: {
-  params: Promise<{ lng: string; id: string }>
+  params: Promise<{ id: string }>
 }) {
-  const { id, lng } = await params
-  const { t } = await getT("session", { lng })
+  const { id } = await params
+  const { t } = await getT("session")
   const messagesRes = await getMessages(id)
 
   if (messagesRes.error) {

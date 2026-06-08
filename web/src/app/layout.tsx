@@ -1,16 +1,16 @@
-import type { Metadata } from "next"
-import { Geist, Geist_Mono, Inter } from "next/font/google"
-import "../globals.css"
-import { ClerkProvider } from "@clerk/nextjs"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
-import { PAGE_ROUTES, AUTH_ROUTES } from "@/lib/routes"
-import { Toaster } from "sonner"
-import { initServerI18next, getT, getResources, generateI18nStaticParams } from "next-i18next/server"
-import { I18nProvider } from "next-i18next/client"
-import i18nConfig from "../../../i18n.config"
 import { getClerkLanguageKey } from "@/lib/i18n/clerk-localization"
 import { SupportedLanguage } from "@/lib/i18n/i18n"
+import { AUTH_ROUTES, PAGE_ROUTES } from "@/lib/routes"
+import { cn } from "@/lib/utils"
+import { ClerkProvider } from "@clerk/nextjs"
+import type { Metadata } from "next"
+import { I18nProvider } from "next-i18next/client"
+import { generateI18nStaticParams, getResources, getT, initServerI18next } from "next-i18next/server"
+import { Geist, Geist_Mono, Inter } from "next/font/google"
+import { Toaster } from "sonner"
+import i18nConfig from "../../i18n.config"
+import "./globals.css"
 
 initServerI18next(i18nConfig)
 
@@ -18,8 +18,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
 
-export async function generateMetadata({ params }: { params: Promise<{ lng: string }> }): Promise<Metadata> {
-  const { lng } = await params
+export async function generateMetadata(): Promise<Metadata> {
+  const { lng } = await getT()
   const { t } = await getT('common', { lng })
 
   return {
@@ -34,13 +34,10 @@ export async function generateStaticParams() {
 
 export default async function RootLayout({
   children,
-  params,
 }: {
   children: React.ReactNode
-  params: Promise<{ lng: string }>
 }) {
-  const { lng } = await params
-  const { i18n } = await getT(undefined, { lng })
+  const { i18n, lng } = await getT()
   const resources = getResources(i18n)
 
   return (
@@ -54,7 +51,7 @@ export default async function RootLayout({
         "font-sans",
         inter.variable
       )}
-    suppressHydrationWarning
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
         <ClerkProvider

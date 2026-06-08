@@ -5,12 +5,12 @@ import { SessionStatus } from "@/lib/enums/session-status.enum"
 import { getT } from "next-i18next/server"
 
 export default async function ChatPage({ params }: {
-  params: Promise<{ lng: string; id: string }>
+  params: Promise<{ id: string }>
 }) {
-  const { id, lng } = await params
+  const { id } = await params
 
   const sessionRes = await getSession(id)
-  const { t } = await getT("session", { lng })
+  const { t } = await getT("session")
 
   if (sessionRes.error) {
     return <SessionErrorModal message={t("failed_to_load_session")} />
@@ -30,7 +30,6 @@ export default async function ChatPage({ params }: {
     return <SessionErrorModal message={t("session_ended_start_new")} />
   }
 
-  console.log(session)
 
   return <ChatPageClient sessionId={id} />
 }

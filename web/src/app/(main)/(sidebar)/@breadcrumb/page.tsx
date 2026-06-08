@@ -6,12 +6,8 @@ import {
 } from "@/components/ui/breadcrumb"
 import { getT } from "next-i18next/server"
 
-export default async function SessionBreadcrumb({
-  params,
-}: {
-  params: Promise<{ lng: string }>
-}) {
-  const { lng } = await params
+export default async function SessionBreadcrumb() {
+  const { lng } = await getT()
   const { t } = await getT("session", { lng })
 
   return (
