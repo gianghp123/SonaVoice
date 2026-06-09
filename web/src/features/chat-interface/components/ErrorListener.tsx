@@ -59,12 +59,12 @@ function ErrorListener({
         })
       }
 
-      toast.error(t('an_error_occurred', { text }), {
+      toast.error(t('an_error_occurred', { text: text }), {
         duration: 10000,
       })
 
       if (fatal) {
-        setFatalError(text)
+        setFatalError(text.includes("408") ? t('timeout') : text)
       }
     }, [t])
   )

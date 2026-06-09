@@ -11,8 +11,7 @@ import { getT } from "next-i18next/server"
 import Link from "next/link"
 
 export default async function SessionBreadcrumb() {
-  const { lng } = await getT()
-  const { t } = await getT("session", { lng })
+  const { t } = await getT("session")
 
   return (
     <Breadcrumb>

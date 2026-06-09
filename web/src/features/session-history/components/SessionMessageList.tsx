@@ -53,7 +53,6 @@ export function SessionMessageList({ items }: SessionMessageListProps) {
             avatar={!isUser ? <BotAvatarIcon /> : undefined}
             timestamp={new Date(msg.createdAt)}
             wasInterrupted={msg.wasInterrupted}
-            className={isUser ? "justify-end" : "justify-start"}
             actions={
               isUser ? [
                 {

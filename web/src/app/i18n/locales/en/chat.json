@@ -1,6 +1,7 @@
 {
   "an_error_occurred": "An error occurred: {{text}}",
   "session_ended": "Session ended",
+  "timeout": "Session ended due to inactivity, please open a new session.",
   "bot_stopped": "The bot runtime stopped unexpectedly.",
   "return_home": "Return home",
   "mic_muted": "Mic Muted",

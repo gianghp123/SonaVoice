@@ -70,7 +70,7 @@ export function HistoryPanelContent() {
             const role =
               message.role === "user"
                 ? MessageRole.User
-                : MessageRole.Assistant
+                : MessageRole.Assistant 
 
             const text =
               message.parts

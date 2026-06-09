@@ -1,6 +1,7 @@
 {
   "an_error_occurred": "Đã xảy ra lỗi: {{text}}",
   "session_ended": "Phiên đã kết thúc",
+  "timeout": "Phiên đã kết thúc vì không hoạt động, vui lòng mở phiên mới.",
   "bot_stopped": "Bot đã dừng bất ngờ.",
   "return_home": "Về trang chủ",
   "mic_muted": "Mic đã tắt",

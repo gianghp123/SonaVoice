@@ -52,7 +52,7 @@ export function MessageBubble({
   const isUser = role === MessageRole.User
 
   return (
-    <Message className={cn(className)}>
+    <Message className={cn(className, isUser ? "justify-end" : "justify-start")}>
       {avatar && (
         <MessageAvatar
           fallback={avatar}

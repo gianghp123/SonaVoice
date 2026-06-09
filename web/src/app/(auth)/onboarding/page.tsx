@@ -7,7 +7,7 @@ export default async function OnboardingPage() {
   const { userId, sessionClaims, } = await auth()
 
   if (!userId) {
-    redirect("/")
+    redirect(PAGE_ROUTES.HOME)
   }
 
   const metadata = sessionClaims?.metadata
