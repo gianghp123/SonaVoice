@@ -6,11 +6,11 @@ Integrate grammar analysis into the session history view, allowing users to trig
 
 ## Requirements
 
-1. Display grammar analysis button on user messages in session history
+1. Display grammar analysis sparkle button on ALL user messages (since endpoint uses upsert)
 2. Trigger analysis via `POST /learning/grammar/messages/:messageId` (persists to DB)
-3. Fetch existing analyses at server component level, pass as props
+3. Fetch existing analyses at server component level, join with messages into flat ordered list
 4. Use `updateTag` + `refresh()` for revalidation after trigger (full refresh pattern)
-5. Extract shared logic from `HistoryPanelContent` into reusable hook
+5. Extract shared logic into reusable `useGrammarAnalysis` hook at `web/src/hooks/`
 
 ## Architecture
 
@@ -21,24 +21,36 @@ Server Component (sessions/[id]/page.tsx)
   ├── getMessages(sessionId)           → IMessage[]
   ├── getGrammarAnalyses(sessionId)    → IGrammarAnalysis[]
   │
-  ├── Join: messages.map(msg => ({
-  │     ...msg,
-  │     analysis: analysisMap.get(msg.id)
-  │   }))
+  ├── Build analysisMap: Map<messageId, IGrammarAnalysis>
   │
-  └── <SessionMessageList messages={messagesWithAnalysis} />
+  ├── Build flat ordered items list:
+  │   messages.forEach(msg => {
+  │     items.push({ type: 'message', data: msg })
+  │     if (analysisMap.has(msg.id))
+  │       items.push({ type: 'analysis', data: analysis })
+  │   })
+  │
+  └── <SessionMessageList items={items} />
 
 SessionMessageList (client component)
-  ├── for each message:
-  │   ├── render MessageBubble with transcript
-  │   ├── if user role && no analysis → show SparkleButton
-  │   └── if analysis exists → show AnalysisCard below
+  ├── for each item:
+  │   ├── type === 'message' → MessageBubble
+  │   │   └── if role === MessageRole.User → sparkle button (always shown)
+  │   └── type === 'analysis' → MessageBubble(role=Analysis) + AnalysisCard
   │
   └── on SparkleButton click:
       └── analyzeGrammarByMessage(messageId)
             ├── POST /learning/grammar/messages/:messageId
             ├── updateTag("grammarAnalyses")
             └── refresh()
+```
+
+### SessionItem Type
+
+```typescript
+type SessionItem =
+  | { type: 'message'; data: IMessage }
+  | { type: 'analysis'; data: IGrammarAnalysis }
 ```
 
 ## Backend Changes
@@ -216,7 +228,7 @@ export async function analyzeGrammarByMessage(
 
 ### 5. Shared hook: `useGrammarAnalysis`
 
-**File:** `web/src/lib/hooks/useGrammarAnalysis.ts`
+**File:** `web/src/hooks/useGrammarAnalysis.ts`
 
 ```typescript
 import { useT } from "next-i18next/client"
@@ -262,79 +274,7 @@ export function useGrammarAnalysis() {
 }
 ```
 
-### 6. Component: `GrammarAnalysisMessage`
-
-**File:** `web/src/components/common/GrammarAnalysisMessage.tsx`
-
-```typescript
-"use client"
-
-import { MessageBubble } from "@/components/common/MessageBubble"
-import { AnalysisCard } from "@/components/common/AnalysisCard"
-import { MessageAction, MessageActions } from "@/components/prompt-kit/message"
-import { Button } from "@/components/ui/button"
-import { MessageRole } from "@/lib/enums/message-role.enum"
-import { useGrammarAnalysis } from "@/lib/hooks/useGrammarAnalysis"
-import type { IGrammarAnalysis } from "@/lib/types/grammar-analysis.interface"
-import { Loader2, Sparkle } from "lucide-react"
-import { useT } from "next-i18next/client"
-
-interface GrammarAnalysisMessageProps {
-  messageId: string
-  transcript: string
-  analysis?: IGrammarAnalysis
-}
-
-export function GrammarAnalysisMessage({
-  messageId,
-  transcript,
-  analysis,
-}: GrammarAnalysisMessageProps) {
-  const { t } = useT("chat")
-  const { pendingId, triggerAnalysis } = useGrammarAnalysis()
-  const isLoading = pendingId === messageId
-
-  return (
-    <div className="flex flex-col">
-      <MessageBubble
-        role={MessageRole.User}
-        action={
-          !analysis && (
-            <MessageActions className="self-end!">
-              <MessageAction tooltip={t("analyze_grammar")}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  type="button"
-                  disabled={pendingId !== null}
-                  onClick={() => triggerAnalysis(messageId)}
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Sparkle className="h-3 w-3 text-purple-500" />
-                  )}
-                </Button>
-              </MessageAction>
-            </MessageActions>
-          )
-        }
-      >
-        {transcript}
-      </MessageBubble>
-
-      {analysis && (
-        <MessageBubble role={MessageRole.Analysis} asChild>
-          <AnalysisCard grammar={analysis} />
-        </MessageBubble>
-      )}
-    </div>
-  )
-}
-```
-
-### 7. Server component: Update page
+### 6. Server component: Update page
 
 **File:** `web/src/app/(main)/(sidebar)/sessions/[id]/page.tsx`
 
@@ -342,6 +282,12 @@ export function GrammarAnalysisMessage({
 import { getMessages } from "@/features/session-history/services/messages.get"
 import { getGrammarAnalyses } from "@/features/session-history/services/grammar.get"
 import { SessionMessageList } from "@/features/session-history/components/SessionMessageList"
+import type { IMessage } from "@/lib/types/message.interface"
+import type { IGrammarAnalysis } from "@/lib/types/grammar-analysis.interface"
+
+type SessionItem =
+  | { type: 'message'; data: IMessage }
+  | { type: 'analysis'; data: IGrammarAnalysis }
 
 export default async function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -355,48 +301,60 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
     // ... existing error handling
   }
 
+  // Build analysis lookup map
   const analysisMap = new Map(
     (analysesRes.data ?? []).map((a) => [a.messageId, a])
   )
 
-  const messagesWithAnalysis = (messagesRes.data ?? []).map((msg) => ({
-    ...msg,
-    analysis: analysisMap.get(msg.id),
-  }))
+  // Build flat ordered items list
+  const items: SessionItem[] = []
+  for (const msg of messagesRes.data ?? []) {
+    items.push({ type: 'message', data: msg })
+    const analysis = analysisMap.get(msg.id)
+    if (analysis) {
+      items.push({ type: 'analysis', data: analysis })
+    }
+  }
 
   return (
     // ... existing layout
-    <SessionMessageList messages={messagesWithAnalysis} />
+    <SessionMessageList items={items} />
   )
 }
 ```
 
-### 8. Client component: Update `SessionMessageList`
+### 7. Client component: Update `SessionMessageList`
 
 **File:** `web/src/features/session-history/components/SessionMessageList.tsx`
 
 ```typescript
 "use client"
 
-import { GrammarAnalysisMessage } from "@/components/common/GrammarAnalysisMessage"
 import { MessageBubble } from "@/components/common/MessageBubble"
+import { AnalysisCard } from "@/components/common/AnalysisCard"
+import { MessageAction, MessageActions } from "@/components/prompt-kit/message"
+import { Button } from "@/components/ui/button"
 import { MessageRole } from "@/lib/enums/message-role.enum"
-import type { IGrammarAnalysis } from "@/lib/types/grammar-analysis.interface"
+import { useGrammarAnalysis } from "@/hooks/useGrammarAnalysis"
 import type { IMessage } from "@/lib/types/message.interface"
+import type { IGrammarAnalysis } from "@/lib/types/grammar-analysis.interface"
+import { Loader2, Sparkle } from "lucide-react"
 import { useT } from "next-i18next/client"
 
-interface IMessageWithAnalysis extends IMessage {
-  analysis?: IGrammarAnalysis
-}
+type SessionItem =
+  | { type: 'message'; data: IMessage }
+  | { type: 'analysis'; data: IGrammarAnalysis }
 
 interface SessionMessageListProps {
-  messages: IMessageWithAnalysis[]
+  items: SessionItem[]
 }
 
-export function SessionMessageList({ messages }: SessionMessageListProps) {
+export function SessionMessageList({ items }: SessionMessageListProps) {
   const { t } = useT("session")
+  const { t: tChat } = useT("chat")
+  const { pendingId, triggerAnalysis } = useGrammarAnalysis()
 
-  if (messages.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <p className="text-sm text-muted-foreground">{t("no_messages")}</p>
@@ -406,40 +364,62 @@ export function SessionMessageList({ messages }: SessionMessageListProps) {
 
   return (
     <div className="flex flex-col gap-6 px-5 w-full max-w-7/12">
-      {[...messages]
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
-        .map((message) => {
-          if (message.role === MessageRole.User) {
-            return (
-              <GrammarAnalysisMessage
-                key={message.id}
-                messageId={message.id}
-                transcript={message.transcript}
-                analysis={message.analysis}
-              />
-            )
-          }
-
+      {items.map((item, index) => {
+        if (item.type === 'analysis') {
           return (
             <MessageBubble
-              key={message.id}
-              role={message.role}
-              timestamp={new Date(message.createdAt)}
-              wasInterrupted={message.wasInterrupted}
+              key={`analysis-${item.data.messageId ?? index}`}
+              role={MessageRole.Analysis}
+              asChild
             >
-              {message.transcript}
+              <AnalysisCard grammar={item.data} />
             </MessageBubble>
           )
-        })}
+        }
+
+        // type === 'message'
+        const msg = item.data
+        const isUser = msg.role === MessageRole.User
+
+        return (
+          <MessageBubble
+            key={msg.id}
+            role={msg.role}
+            timestamp={new Date(msg.createdAt)}
+            wasInterrupted={msg.wasInterrupted}
+            action={
+              isUser && (
+                <MessageActions className="self-end!">
+                  <MessageAction tooltip={tChat("analyze_grammar")}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      type="button"
+                      disabled={pendingId !== null}
+                      onClick={() => triggerAnalysis(msg.id)}
+                      className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                    >
+                      {pendingId === msg.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkle className="h-3 w-3 text-purple-500" />
+                      )}
+                    </Button>
+                  </MessageAction>
+                </MessageActions>
+              )
+            }
+          >
+            {msg.transcript}
+          </MessageBubble>
+        )
+      })}
     </div>
   )
 }
 ```
 
-### 9. Refactor: Update `HistoryPanelContent`
+### 8. Refactor: Update `HistoryPanelContent` (optional follow-up)
 
 **File:** `web/src/features/chat-interface/components/HistoryPanelContent.tsx`
 
@@ -452,7 +432,7 @@ Replace local state management with shared hook:
 // const handleAnalyzeGrammar = async (index, transcript) => { ... }
 
 // Add:
-import { useGrammarAnalysis } from "@/lib/hooks/useGrammarAnalysis"
+import { useGrammarAnalysis } from "@/hooks/useGrammarAnalysis"
 
 // In component:
 const { pendingId, triggerAnalysis } = useGrammarAnalysis()
@@ -465,12 +445,12 @@ const { pendingId, triggerAnalysis } = useGrammarAnalysis()
 
 ## Interface Definitions
 
-### IMessageWithAnalysis
+### SessionItem
 
 ```typescript
-interface IMessageWithAnalysis extends IMessage {
-  analysis?: IGrammarAnalysis
-}
+type SessionItem =
+  | { type: 'message'; data: IMessage }
+  | { type: 'analysis'; data: IGrammarAnalysis }
 ```
 
 ### IGrammarAnalysis (existing)
@@ -503,8 +483,7 @@ export interface IGrammarAnalysis {
 | Modify | `web/src/lib/routes.ts` | Add grammar routes |
 | Create | `web/src/features/session-history/services/grammar.get.ts` | Server-only fetch |
 | Create | `web/src/features/session-history/services/grammar.actions.ts` | Server action |
-| Create | `web/src/lib/hooks/useGrammarAnalysis.ts` | Shared hook |
-| Create | `web/src/components/common/GrammarAnalysisMessage.tsx` | Wrapper component |
-| Modify | `web/src/app/(main)/(sidebar)/sessions/[id]/page.tsx` | Fetch and join data |
-| Modify | `web/src/features/session-history/components/SessionMessageList.tsx` | Accept and render analyses |
-| Modify | `web/src/features/chat-interface/components/HistoryPanelContent.tsx` | Refactor to use shared hook |
+| Create | `web/src/hooks/useGrammarAnalysis.ts` | Shared hook |
+| Modify | `web/src/app/(main)/(sidebar)/sessions/[id]/page.tsx` | Fetch, join, build flat items list |
+| Modify | `web/src/features/session-history/components/SessionMessageList.tsx` | Accept items, render by type |
+| Modify | `web/src/features/chat-interface/components/HistoryPanelContent.tsx` | Refactor to use shared hook (follow-up) |
