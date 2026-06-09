@@ -98,9 +98,11 @@ export function HomePageLayout({ sessions, children, breadcrumb, sidebarFooter }
             {breadcrumb}
           </div>
 
-            <LanguageSwitcher />
+          <LanguageSwitcher />
         </header>
-        {children}
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   )

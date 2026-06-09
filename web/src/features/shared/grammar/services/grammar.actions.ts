@@ -1,0 +1,48 @@
+"use server"
+
+import { apiFetch } from "@/lib/api-fetch"
+import { API_ROUTES } from "@/lib/routes"
+import type { IGrammarAnalysis } from "@/lib/types/grammar-analysis.interface"
+import { refresh, updateTag } from "next/cache"
+import { tags } from "@/lib/tags"
+import { AnalyzeGrammarDto } from "../dtos/analyze-grammar.req"
+
+export interface GrammarAnalysisState {
+  analyses: Record<number, IGrammarAnalysis>
+  error: string | null
+}
+
+export async function analyzeGrammar(
+  payload: AnalyzeGrammarDto,
+) {
+  return apiFetch<IGrammarAnalysis>(
+    API_ROUTES.LEARNING.GRAMMAR.ANALYZE,
+    {
+      method: "POST",
+      withCredentials: true,
+      body: payload
+    }
+  )
+}
+
+
+export async function analyzeGrammarByMessage(
+  messageId: string,
+  explanationLanguage?: string
+) {
+  const result = await apiFetch<IGrammarAnalysis>(
+    API_ROUTES.LEARNING.GRAMMAR.BY_MESSAGE(messageId),
+    {
+      method: "POST",
+      withCredentials: true,
+      body: { explanationLanguage },
+    }
+  )
+
+  if (!result.error) {
+    updateTag(tags.grammarAnalyses)
+    refresh()
+  }
+
+  return result
+}

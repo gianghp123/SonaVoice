@@ -24,7 +24,7 @@ import {
   IMPROVEMENT_GOALS,
   LEARNING_REASONS,
   TOPICS,
-} from "@/features/onboarding/constants/onboarding.constants"
+} from "@/features/shared/profile/profile.constants"
 import { editProfileSchema, type EditProfileFormValues } from "../schemas/edit-profile.schema"
 import { updateProfile } from "../services/profile.actions"
 import type { IUserProfile } from "@/lib/types/user-profile.interface"

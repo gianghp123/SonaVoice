@@ -2,20 +2,27 @@
 
 import {
   Message,
+  MessageAction,
+  MessageActions,
   MessageAvatar,
   MessageContent,
 } from "@/components/prompt-kit/message"
 import { MessageRole } from "@/lib/enums/message-role.enum"
-import { AudioLines } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Slot } from "@radix-ui/react-slot"
 import { useT } from "next-i18next/client"
+import { is } from "zod/v4/locales"
 
 interface MessageBubbleProps {
   role: MessageRole
   children: React.ReactNode
-  action?: React.ReactNode
+  actions?: { element: React.ReactNode; tooltip: string }[]
+  avatar?: React.ReactNode,
   className?: string
+  contentClassName?: string
   timestamp?: Date
   wasInterrupted?: boolean
+  asChild?: boolean
 }
 
 function RoleBadge({ role }: { role: MessageRole }) {
@@ -32,43 +39,54 @@ function RoleBadge({ role }: { role: MessageRole }) {
 export function MessageBubble({
   role,
   children,
-  action,
+  actions,
+  className,
+  contentClassName,
+  avatar,
   timestamp,
   wasInterrupted,
+  asChild = false,
 }: MessageBubbleProps) {
   const { t } = useT('chat')
+  const Content = asChild ? Slot : MessageContent
   const isUser = role === MessageRole.User
 
   return (
-    <Message className={isUser ? "justify-end" : "justify-start"}>
-      {!isUser && (
+    <Message className={cn(className)}>
+      {avatar && (
         <MessageAvatar
-          fallback={<AudioLines className="h-4 w-4" />}
+          fallback={avatar}
           className="h-8 w-8"
         />
       )}
 
-      <div className="flex flex-col gap-1">
+      <div className={cn("flex flex-col gap-1", contentClassName)}>
         <RoleBadge role={role} />
 
-        <MessageContent
-          className={
-            isUser
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted"
-          }
+        <Content
+          className={cn(isUser ? "bg-primary text-primary-foreground" : "bg-muted")}
         >
           {children}
-        </MessageContent>
+        </Content>
 
-        
-        {action}
 
         {timestamp && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className={cn("text-[10px] text-muted-foreground", isUser ? "self-end" : "self-start")}>
             {timestamp.toLocaleTimeString()}
           </span>
         )}
+
+        <MessageActions className={cn(isUser ? "self-end" : "self-start")}>
+          {
+            actions?.map((action) =>
+            (
+              <MessageAction tooltip={action.tooltip}>
+                {action.element}
+              </MessageAction>
+            ))
+          }
+        </MessageActions>
+
 
         {wasInterrupted && (
           <span className="inline-flex w-fit items-center rounded-md border border-destructive/50 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">

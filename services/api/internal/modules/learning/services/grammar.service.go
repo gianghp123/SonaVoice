@@ -16,6 +16,7 @@ import (
 type IGrammarService interface {
 	Analyze(ctx context.Context, messageID string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError)
 	AnalyzeText(ctx context.Context, transcript string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError)
+	GetBySessionID(ctx context.Context, sessionID string) ([]*models.GrammarAnalysis, *errors.AppError)
 }
 
 type grammarService struct {
@@ -108,4 +109,17 @@ func (s *grammarService) Analyze(ctx context.Context, messageID string, explanat
 	}
 
 	return model, nil
+}
+
+func (s *grammarService) GetBySessionID(ctx context.Context, sessionID string) ([]*models.GrammarAnalysis, *errors.AppError) {
+	logger := zapLogger.S()
+
+	logger.Infow("fetching grammar analyses for session", "session_id", sessionID)
+	analyses, err := s.grammarRepo.GetBySessionID(ctx, sessionID)
+	if err != nil {
+		logger.Errorw("failed to get grammar analyses by session", "error", err, "session_id", sessionID)
+		return nil, errors.MapRepoError(err)
+	}
+
+	return analyses, nil
 }

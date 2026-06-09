@@ -36,6 +36,17 @@ func (r *grammarAnalysisRepository) GetByID(ctx context.Context, id string) (*mo
 	return m, nil
 }
 
+func (r *grammarAnalysisRepository) GetBySessionID(ctx context.Context, sessionID string) ([]*models.GrammarAnalysis, error) {
+	var analyses []*models.GrammarAnalysis
+	if err := r.db.WithContext(ctx).
+		Where("session_id = ?", sessionID).
+		Order("created_at ASC").
+		Find(&analyses).Error; err != nil {
+		return nil, err
+	}
+	return analyses, nil
+}
+
 func (r *grammarAnalysisRepository) GetByMessageID(ctx context.Context, messageID string) (*models.GrammarAnalysis, error) {
 	m := new(models.GrammarAnalysis)
 	if err := r.db.WithContext(ctx).First(m, "message_id = ?", messageID).Error; err != nil {

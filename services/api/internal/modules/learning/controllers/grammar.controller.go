@@ -95,3 +95,39 @@ func (ctrl *GrammarController) HandleAnalyzeText(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response.Success(&dto))
 }
+
+// HandleGetBySession godoc
+// @Summary      Get grammar analyses for a session
+// @Description  Retrieve all grammar analyses for a specific session
+// @Security     BearerAuth
+// @Tags         learning
+// @Accept       json
+// @Produce      json
+// @Param        sessionId  path   string true  "Session ID"
+// @Success      200  {object}  response.BaseResponse[[]res.GrammarAIResult]
+// @Failure      400  {object}  response.BaseResponse[any]
+// @Failure      401  {object}  response.BaseResponse[any]
+// @Failure      500  {object}  response.BaseResponse[any]
+// @Router       /learning/grammar/sessions/{sessionId} [get]
+func (ctrl *GrammarController) HandleGetBySession(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+	if sessionID == "" {
+		c.JSON(http.StatusBadRequest, response.Fail(errors.BadRequest("session ID is required")))
+		return
+	}
+
+	analyses, appErr := ctrl.svc.GetBySessionID(c.Request.Context(), sessionID)
+	if appErr != nil {
+		c.JSON(appErr.Code, response.Fail(appErr))
+		return
+	}
+
+	var dtos []res.GrammarAIResult
+	if err := utils.MapToDTOs(analyses, &dtos); err != nil {
+		sentry.CaptureException(err)
+		c.JSON(http.StatusInternalServerError, response.Fail(errors.Internal()))
+		return
+	}
+
+	c.JSON(http.StatusOK, response.Success(&dtos))
+}

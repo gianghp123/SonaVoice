@@ -1,6 +1,8 @@
 package res
 
 type GrammarAIResult struct {
+	ID            string `json:"id,omitempty"`
+	MessageID     string `json:"messageId,omitempty"`
 	OriginalText  string `json:"originalText"`
 	CorrectedText string `json:"correctedText,omitempty"`
 	Explanation   string `json:"explanation,omitempty"`

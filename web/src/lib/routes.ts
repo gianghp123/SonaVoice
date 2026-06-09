@@ -13,6 +13,8 @@ export const API_ROUTES = {
   LEARNING: {
     GRAMMAR: {
       ANALYZE: "/learning/grammar/analyze",
+      BY_SESSION: (sessionId: string) => `/learning/grammar/sessions/${sessionId}`,
+      BY_MESSAGE: (messageId: string) => `/learning/grammar/messages/${messageId}`,
     },
   },
 } as const

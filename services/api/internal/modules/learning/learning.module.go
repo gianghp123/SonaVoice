@@ -21,4 +21,7 @@ func SetupModule(router *gin.RouterGroup, db *gorm.DB, openaiClient openaiclient
 
 	messageGroup := router.Group("/learning/grammar/messages/:messageId")
 	messageGroup.POST("", authMiddlware, grammarCtrl.HandleAnalyze)
+
+	sessionGroup := router.Group("/learning/grammar/sessions/:sessionId")
+	sessionGroup.GET("", authMiddlware, grammarCtrl.HandleGetBySession)
 }

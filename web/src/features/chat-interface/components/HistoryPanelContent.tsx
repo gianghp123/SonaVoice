@@ -1,28 +1,24 @@
 "use client"
 
+import { GrammarAnalysisCard } from "@/features/shared/grammar/components/GrammarAnalysisCard"
+import { GrammarAnalysisButton } from "@/features/shared/grammar/components/GrammarAnalysisButton"
+import { MessageBubble } from "@/components/common/MessageBubble"
 import {
   ChatContainerContent,
   ChatContainerRoot,
   ChatContainerScrollAnchor,
 } from "@/components/prompt-kit/chat-container"
-import {
-  MessageAction,
-  MessageActions,
-} from "@/components/prompt-kit/message"
 import { ScrollButton } from "@/components/prompt-kit/scroll-button"
-import { Button } from "@/components/ui/button"
 import { MessageRole } from "@/lib/enums/message-role.enum"
+import { FALLBACK_LANGUAGE, isSupportedLanguage, LANGUAGE_FULL_NAMES, SupportedLanguage } from "@/lib/i18n/i18n"
 import type { IGrammarAnalysis } from "@/lib/types/grammar-analysis.interface"
 import { usePipecatConversation } from "@pipecat-ai/client-react"
-import { Loader2, Sparkle } from "lucide-react"
 import { useT } from "next-i18next/client"
 import { useState } from "react"
 import { toast } from "sonner"
-import { AnalysisCard } from "../../../components/common/AnalysisCard"
-import { MessageBubble } from "../../../components/common/MessageBubble"
-import { analyzeGrammar } from "../services/grammar.actions"
+import { analyzeGrammar } from "@/features/shared/grammar/services/grammar.actions"
 import { HistoryHeader } from "./HistoryHeader"
-import { FALLBACK_LANGUAGE, isSupportedLanguage, LANGUAGE_FULL_NAMES, SupportedLanguage } from "@/lib/i18n/i18n"
+import { BotAvatarIcon } from "@/components/common/BotAvatarIcon"
 
 export function HistoryPanelContent() {
   const { messages } = usePipecatConversation()
@@ -71,24 +67,6 @@ export function HistoryPanelContent() {
       <ChatContainerRoot className="flex-1">
         <ChatContainerContent className="flex flex-col gap-6">
           {messages.map((message, i) => {
-            if (message.role === "function_call" && message.functionCall) {
-              return (
-                <MessageBubble key={i} role={MessageRole.Analysis}>
-                  <AnalysisCard
-                    suggestions={{
-                      hint: t("correction"),
-                      original: "",
-                      corrected: "",
-                    }}
-                    pronunciation={{
-                      word: "",
-                      phonetic: "",
-                    }}
-                  />
-                </MessageBubble>
-              )
-            }
-
             const role =
               message.role === "user"
                 ? MessageRole.User
@@ -119,40 +97,38 @@ export function HistoryPanelContent() {
 
             const isCurrentLoading = pendingIndex === i
             const analysis = analyses[i]
-
+            const isUser = role === MessageRole.User
             return (
               <div key={i} className="flex flex-col">
                 <MessageBubble
                   role={role}
-                  action={
-                    role === MessageRole.User && (
-                      <MessageActions className="self-end!">
-                        <MessageAction tooltip={t("analyze_grammar")}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            type="button"
+                  avatar={!isUser ? <BotAvatarIcon /> : undefined}
+                  actions={
+                    isUser ? [
+                      {
+                        tooltip: t("analyze_grammar"),
+                        element: (
+                          <GrammarAnalysisButton
+                            tooltip={t("analyze_grammar")}
                             disabled={pendingIndex !== null}
+                            isLoading={isCurrentLoading}
                             onClick={() => handleAnalyzeGrammar(i, text)}
-                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                          >
-                            {isCurrentLoading ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Sparkle className="h-3 w-3 text-purple-500" />
-                            )}
-                          </Button>
-                        </MessageAction>
-                      </MessageActions>
-                    )
+                          />
+                        )
+                      }] : undefined
                   }
                 >
                   {text}
                 </MessageBubble>
 
                 {analysis && (
-                  <MessageBubble role={MessageRole.Analysis}>
-                    <AnalysisCard grammar={analysis} />
+                  <MessageBubble 
+                  role={MessageRole.Analysis} 
+                  asChild
+                  contentClassName="w-full"
+                  avatar={<BotAvatarIcon />}
+                  >
+                    <GrammarAnalysisCard grammar={analysis} />
                   </MessageBubble>
                 )}
               </div>
