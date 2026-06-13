@@ -14,9 +14,3 @@ func NowUTC() time.Time {
 func QuotaDate() time.Time {
 	return time.Now().UTC().Truncate(24 * time.Hour)
 }
-
-// IsStale returns true if t is older than the given duration from now.
-// Use this for stale session checks instead of manual threshold math.
-func IsStale(t time.Time, maxAge time.Duration) bool {
-	return t.Before(NowUTC().Add(-maxAge))
-}

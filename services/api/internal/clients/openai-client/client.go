@@ -2,9 +2,9 @@ package openaiclient
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
+	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/shared"
@@ -81,8 +81,12 @@ func (c *OpenAIClient) ExecuteStructured(
 
 	content := resp.Choices[0].Message.Content
 
-	if err := json.Unmarshal([]byte(content), output); err != nil {
-		return fmt.Errorf("failed to unmarshal structured output: %w; raw content: %s", err, content)
+	if err := utils.UnmarshalWithRepair(content, output); err != nil {
+		return fmt.Errorf(
+			"failed to unmarshal structured output: %w; raw content quoted: %q",
+			err,
+			content,
+		)
 	}
 
 	return nil

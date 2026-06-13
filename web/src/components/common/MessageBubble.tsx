@@ -11,7 +11,6 @@ import { MessageRole } from "@/lib/enums/message-role.enum"
 import { cn } from "@/lib/utils"
 import { Slot } from "@radix-ui/react-slot"
 import { useT } from "next-i18next/client"
-import { is } from "zod/v4/locales"
 
 interface MessageBubbleProps {
   role: MessageRole
@@ -80,7 +79,7 @@ export function MessageBubble({
           {
             actions?.map((action) =>
             (
-              <MessageAction tooltip={action.tooltip}>
+              <MessageAction key={action.tooltip} tooltip={action.tooltip}>
                 {action.element}
               </MessageAction>
             ))

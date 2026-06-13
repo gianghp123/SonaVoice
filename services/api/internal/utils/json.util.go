@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/invopop/jsonschema"
+
+	"github.com/kaptinlin/jsonrepair"
 )
 
 func ParseJSON[T any](raw []byte) (T, error) {
@@ -31,4 +33,23 @@ func GenerateSchema[T any]() map[string]any {
 	var result map[string]any
 	json.Unmarshal(data, &result)
 	return result
+}
+
+func UnmarshalWithRepair(raw string, output any) error {
+	// First try normal JSON.
+	if err := json.Unmarshal([]byte(raw), output); err == nil {
+		return nil
+	}
+
+	// Fallback: repair invalid JSON.
+	repaired, err := jsonrepair.Repair(raw)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal([]byte(repaired), output); err != nil {
+		return err
+	}
+
+	return nil
 }

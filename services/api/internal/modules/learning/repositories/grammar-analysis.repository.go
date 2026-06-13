@@ -23,7 +23,7 @@ func (r *grammarAnalysisRepository) Upsert(ctx context.Context, m *models.Gramma
 	return r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "message_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"corrected_text", "explanation", "has_correction", "severity", "practice_sentence", "practice_focus", "practice_reason", "metadata", "updated_at"}),
+			DoUpdates: clause.AssignmentColumns([]string{"original_text", "result", "updated_at"}),
 		}).
 		Create(m).Error
 }

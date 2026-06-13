@@ -67,10 +67,11 @@ function buildQueryString(query?: Record<string, unknown>) {
 
   Object.entries(query).forEach(([key, value]) => {
     if (value === undefined || value === null || value === "") return
+    const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
     if (typeof value === "object") {
-      searchParams.append(key, JSON.stringify(camelToSnake(value)))
+      searchParams.append(snakeKey, JSON.stringify(camelToSnake(value)))
     } else {
-      searchParams.append(key, String(value))
+      searchParams.append(snakeKey, String(value))
     }
   })
 

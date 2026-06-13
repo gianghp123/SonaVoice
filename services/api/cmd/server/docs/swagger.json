@@ -17,6 +17,63 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
+        "/learning/grammar/analyze": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Analyze raw transcript text for grammar and naturalness without saving to DB",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "learning"
+                ],
+                "summary": "Analyze grammar for text",
+                "parameters": [
+                    {
+                        "description": "Transcript text to analyze",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.GrammarAnalyzeTextReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/learning/grammar/messages/{messageId}": {
             "post": {
                 "security": [
@@ -55,6 +112,61 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any"
+                        }
+                    }
+                }
+            }
+        },
+        "/learning/grammar/sessions/{sessionId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all grammar analyses for a specific session",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "learning"
+                ],
+                "summary": "Get grammar analyses for a session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult"
                         }
                     },
                     "400": {
@@ -740,6 +852,26 @@
                 }
             }
         },
+        "github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res.GrammarAIResult"
+                    }
+                },
+                "error": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError"
+                },
+                "meta": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res_MessageRes": {
             "type": "object",
             "properties": {
@@ -865,6 +997,37 @@
                 }
             }
         },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.ConversationTurn": {
+            "type": "object",
+            "properties": {
+                "role": {
+                    "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.MessageRole"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.GrammarAnalyzeTextReq": {
+            "type": "object",
+            "required": [
+                "transcript"
+            ],
+            "properties": {
+                "conversationContext": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.ConversationTurn"
+                    }
+                },
+                "explanationLanguage": {
+                    "type": "string"
+                },
+                "transcript": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res.GrammarAIResult": {
             "type": "object",
             "properties": {
@@ -877,7 +1040,16 @@
                 "hasCorrection": {
                     "type": "boolean"
                 },
+                "id": {
+                    "type": "string"
+                },
+                "messageId": {
+                    "type": "string"
+                },
                 "metadata": {},
+                "normalizedText": {
+                    "type": "string"
+                },
                 "originalText": {
                     "type": "string"
                 },

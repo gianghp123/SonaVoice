@@ -1,6 +1,6 @@
 module github.com/gianghp123/SonaVoice/api
 
-go 1.25.8
+go 1.26.3
 
 require (
 	github.com/clerk/clerk-sdk-go/v2 v2.6.0
@@ -13,6 +13,7 @@ require (
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
+	github.com/kaptinlin/jsonrepair v0.4.6
 	github.com/openai/openai-go/v3 v3.39.0
 	github.com/redis/go-redis/v9 v9.19.0
 	github.com/stretchr/testify v1.11.1
@@ -42,6 +43,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
+	github.com/go-json-experiment/json v0.0.0-20260601182631-00ed12fed2a6 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.6 // indirect
 	github.com/go-openapi/spec v0.20.4 // indirect

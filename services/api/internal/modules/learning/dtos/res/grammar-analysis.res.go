@@ -1,17 +1,21 @@
 package res
 
 type GrammarAIResult struct {
-	ID            string `json:"id,omitempty"`
-	MessageID     string `json:"messageId,omitempty"`
-	OriginalText  string `json:"originalText"`
-	CorrectedText string `json:"correctedText,omitempty"`
-	Explanation   string `json:"explanation,omitempty"`
+	CleanedTranscript    string `json:"cleaned_transcript,omitempty"`
+	HasTranscriptCleanup bool   `json:"has_transcript_cleanup"`
+	HasCorrection        bool   `json:"has_correction"`
+	IssueType            string `json:"issue_type,omitempty"`
+	CorrectedText        string `json:"corrected_text,omitempty"`
+	PracticeSentence     string `json:"practice_sentence,omitempty"`
+	Severity             string `json:"severity,omitempty"`
+	PracticeFocus        string `json:"practice_focus,omitempty"`
+	Explanation          string `json:"explanation,omitempty"`
+	PracticeReason       string `json:"practice_reason,omitempty"`
+}
 
-	HasCorrection bool   `json:"hasCorrection"`
-	Severity      string `json:"severity" validate:"oneof=low medium high"`
-
-	PracticeSentence string `json:"practiceSentence,omitempty"`
-	PracticeFocus    string `json:"practiceFocus,omitempty"`
-	PracticeReason   string `json:"practiceReason,omitempty"`
-	Metadata         any    `json:"metadata,omitempty"`
+type GrammarAnalyzeRes struct {
+	ID           string `json:"id,omitempty"`
+	MessageID    string `json:"message_id,omitempty"`
+	OriginalText string `json:"original_text"`
+	GrammarAIResult
 }

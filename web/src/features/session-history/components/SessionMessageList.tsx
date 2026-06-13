@@ -38,7 +38,7 @@ export function SessionMessageList({ items }: SessionMessageListProps) {
               asChild
               contentClassName="w-full"
             >
-              <GrammarAnalysisCard grammar={item.data} />
+              <GrammarAnalysisCard grammar={item.data} originalText={item.data.originalText} />
             </MessageBubble>
           )
         }

@@ -7,15 +7,18 @@ import (
 	openaiclient "github.com/gianghp123/SonaVoice/api/internal/clients/openai-client"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	zapLogger "github.com/gianghp123/SonaVoice/api/internal/core/zap-logger"
+	"github.com/gianghp123/SonaVoice/api/internal/database"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
+	"github.com/gianghp123/SonaVoice/api/internal/modules/learning/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/learning/prompts"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/learning/schemas"
+	"gorm.io/datatypes"
 )
 
 type IGrammarService interface {
 	Analyze(ctx context.Context, messageID string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError)
-	AnalyzeText(ctx context.Context, transcript string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError)
+	AnalyzeText(ctx context.Context, body *req.GrammarAnalyzeTextReq) (*schemas.GrammarAnalysisOutput, *errors.AppError)
 	GetBySessionID(ctx context.Context, sessionID string) ([]*models.GrammarAnalysis, *errors.AppError)
 }
 
@@ -37,10 +40,12 @@ func NewGrammarService(
 	}
 }
 
-func (s *grammarService) AnalyzeText(ctx context.Context, transcript string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError) {
+func (s *grammarService) AnalyzeText(ctx context.Context, body *req.GrammarAnalyzeTextReq) (*schemas.GrammarAnalysisOutput, *errors.AppError) {
 	logger := zapLogger.S()
 
-	prompt, err := prompts.BuildGrammarAnalysisPrompt(transcript, explanationLanguage)
+	logger.Infow("sending request to openai client", "explanation_language", body.ExplanationLanguage)
+
+	prompt, err := prompts.BuildGrammarAnalysisPrompt(body.Transcript, body.ExplanationLanguage, body.ConversationContext)
 	if err != nil {
 		logger.Errorw("failed to build grammar analysis prompt", "error", err)
 		return nil, errors.Internal(err.Error())
@@ -63,25 +68,7 @@ func (s *grammarService) AnalyzeText(ctx context.Context, transcript string, exp
 		return nil, errors.Internal(err.Error())
 	}
 
-	metadataJSON, err := json.Marshal(result.Metadata)
-	if err != nil {
-		logger.Errorw("failed to marshal metadata", "error", err)
-		return nil, errors.Internal(err.Error())
-	}
-
-	model := &models.GrammarAnalysis{
-		OriginalText:     result.OriginalText,
-		CorrectedText:    result.CorrectedText,
-		Explanation:      result.Explanation,
-		HasCorrection:    result.HasCorrection,
-		Severity:         result.Severity,
-		PracticeSentence: result.PracticeSentence,
-		PracticeFocus:    result.PracticeFocus,
-		PracticeReason:   result.PracticeReason,
-		Metadata:         metadataJSON,
-	}
-
-	return model, nil
+	return &result, nil
 }
 
 func (s *grammarService) Analyze(ctx context.Context, messageID string, explanationLanguage string) (*models.GrammarAnalysis, *errors.AppError) {
@@ -95,13 +82,50 @@ func (s *grammarService) Analyze(ctx context.Context, messageID string, explanat
 		return nil, errors.MapRepoError(err)
 	}
 
-	model, appErr := s.AnalyzeText(ctx, message.Transcript, explanationLanguage)
+	recentMessages, err := s.messageRepo.ListBySessionID(
+		ctx,
+		message.SessionID,
+		database.NewQuery().
+			SetOrderBy("created_at DESC").
+			SetLimit(5),
+	)
+
+	if err != nil {
+		logger.Errorw("failed to get recent messages", "error", err)
+		return nil, errors.MapRepoError(err)
+	}
+
+	conversationContext := make([]req.ConversationTurn, len(recentMessages.Data))
+	for i, msg := range recentMessages.Data {
+		conversationContext[i] = req.ConversationTurn{
+			Role: msg.Role,
+			Text: msg.Transcript,
+		}
+	}
+
+	analyzeTextBody := &req.GrammarAnalyzeTextReq{
+		Transcript:          message.Transcript,
+		ExplanationLanguage: explanationLanguage,
+		ConversationContext: conversationContext,
+	}
+
+	aiResult, appErr := s.AnalyzeText(ctx, analyzeTextBody)
 	if appErr != nil {
 		return nil, appErr
 	}
 
-	model.SessionID = message.SessionID
-	model.MessageID = messageID
+	resultJSON, err := json.Marshal(aiResult)
+	if err != nil {
+		logger.Errorw("failed to marshal grammar result", "error", err)
+		return nil, errors.Internal(err.Error())
+	}
+
+	model := &models.GrammarAnalysis{
+		SessionID:    message.SessionID,
+		MessageID:    messageID,
+		OriginalText: message.Transcript,
+		Result:       datatypes.JSON(resultJSON),
+	}
 
 	if err := s.grammarRepo.Upsert(ctx, model); err != nil {
 		logger.Errorw("failed to save grammar analysis", "error", err)

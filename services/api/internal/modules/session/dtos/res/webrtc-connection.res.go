@@ -3,7 +3,7 @@ package res
 type WebRTCConnectionRes struct {
 	MaxDuration int64      `json:"maxDuration"`
 	SessionID   string     `json:"sessionId"`
-	IceConfig   *IceConfig `json:"iceConfig,omitempty"` // only if enableDefaultIceServers: true
+	IceConfig   *IceConfig `json:"iceConfig,omitempty"`
 }
 
 type IceConfig struct {

@@ -2,20 +2,16 @@
 
 import { apiFetch } from "@/lib/api-fetch"
 import { API_ROUTES } from "@/lib/routes"
-import type { IGrammarAnalysis } from "@/lib/types/grammar-analysis.interface"
+import type { IGrammarAIResult, IGrammarAnalysis } from "@/lib/types/grammar-analysis.interface"
 import { refresh, updateTag } from "next/cache"
 import { tags } from "@/lib/tags"
 import { AnalyzeGrammarDto } from "../dtos/analyze-grammar.req"
 
-export interface GrammarAnalysisState {
-  analyses: Record<number, IGrammarAnalysis>
-  error: string | null
-}
 
 export async function analyzeGrammar(
   payload: AnalyzeGrammarDto,
 ) {
-  return apiFetch<IGrammarAnalysis>(
+  return apiFetch<IGrammarAIResult>(
     API_ROUTES.LEARNING.GRAMMAR.ANALYZE,
     {
       method: "POST",
@@ -35,7 +31,7 @@ export async function analyzeGrammarByMessage(
     {
       method: "POST",
       withCredentials: true,
-      body: { explanationLanguage },
+      query: { explanationLanguage },
     }
   )
 

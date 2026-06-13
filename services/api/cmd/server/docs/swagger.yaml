@@ -37,6 +37,19 @@ definitions:
       success:
         type: boolean
     type: object
+  ? github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res.GrammarAIResult'
+        type: array
+      error:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError'
+      meta:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta'
+      success:
+        type: boolean
+    type: object
   ? github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res_MessageRes
   : properties:
       data:
@@ -118,6 +131,26 @@ definitions:
       totalPages:
         type: integer
     type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.ConversationTurn:
+    properties:
+      role:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.MessageRole'
+      text:
+        type: string
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.GrammarAnalyzeTextReq:
+    properties:
+      conversationContext:
+        items:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.ConversationTurn'
+        type: array
+      explanationLanguage:
+        type: string
+      transcript:
+        type: string
+    required:
+    - transcript
+    type: object
   github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res.GrammarAIResult:
     properties:
       correctedText:
@@ -126,7 +159,13 @@ definitions:
         type: string
       hasCorrection:
         type: boolean
+      id:
+        type: string
+      messageId:
+        type: string
       metadata: {}
+      normalizedText:
+        type: string
       originalText:
         type: string
       practiceFocus:
@@ -291,6 +330,43 @@ info:
   title: Session API
   version: "1.0"
 paths:
+  /learning/grammar/analyze:
+    post:
+      consumes:
+      - application/json
+      description: Analyze raw transcript text for grammar and naturalness without
+        saving to DB
+      parameters:
+      - description: Transcript text to analyze
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.GrammarAnalyzeTextReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Analyze grammar for text
+      tags:
+      - learning
   /learning/grammar/messages/{messageId}:
     post:
       consumes:
@@ -329,6 +405,41 @@ paths:
       security:
       - BearerAuth: []
       summary: Analyze grammar for a message
+      tags:
+      - learning
+  /learning/grammar/sessions/{sessionId}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all grammar analyses for a specific session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get grammar analyses for a session
       tags:
       - learning
   /sessions:

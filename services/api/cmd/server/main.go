@@ -76,7 +76,14 @@ func main() {
 	gin.SetMode(cfg.Server.Mode)
 
 	// Connect database
-	db, err := gorm.Open(postgres.Open(cfg.Database.DatabaseUrl), &gorm.Config{})
+	db, err := gorm.Open(
+		postgres.New(
+			postgres.Config{
+				DSN:                  cfg.Database.DatabaseUrl,
+				PreferSimpleProtocol: true,
+			}),
+		&gorm.Config{},
+	)
 	if err != nil {
 		logger.Fatalf("failed to connect database: %v", err)
 		return

@@ -96,7 +96,7 @@ async def create_voice_bot_task(
             audio_out_sample_rate=22050,
         ),
         cancel_on_idle_timeout=False,
-        idle_timeout_secs=30, 
+        idle_timeout_secs=300, 
     )
 
     register_event_handlers(

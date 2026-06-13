@@ -9,7 +9,7 @@ import { PAGE_ROUTES, PROXY_ROUTES } from "@/lib/routes"
 import { PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
 import * as Sentry from "@sentry/nextjs"
 import { useRouter } from "next/navigation"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 
 interface ChatPageClientProps {
   sessionId: string
@@ -19,6 +19,7 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
   const router = useRouter()
   const [maxDuration, setMaxDuration] = useState(0)
   const [navigationGuardEnabled, setNavigationGuardEnabled] = useState(true)
+  const isUserDisconnecting = useRef(false)
 
   const startBotParams = useMemo(() => ({
     endpoint: PROXY_ROUTES.WEBRTC.START(sessionId),
@@ -60,6 +61,7 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
       {({ client, error, handleDisconnect }) => {
         if (!client) return <LoadingScreen />
 
+
         const handleSessionError = async () => {
           Sentry.logger.error("Voice session fatal error handled", {
             area: "chat-page",
@@ -71,6 +73,7 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
         }
 
         const handleSessionDisconnect = async () => {
+          isUserDisconnecting.current = true
           Sentry.logger.info("Voice session disconnect initiated", {
             area: "chat-page",
             sessionId,
@@ -104,6 +107,7 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
             <ErrorListener
               handleError={handleSessionError}
               initialError={error}
+              isUserDisconnecting={isUserDisconnecting} 
             />
             <ChatInterface
               maxDuration={maxDuration}

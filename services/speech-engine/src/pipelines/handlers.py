@@ -18,8 +18,29 @@ from src.types.messages import SessionMessage, UserMessage, AssistantMessage
 from src.utils.error_msg import get_custom_error_message
 from src.services.session_service import SessionService
 from src.services.messages_service import MessageService
-from pipecat.frames.frames import TTSSpeakFrame, EndFrame
 
+def merge_consecutive_user_messages(
+    messages: list[SessionMessage],
+) -> list[SessionMessage]:
+    merged: list[SessionMessage] = []
+
+    for message in messages:
+        if (
+            merged
+            and merged[-1]["role"] == "user"
+            and message["role"] == "user"
+        ):
+            prev = merged[-1]
+
+            merged[-1] = {
+                "role": "user",
+                "transcript": f'{prev["transcript"]} {message["transcript"]}'.strip(),
+                "created_at": prev["created_at"],
+            }
+        else:
+            merged.append(message)
+
+    return merged
 
 def register_event_handlers(
     task,
@@ -55,35 +76,23 @@ def register_event_handlers(
 
     @user_aggregator.event_handler("on_user_turn_stopped")
     async def on_user_turn_stopped(aggregator, strategy, message: UserTurnStoppedMessage):
-        session_messages.append(
-            UserMessage(
-                role="user",
-                transcript=message.content,
-                created_at=message.timestamp,
-            )
-        )
-
-    @assistant_aggregator.event_handler("on_assistant_turn_stopped")
-    async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
-        if message.interrupted:
+        if message.content:
             session_messages.append(
-                AssistantMessage(
-                    role="assistant",
+                UserMessage(
+                    role="user",
                     transcript=message.content,
-                    was_interrupted=True,
                     created_at=message.timestamp,
                 )
             )
-            log.info(
-                "Assistant interrupted",
-                content_length=len(message.content or ""),
-            )
-        elif message.content:
+
+    @assistant_aggregator.event_handler("on_assistant_turn_stopped")
+    async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
+        if message.content:
             session_messages.append(
                 AssistantMessage(
                     role="assistant",
                     transcript=message.content,
-                    was_interrupted=False,
+                    was_interrupted=message.interrupted,
                     created_at=message.timestamp,
                 )
             )
@@ -152,6 +161,8 @@ def register_event_handlers(
     @task.event_handler("on_pipeline_finished")
     async def on_pipeline_finished(task, frame):
         actual_usage = int(time.time() - start_time)
+        
+        merged_messages = merge_consecutive_user_messages(session_messages)
 
         log.info(
             "Pipeline finished",
@@ -160,13 +171,13 @@ def register_event_handlers(
         )
 
         try:
-            if session_messages:
-                await message_service.save_messages(session_id, session_messages)
+            if merged_messages:
+                await message_service.save_messages(session_id, merged_messages)
 
                 log.info(
                     "Session messages saved",
                     actual_usage=actual_usage,
-                    message_count=len(session_messages),
+                    message_count=len(merged_messages),
                 )
             else:
                 log.info(
@@ -178,7 +189,7 @@ def register_event_handlers(
             log.exception(
                 "Failed to save session messages",
                 actual_usage=actual_usage,
-                message_count=len(session_messages),
+                message_count=len(merged_messages),
             )
 
         finally:
