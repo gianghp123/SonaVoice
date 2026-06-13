@@ -20,5 +20,3 @@ CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages (session_id);
 -- +goose StatementBegin
 DROP TABLE IF EXISTS messages;
 -- +goose StatementEnd
-
-

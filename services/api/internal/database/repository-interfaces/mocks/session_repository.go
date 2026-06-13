@@ -80,15 +80,7 @@ func (m *SessionRepository) SetSessionFailed(ctx context.Context, sessionID stri
 	return args.Error(0)
 }
 
-func (m *SessionRepository) GetPendingByUserID(ctx context.Context, userID string) (*models.Session, error) {
-	args := m.Called(ctx, userID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Session), args.Error(1)
-}
-
-func (m *SessionRepository) GetPendingByUserIDForUpdate(ctx context.Context, userID string) (*models.Session, error) {
+func (m *SessionRepository) GetActiveOrPendingByUserIDForUpdate(ctx context.Context, userID string) (*models.Session, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

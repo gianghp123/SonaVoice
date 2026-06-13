@@ -56,7 +56,7 @@ func AlreadyExists(msg ...string) *AppError {
 
 // MapRepoError maps ORM/database errors to sentinel errors.
 // If the error is already an AppError, it passes through directly.
-func MapRepoError(err error) *AppError {
+func MapRepoError(err error, msg ...string) *AppError {
 	var pgErr *pgconn.PgError
 	if err == nil {
 		return nil
@@ -66,15 +66,15 @@ func MapRepoError(err error) *AppError {
 		return appErr
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return NotFound()
+		return NotFound(msg...)
 	}
 
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return Conflict()
+		return Conflict(msg...)
 	}
 
 	sentry.CaptureException(err)
-	return Internal()
+	return Internal(msg...)
 }
 
 func IsUniqueViolation(err error) bool {

@@ -105,17 +105,13 @@ func (s *sessionRepository) SetSessionFailed(ctx context.Context, sessionID stri
 	return nil
 }
 
-func (s *sessionRepository) GetPendingByUserID(ctx context.Context, userID string) (*models.Session, error) {
+func (s *sessionRepository) GetActiveOrPendingByUserIDForUpdate(ctx context.Context, userID string) (*models.Session, error) {
 	var model models.Session
-	if err := s.db.First(&model, "user_id = ? AND status = ?", userID, enums.SessionStatusPending).Error; err != nil {
-		return nil, err
-	}
-	return &model, nil
-}
-
-func (s *sessionRepository) GetPendingByUserIDForUpdate(ctx context.Context, userID string) (*models.Session, error) {
-	var model models.Session
-	if err := s.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&model, "user_id = ? AND status = ?", userID, enums.SessionStatusPending).Error; err != nil {
+	if err := s.db.Clauses(clause.Locking{Strength: "UPDATE"}).
+		First(&model, "user_id = ? AND status IN ?", userID, []enums.SessionStatus{
+			enums.SessionStatusPending,
+			enums.SessionStatusActive,
+		}).Error; err != nil {
 		return nil, err
 	}
 	return &model, nil

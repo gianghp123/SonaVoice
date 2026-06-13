@@ -7,28 +7,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { FALLBACK_LANGUAGE, isSupportedLanguage, LANGUAGE_LABELS, SUPPORTED_LANGUAGES, SupportedLanguage } from "@/lib/i18n/i18n"
-import { usePathname, useRouter } from "next/navigation"
+import { FALLBACK_LANGUAGE, LANGUAGE_LABELS, SUPPORTED_LANGUAGES, SupportedLanguage } from "@/lib/i18n/i18n"
+import { useChangeLanguage, useT } from "next-i18next/client"
 
-export function LanguageSwitcher({ currentLanguage }: { currentLanguage: SupportedLanguage }) {
-  const pathname = usePathname()
-  const router = useRouter()
-
-  const switchLocale = async (locale: SupportedLanguage) => {
-    const segments = pathname.split('/').filter(Boolean)
-    const pathWithoutLocale = isSupportedLanguage(segments[0])
-      ? segments.slice(1)
-      : segments
-    const nextPath =
-      locale === FALLBACK_LANGUAGE
-        ? `/${pathWithoutLocale.join('/')}`
-        : `/${locale}/${pathWithoutLocale.join('/')}`
-
-    router.push(nextPath === '/' ? '/' : nextPath.replace(/\/$/, ''))
-  }
+export function LanguageSwitcher() {
+  const { i18n } = useT()
+  const changeLanguage = useChangeLanguage()
+  const currentLanguage = (i18n.language as SupportedLanguage) || FALLBACK_LANGUAGE
 
   return (
-    <Select value={currentLanguage} onValueChange={switchLocale}>
+    <Select value={currentLanguage} onValueChange={(lng) => changeLanguage(lng as SupportedLanguage)}>
       <SelectTrigger className="w-[140px]">
         <SelectValue />
       </SelectTrigger>

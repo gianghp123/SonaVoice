@@ -173,14 +173,17 @@ Entry point: `POST /sessions`
 3. QuotaService.CheckRemaining(userID, dailyLimit) → remaining
    └─ If no quota row: creates one with remaining=dailyLimit (UPSERT)
    └─ If remaining <= 0 → Forbidden("quota exceeded")
-4. cancelStalePendingSession(userID) → mark INACTIVE (no quota logic)
-   └─ GetPendingByUserIDForUpdate → if CreatedAt > 2 min → SetSessionInactive
-   └─ If cleanup fails: log warning, proceed
-5. SessionService.Create(requesterID) → INSERT with Status=PENDING
-   └─ on unique_violation (active/pending exists) → Conflict error
-6. UoW: SetQuotaDate(session.ID, utils.QuotaDate()) + SetMaxDuration(session.ID, remaining)
-7. Return CreateSessionRes{ID, MaxDuration: 0, WebRTCConnectionRes: nil}
+4. UoW.Do() [transaction]:
+   a. GetActiveOrPendingByUserIDForUpdate(userID) ── row-level lock
+      └─ If active/pending session found:
+         └─ SetSessionInactive(existing.ID) ── mark orphaned session inactive (no quota touch)
+         └─ log info (previousStatus, userId, sessionId)
+   b. SessionService.Create(requesterID) → INSERT with Status=PENDING
+      └─ on unique_violation → Conflict error
+5. Return CreateSessionRes{ID, MaxDuration: 0, WebRTCConnectionRes: nil}
 ```
+
+**Note:** Any active or pending session for the user is force-closed in the same transaction before creating the new one. This handles orphaned active sessions (e.g., when the speech engine crashes and `/finalize` never arrives) so the user is never permanently blocked. No quota is touched during the cleanup — only `FinalizeSession` (called by the speech engine) deducts quota.
 
 **Note:** MaxDuration is set at CreateSession from the checked remaining quota. This value is later sent to the speech engine at StartConnection and used to clamp actualUsage at CloseSession.
 

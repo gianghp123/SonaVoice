@@ -13,7 +13,7 @@ import { RTVIEvent, RTVIMessage } from "@pipecat-ai/client-js"
 import { useRTVIClientEvent } from "@pipecat-ai/client-react"
 import * as Sentry from "@sentry/nextjs"
 import { useT } from "next-i18next/client"
-import { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
 type RTVIErrorData = {
@@ -25,9 +25,11 @@ type RTVIErrorData = {
 function ErrorListener({
   handleError,
   initialError,
+  isUserDisconnecting,
 }: {
   handleError: () => void | Promise<void>
   initialError?: string | null
+  isUserDisconnecting?: React.RefObject<boolean>
 }) {
   const { t } = useT('chat')
   const [fatalError, setFatalError] = useState<string | null>(
@@ -59,14 +61,29 @@ function ErrorListener({
         })
       }
 
-      toast.error(t('an_error_occurred', { text }), {
+      toast.error(t('an_error_occurred', { text: text }), {
         duration: 10000,
       })
 
       if (fatal) {
-        setFatalError(text)
+        setFatalError(text.includes("408") ? t('timeout') : text)
       }
     }, [t])
+  )
+
+  useRTVIClientEvent(
+    RTVIEvent.Disconnected,
+    useCallback(() => {
+
+      if (isUserDisconnecting?.current) {
+        return
+      }
+      Sentry.logger.info("Disconnected from RTVI", {
+        area: "chat-layout",
+      })
+
+      setFatalError((prev) => prev ?? t("bot_stopped"))
+    }, [t, isUserDisconnecting?.current])
   )
 
   useEffect(() => {

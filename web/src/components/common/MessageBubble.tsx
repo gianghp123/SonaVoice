@@ -1,74 +1,98 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
-import { ChatBubble, ChatBubbleAvatar, ChatBubbleMessage } from "@/components/ui/chat-bubble"
+import {
+  Message,
+  MessageAction,
+  MessageActions,
+  MessageAvatar,
+  MessageContent,
+} from "@/components/prompt-kit/message"
 import { MessageRole } from "@/lib/enums/message-role.enum"
+import { cn } from "@/lib/utils"
+import { Slot } from "@radix-ui/react-slot"
 import { useT } from "next-i18next/client"
-import { AudioLines } from "lucide-react"
 
 interface MessageBubbleProps {
   role: MessageRole
   children: React.ReactNode
+  actions?: { element: React.ReactNode; tooltip: string }[]
+  avatar?: React.ReactNode,
   className?: string
+  contentClassName?: string
   timestamp?: Date
   wasInterrupted?: boolean
+  asChild?: boolean
 }
 
-function RoleBadge({ role, t }: { role: MessageRole; t: (key: string) => string }) {
-  if (role === MessageRole.User) return null
-  return (
-    <Badge
-      variant="secondary"
-      className="text-[10px] font-bold uppercase tracking-widest bg-transparent px-0 hover:bg-transparent"
-    >
-      {role === MessageRole.Analysis ? t('analysis') : t('sona')}
-    </Badge>
-  )
-}
-
-function MessageFooter({ timestamp, t, wasInterrupted }: { timestamp?: Date; t: (key: string) => string; wasInterrupted?: boolean }) {
-  if (!timestamp && !wasInterrupted) return null
-
-  return (
-    <div className="flex items-center gap-2 mt-1">
-      {timestamp && (
-        <span className="text-[10px] text-muted-foreground">
-          {timestamp.toLocaleString()}
-        </span>
-      )}
-      {wasInterrupted && (
-        <Badge variant="destructive" className="text-[10px] px-1 py-0">
-          {t('interrupted')}
-        </Badge>
-      )}
-    </div>
-  )
-}
-
-export function MessageBubble({ role, children, className, timestamp, wasInterrupted }: MessageBubbleProps) {
+function RoleBadge({ role }: { role: MessageRole }) {
   const { t } = useT('chat')
+  if (role === MessageRole.User) return null
+  const label = role === MessageRole.Analysis ? t('analysis') : t('sona')
+  return (
+    <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+      {label}
+    </span>
+  )
+}
 
-  if (role === MessageRole.User) {
-    return (
-      <ChatBubble variant="sent" className={className}>
-        <ChatBubbleMessage variant="sent" className="font-medium max-w-[85%]">
-          {children}
-          <MessageFooter timestamp={timestamp} wasInterrupted={wasInterrupted} t={t} />
-        </ChatBubbleMessage>
-      </ChatBubble>
-    )
-  }
+export function MessageBubble({
+  role,
+  children,
+  actions,
+  className,
+  contentClassName,
+  avatar,
+  timestamp,
+  wasInterrupted,
+  asChild = false,
+}: MessageBubbleProps) {
+  const { t } = useT('chat')
+  const Content = asChild ? Slot : MessageContent
+  const isUser = role === MessageRole.User
 
   return (
-    <ChatBubble variant="received" className={className}>
-      <ChatBubbleAvatar className="bg-primary text-primary-foreground" fallback={<AudioLines />} />
-      <div className="flex flex-col gap-1 flex-1">
-        <RoleBadge role={role} t={t} />
-        <ChatBubbleMessage variant="received" className="bg-card border-[0.5px]">
+    <Message className={cn(className, isUser ? "justify-end" : "justify-start")}>
+      {avatar && (
+        <MessageAvatar
+          fallback={avatar}
+          className="h-8 w-8"
+        />
+      )}
+
+      <div className={cn("flex flex-col gap-1", contentClassName)}>
+        <RoleBadge role={role} />
+
+        <Content
+          className={cn(isUser ? "bg-primary text-primary-foreground" : "bg-muted")}
+        >
           {children}
-          <MessageFooter timestamp={timestamp} wasInterrupted={wasInterrupted} t={t} />
-        </ChatBubbleMessage>
+        </Content>
+
+
+        {timestamp && (
+          <span className={cn("text-[10px] text-muted-foreground", isUser ? "self-end" : "self-start")}>
+            {timestamp.toLocaleTimeString()}
+          </span>
+        )}
+
+        <MessageActions className={cn(isUser ? "self-end" : "self-start")}>
+          {
+            actions?.map((action) =>
+            (
+              <MessageAction key={action.tooltip} tooltip={action.tooltip}>
+                {action.element}
+              </MessageAction>
+            ))
+          }
+        </MessageActions>
+
+
+        {wasInterrupted && (
+          <span className="inline-flex w-fit items-center rounded-md border border-destructive/50 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+            {t('interrupted')}
+          </span>
+        )}
       </div>
-    </ChatBubble>
+    </Message>
   )
 }
