@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
-	stdErrors "errors"
+	stderrors "errors"
 	"net/http"
 	"time"
 
@@ -117,6 +117,7 @@ func (s *sessionService) ListSessions(ctx context.Context, q req.SessionListQuer
 }
 
 func (s *sessionService) CreateSession(ctx context.Context) (*res.CreateSessionRes, *errors.AppError) {
+	logger := zapLogger.S()
 	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
 
 	model, appErr := s.configService.Get(ctx)
@@ -135,17 +136,11 @@ func (s *sessionService) CreateSession(ctx context.Context) (*res.CreateSessionR
 	quotaDate := utils.QuotaDate()
 	remaining, err := s.quotaRepo.GetOrCreate(ctx, requesterID, "voice", quotaDate, dailyLimit)
 	if err != nil {
-		zapLogger.S().Errorw("Failed to check remaining quota", "userId", requesterID, "error", err)
+		logger.Errorw("Failed to check remaining quota", "userId", requesterID, "error", err)
 		return nil, errors.Internal()
 	}
 	if remaining <= 0 {
 		return nil, errors.Forbidden("quota exceeded")
-	}
-
-	if err := s.cancelStalePendingSession(ctx, requesterID); err != nil {
-		sentry.CaptureException(err)
-		zapLogger.S().Errorw("Failed to cancel stale pending session", "userId", requesterID, "error", err)
-		return nil, errors.Internal()
 	}
 
 	var session *models.Session
@@ -153,8 +148,20 @@ func (s *sessionService) CreateSession(ctx context.Context) (*res.CreateSessionR
 	if err := s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
 		sessionRepo := p.Session()
 
-		quoteDate := utils.QuotaDate()
+		existing, err := sessionRepo.GetActiveOrPendingByUserIDForUpdate(ctx, requesterID)
+		switch {
+		case err == nil:
+			if err := sessionRepo.SetSessionInactive(ctx, existing.ID, utils.NowUTC()); err != nil {
+				logger.Errorw("Failed to close existing session during create", "sessionId", existing.ID, "userId", requesterID, "error", err)
+				return err
+			}
+			logger.Infow("Closed existing session before creating new one", "sessionId", existing.ID, "userId", requesterID, "previousStatus", existing.Status)
+		case stderrors.Is(err, gorm.ErrRecordNotFound):
+		default:
+			return err
+		}
 
+		quoteDate := utils.QuotaDate()
 		session = &models.Session{
 			UserID:      requesterID,
 			Status:      enums.SessionStatusPending,
@@ -163,13 +170,14 @@ func (s *sessionService) CreateSession(ctx context.Context) (*res.CreateSessionR
 		}
 
 		if err := sessionRepo.Create(ctx, session); err != nil {
-			zapLogger.S().Errorw("Failed to create session", "error", err)
+			logger.Errorw("Failed to create session", "error", err)
 			return err
 		}
 
 		return nil
 	}); err != nil {
-		return nil, errors.MapRepoError(err)
+		sentry.CaptureException(err)
+		return nil, errors.MapRepoError(err, "Failed to create session, please turn off any active session and try again later. If the problem persists, contact support.")
 	}
 
 	return &res.CreateSessionRes{
@@ -428,24 +436,4 @@ func (s *sessionService) CancelSession(ctx context.Context, sessionID string) *e
 		return errors.MapRepoError(err)
 	}
 	return nil
-}
-
-func (s *sessionService) cancelStalePendingSession(ctx context.Context, userID string) error {
-	return s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
-		sessionRepo := p.Session()
-
-		staleSession, err := sessionRepo.GetPendingByUserIDForUpdate(ctx, userID)
-		if err != nil {
-			if stdErrors.Is(err, gorm.ErrRecordNotFound) {
-				return nil
-			}
-			return err
-		}
-
-		if !utils.IsStale(staleSession.CreatedAt, 30*time.Second) {
-			return nil
-		}
-
-		return sessionRepo.SetSessionFailed(ctx, staleSession.ID)
-	})
 }

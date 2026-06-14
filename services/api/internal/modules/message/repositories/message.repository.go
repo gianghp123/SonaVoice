@@ -46,3 +46,13 @@ func (r *messageRepository) ListBySessionID(ctx context.Context, sessionID strin
 	meta := response.NewMeta(q.Page, q.Limit, total)
 	return &response.PaginatedResult[*models.Message]{Data: messages, Meta: meta}, nil
 }
+
+func (r *messageRepository) GetByID(ctx context.Context, id string) (*models.Message, error) {
+	message := new(models.Message)
+
+	if err := r.db.WithContext(ctx).First(message, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	return message, nil
+}

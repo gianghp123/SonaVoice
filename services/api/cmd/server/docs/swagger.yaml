@@ -1,5 +1,25 @@
 basePath: /
 definitions:
+  github_com_gianghp123_SonaVoice_api_internal_core_enums.MessageRole:
+    enum:
+    - user
+    - assistant
+    type: string
+    x-enum-varnames:
+    - MessageRoleUser
+    - MessageRoleAssistant
+  github_com_gianghp123_SonaVoice_api_internal_core_enums.SessionStatus:
+    enum:
+    - pending
+    - active
+    - inactive
+    - failed
+    type: string
+    x-enum-varnames:
+    - SessionStatusPending
+    - SessionStatusActive
+    - SessionStatusInactive
+    - SessionStatusFailed
   github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError:
     properties:
       code:
@@ -10,6 +30,56 @@ definitions:
   github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any:
     properties:
       data: {}
+      error:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError'
+      meta:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta'
+      success:
+        type: boolean
+    type: object
+  ? github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res.GrammarAIResult'
+        type: array
+      error:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError'
+      meta:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta'
+      success:
+        type: boolean
+    type: object
+  ? github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res_MessageRes
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res.MessageRes'
+        type: array
+      error:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError'
+      meta:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta'
+      success:
+        type: boolean
+    type: object
+  ? github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionListItemRes
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionListItemRes'
+        type: array
+      error:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError'
+      meta:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta'
+      success:
+        type: boolean
+    type: object
+  ? github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res.GrammarAIResult'
       error:
         $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError'
       meta:
@@ -39,6 +109,17 @@ definitions:
       success:
         type: boolean
     type: object
+  ? github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionRes
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionRes'
+      error:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_errors.AppError'
+      meta:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.Meta'
+      success:
+        type: boolean
+    type: object
   github_com_gianghp123_SonaVoice_api_internal_core_response.Meta:
     properties:
       limit:
@@ -49,6 +130,91 @@ definitions:
         type: integer
       totalPages:
         type: integer
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.ConversationTurn:
+    properties:
+      role:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.MessageRole'
+      text:
+        type: string
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.GrammarAnalyzeTextReq:
+    properties:
+      conversationContext:
+        items:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.ConversationTurn'
+        type: array
+      explanationLanguage:
+        type: string
+      transcript:
+        type: string
+    required:
+    - transcript
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res.GrammarAIResult:
+    properties:
+      correctedText:
+        type: string
+      explanation:
+        type: string
+      hasCorrection:
+        type: boolean
+      id:
+        type: string
+      messageId:
+        type: string
+      metadata: {}
+      normalizedText:
+        type: string
+      originalText:
+        type: string
+      practiceFocus:
+        type: string
+      practiceReason:
+        type: string
+      practiceSentence:
+        type: string
+      severity:
+        enum:
+        - low
+        - medium
+        - high
+        type: string
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_req.CreateMessagesReq:
+    properties:
+      messages:
+        items:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_req.MessageItem'
+        type: array
+    required:
+    - messages
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_req.MessageItem:
+    properties:
+      role:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.MessageRole'
+      transcript:
+        type: string
+      was_interrupted:
+        type: boolean
+    required:
+    - role
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res.MessageRes:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      role:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.MessageRole'
+      session_id:
+        type: string
+      transcript:
+        type: string
+      was_interrupted:
+        type: boolean
     type: object
   github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.ConfigPayload:
     properties:
@@ -117,12 +283,34 @@ definitions:
       config:
         $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos.ConfigPayload'
     type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionListItemRes:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.SessionStatus'
+    type: object
+  github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.SessionRes:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_enums.SessionStatus'
+      user_id:
+        type: string
+    type: object
   github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.WebRTCConnectionRes:
     properties:
       iceConfig:
         allOf:
         - $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res.IceConfig'
         description: 'only if enableDefaultIceServers: true'
+      maxDuration:
+        type: integer
       sessionId:
         type: string
     type: object
@@ -142,7 +330,156 @@ info:
   title: Session API
   version: "1.0"
 paths:
+  /learning/grammar/analyze:
+    post:
+      consumes:
+      - application/json
+      description: Analyze raw transcript text for grammar and naturalness without
+        saving to DB
+      parameters:
+      - description: Transcript text to analyze
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_req.GrammarAnalyzeTextReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Analyze grammar for text
+      tags:
+      - learning
+  /learning/grammar/messages/{messageId}:
+    post:
+      consumes:
+      - application/json
+      description: Analyze a message transcript for grammar and naturalness, save
+        the result
+      parameters:
+      - description: Message ID
+        in: path
+        name: messageId
+        required: true
+        type: string
+      - description: Language for the explanation (e.g. vietnamese)
+        in: query
+        name: explanationLanguage
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Analyze grammar for a message
+      tags:
+      - learning
+  /learning/grammar/sessions/{sessionId}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all grammar analyses for a specific session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_learning_dtos_res_GrammarAIResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get grammar analyses for a session
+      tags:
+      - learning
   /sessions:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of sessions belonging to the authenticated user
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionListItemRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List user sessions
+      tags:
+      - session
     post:
       consumes:
       - application/json
@@ -172,11 +509,54 @@ paths:
           schema:
             $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Create new session and start connection
       tags:
       - session
-  /sessions/{sessionId}/offer:
+  /sessions/{sessionId}:
+    get:
+      consumes:
+      - application/json
+      description: Get a single session by ID (must belong to the authenticated user)
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-github_com_gianghp123_SonaVoice_api_internal_modules_session_dtos_res_SessionRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get session details
+      tags:
+      - session
+  /sessions/{sessionId}/api/offer:
     patch:
       consumes:
       - application/json
@@ -208,7 +588,7 @@ paths:
           schema:
             $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Proxy WebRTC offer
       tags:
       - session
@@ -243,10 +623,122 @@ paths:
           schema:
             $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Proxy WebRTC offer
       tags:
       - session
+  /sessions/{sessionId}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: Cancel a pending or active session, releasing all reserved quota
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Cancel a session
+      tags:
+      - session
+  /sessions/{sessionId}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of messages for a session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Sort order (asc/desc)
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res_MessageRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      security:
+      - BearerAuth: []
+      summary: List messages in a session
+      tags:
+      - message
+    post:
+      consumes:
+      - application/json
+      description: Create new messages for a session (internal endpoint)
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Messages to create
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_req.CreateMessagesReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-array_github_com_gianghp123_SonaVoice_api_internal_modules_message_dtos_res_MessageRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
+      summary: Create messages in a session
+      tags:
+      - message
   /sessions/{sessionId}/start:
     post:
       consumes:
@@ -282,7 +774,7 @@ paths:
           schema:
             $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Start connection for an existing session
       tags:
       - session
@@ -338,7 +830,7 @@ paths:
           schema:
             $ref: '#/definitions/github_com_gianghp123_SonaVoice_api_internal_core_response.BaseResponse-any'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Update session config
       tags:
       - session-config

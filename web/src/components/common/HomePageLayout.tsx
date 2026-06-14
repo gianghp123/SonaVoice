@@ -18,7 +18,6 @@ import {
 import { ConnectNow } from "@/features/landing/components/ConnectNow"
 import { PAGE_ROUTES } from "@/lib/routes"
 import type { ISession } from "@/lib/types/session.interface"
-import { stripLocalePrefix } from "@/lib/utils/path"
 import { Show } from "@clerk/nextjs"
 import { Plus } from "lucide-react"
 import { useT } from "next-i18next/client"
@@ -26,17 +25,16 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Separator } from "../ui/separator"
 import { LanguageSwitcher } from "./LanguageSwitcher"
-import { SupportedLanguage } from "@/lib/i18n/i18n"
+
 interface HomePageContentProps {
   sessions: ISession[]
   children: React.ReactNode
   breadcrumb?: React.ReactNode
   sidebarFooter?: React.ReactNode
-  currentLanguage: SupportedLanguage
 }
 
-export function HomePageLayout({ sessions, children, breadcrumb, sidebarFooter, currentLanguage }: HomePageContentProps) {
-  const pathname = stripLocalePrefix(usePathname())
+export function HomePageLayout({ sessions, children, breadcrumb, sidebarFooter }: HomePageContentProps) {
+  const pathname = usePathname()
   const { t } = useT('common')
 
   return (
@@ -100,9 +98,11 @@ export function HomePageLayout({ sessions, children, breadcrumb, sidebarFooter, 
             {breadcrumb}
           </div>
 
-          <LanguageSwitcher currentLanguage={currentLanguage} />
+          <LanguageSwitcher />
         </header>
-        {children}
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   )

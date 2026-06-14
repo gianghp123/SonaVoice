@@ -35,7 +35,7 @@ export function ConnectNow({
 
     try {
       if (!isSignedIn) {
-        router.push("/")
+        router.push(PAGE_ROUTES.HOME)
         return
       }
 

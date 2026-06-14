@@ -6,7 +6,7 @@ const i18nConfig: I18nConfig = {
   fallbackLng: FALLBACK_LANGUAGE,
   defaultNS: 'common',
   ns: ['common', 'home', 'chat', 'session', 'onboarding'],
-  hideDefaultLocale: true,
+  localeInPath: false,
   reloadOnPrerender: process.env.NODE_ENV === 'development',
   resourceLoader:
     process.env.NODE_ENV === 'development'

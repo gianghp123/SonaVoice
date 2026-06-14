@@ -49,7 +49,7 @@ func (ctrl *SessionConfigController) HandleGet(c *gin.Context) {
 // HandleUpdate godoc
 // @Summary      Update session config
 // @Description  Update the session configuration (admin only)
-// @Security     Bearer
+// @Security     BearerAuth
 // @Tags         session-config
 // @Accept       json
 // @Produce      json

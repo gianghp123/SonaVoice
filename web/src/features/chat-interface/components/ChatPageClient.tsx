@@ -1,5 +1,6 @@
 "use client"
 
+import { BrowserNavigationGuard } from "@/components/common/BrowserNavigationGuard"
 import { LoadingScreen } from "@/components/common/LoadingScreen"
 import { ChatInterface } from "@/features/chat-interface/components/ChatInterface"
 import { ErrorListener } from "@/features/chat-interface/components/ErrorListener"
@@ -8,7 +9,7 @@ import { PAGE_ROUTES, PROXY_ROUTES } from "@/lib/routes"
 import { PipecatAppBase } from "@pipecat-ai/voice-ui-kit"
 import * as Sentry from "@sentry/nextjs"
 import { useRouter } from "next/navigation"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 
 interface ChatPageClientProps {
   sessionId: string
@@ -17,6 +18,8 @@ interface ChatPageClientProps {
 export function ChatPageClient({ sessionId }: ChatPageClientProps) {
   const router = useRouter()
   const [maxDuration, setMaxDuration] = useState(0)
+  const [navigationGuardEnabled, setNavigationGuardEnabled] = useState(true)
+  const isUserDisconnecting = useRef(false)
 
   const startBotParams = useMemo(() => ({
     endpoint: PROXY_ROUTES.WEBRTC.START(sessionId),
@@ -58,16 +61,19 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
       {({ client, error, handleDisconnect }) => {
         if (!client) return <LoadingScreen />
 
+
         const handleSessionError = async () => {
           Sentry.logger.error("Voice session fatal error handled", {
             area: "chat-page",
             sessionId,
           })
           await cancelSession(sessionId)
+          setNavigationGuardEnabled(false)
           router.push(PAGE_ROUTES.HOME)
         }
 
         const handleSessionDisconnect = async () => {
+          isUserDisconnecting.current = true
           Sentry.logger.info("Voice session disconnect initiated", {
             area: "chat-page",
             sessionId,
@@ -91,15 +97,17 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
           }
 
           await handleDisconnect?.()
-
+          setNavigationGuardEnabled(false)
           router.push(PAGE_ROUTES.HOME)
         }
 
         return (
           <>
+            <BrowserNavigationGuard enabled={navigationGuardEnabled} />
             <ErrorListener
               handleError={handleSessionError}
               initialError={error}
+              isUserDisconnecting={isUserDisconnecting} 
             />
             <ChatInterface
               maxDuration={maxDuration}

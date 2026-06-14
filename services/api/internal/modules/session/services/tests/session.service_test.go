@@ -53,7 +53,7 @@ func TestSessionService_CreateSession(t *testing.T) {
 				configSvc.On("Get", mock.Anything).Return(&models.SessionConfig{Config: datatypes.JSON(configPayload)}, (*appErrors.AppError)(nil))
 				quotaRepo.On("GetOrCreate", mock.Anything, "user-1", "voice", mock.Anything, int64(300)).Return(int64(300), nil)
 				provider.On("Session").Return(sessionRepo)
-				sessionRepo.On("GetPendingByUserIDForUpdate", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
+				sessionRepo.On("GetActiveOrPendingByUserIDForUpdate", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
 				sessionRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 			},
@@ -73,12 +73,24 @@ func TestSessionService_CreateSession(t *testing.T) {
 				configSvc.On("Get", mock.Anything).Return(&models.SessionConfig{Config: datatypes.JSON(configPayload)}, (*appErrors.AppError)(nil))
 				quotaRepo.On("GetOrCreate", mock.Anything, "user-1", "voice", mock.Anything, int64(300)).Return(int64(300), nil)
 				provider.On("Session").Return(sessionRepo)
-				sessionRepo.On("GetPendingByUserIDForUpdate", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
+				sessionRepo.On("GetActiveOrPendingByUserIDForUpdate", mock.Anything, "user-1").Return(nil, gorm.ErrRecordNotFound)
 				sessionRepo.On("Create", mock.Anything, mock.Anything).Return(&pgconn.PgError{Code: "23505"})
 				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: true,
 			errCode: http.StatusConflict,
+		},
+		{
+			name: "closes orphaned active session before creating new one",
+			setupMock: func(configSvc *svcMocks.SessionConfigService, quotaRepo *repoMocks.UserQuotaRepository, speechSvc *svcMocks.SpeechProxyService, startConnSvc *svcMocks.StartConnectionService, uow *svcMocks.UnitOfWork, provider *svcMocks.Provider, sessionRepo *repoMocks.SessionRepository) {
+				configSvc.On("Get", mock.Anything).Return(&models.SessionConfig{Config: datatypes.JSON(configPayload)}, (*appErrors.AppError)(nil))
+				quotaRepo.On("GetOrCreate", mock.Anything, "user-1", "voice", mock.Anything, int64(300)).Return(int64(300), nil)
+				provider.On("Session").Return(sessionRepo)
+				sessionRepo.On("GetActiveOrPendingByUserIDForUpdate", mock.Anything, "user-1").Return(&models.Session{BaseModel: models.BaseModel{ID: "orphan"}, UserID: "user-1", Status: enums.SessionStatusActive}, nil)
+				sessionRepo.On("SetSessionInactive", mock.Anything, "orphan", mock.Anything).Return(nil)
+				sessionRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+				uow.On("Do", mock.Anything, mock.Anything).Return(nil)
+			},
 		},
 	}
 

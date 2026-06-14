@@ -30,3 +30,11 @@ func (m *MessageRepository) ListBySessionID(ctx context.Context, sessionID strin
 	}
 	return args.Get(0).(*response.PaginatedResult[*models.Message]), args.Error(1)
 }
+
+func (m *MessageRepository) GetByID(ctx context.Context, id string) (*models.Message, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Message), args.Error(1)
+}

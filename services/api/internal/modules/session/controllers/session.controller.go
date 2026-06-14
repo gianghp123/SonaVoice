@@ -9,7 +9,6 @@ import (
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/req"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/res"
-	_ "github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/res"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/services"
 	"github.com/gianghp123/SonaVoice/api/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -26,7 +25,7 @@ func NewSessionController(svc services.ISessionSevice) *SessionController {
 // HandleCreateSession godoc
 // @Summary      Create new session and start connection
 // @Description  Create a new session and start a WebRTC connection with the speech service
-// @Security     Bearer
+// @Security     BearerAuth
 // @Tags         session
 // @Accept       json
 // @Produce      json
@@ -48,7 +47,7 @@ func (ctrl *SessionController) HandleCreateSession(c *gin.Context) {
 // HandleStartConnection godoc
 // @Summary      Start connection for an existing session
 // @Description  Start a WebRTC connection for a pending session
-// @Security     Bearer
+// @Security     BearerAuth
 // @Tags         session
 // @Accept       json
 // @Produce      json
@@ -72,7 +71,7 @@ func (ctrl *SessionController) HandleStartConnection(c *gin.Context) {
 // HandleOffer godoc
 // @Summary      Proxy WebRTC offer
 // @Description  Proxy a WebRTC offer request to the speech service by session ID
-// @Security     Bearer
+// @Security     BearerAuth
 // @Tags         session
 // @Accept       json
 // @Produce      json
@@ -81,8 +80,8 @@ func (ctrl *SessionController) HandleStartConnection(c *gin.Context) {
 // @Success      200        {object}  response.BaseResponse[any]
 // @Failure      400        {object}  response.BaseResponse[any]
 // @Failure      500        {object}  response.BaseResponse[any]
-// @Router       /sessions/{sessionId}/offer [post]
-// @Router       /sessions/{sessionId}/offer [patch]
+// @Router       /sessions/{sessionId}/api/offer [post]
+// @Router       /sessions/{sessionId}/api/offer [patch]
 func (ctrl *SessionController) HandleOffer(c *gin.Context) {
 	sessionId := c.Param("sessionId")
 
@@ -121,8 +120,18 @@ func (ctrl *SessionController) HandleFinalizeSession(c *gin.Context) {
 	c.JSON(http.StatusOK, response.Success[any](nil))
 }
 
-// HandleCancelSession allows a user to cancel their own pending or active session.
-// This releases all reserved quota and marks the session inactive.
+// HandleCancelSession godoc
+// @Summary      Cancel a session
+// @Description  Cancel a pending or active session, releasing all reserved quota
+// @Security     BearerAuth
+// @Tags         session
+// @Accept       json
+// @Produce      json
+// @Param        sessionId  path  string  true  "Session ID"
+// @Success      200  {object}  response.BaseResponse[any]
+// @Failure      401  {object}  response.BaseResponse[any]
+// @Failure      500  {object}  response.BaseResponse[any]
+// @Router       /sessions/{sessionId}/cancel [post]
 func (ctrl *SessionController) HandleCancelSession(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 
@@ -137,7 +146,7 @@ func (ctrl *SessionController) HandleCancelSession(c *gin.Context) {
 // HandleListSessions godoc
 // @Summary      List user sessions
 // @Description  Get paginated list of sessions belonging to the authenticated user
-// @Security     Bearer
+// @Security     BearerAuth
 // @Tags         session
 // @Accept       json
 // @Produce      json
@@ -175,7 +184,7 @@ func (ctrl *SessionController) HandleListSessions(c *gin.Context) {
 // HandleGetSession godoc
 // @Summary      Get session details
 // @Description  Get a single session by ID (must belong to the authenticated user)
-// @Security     Bearer
+// @Security     BearerAuth
 // @Tags         session
 // @Accept       json
 // @Produce      json
@@ -203,5 +212,5 @@ func (ctrl *SessionController) HandleGetSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response.Success(session))
+	c.JSON(http.StatusOK, response.Success(dto))
 }

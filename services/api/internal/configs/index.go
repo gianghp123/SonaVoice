@@ -13,6 +13,7 @@ type Config struct {
 	Redis     RedisConfig
 	Sentry    SentryConfig
 	Server    ServerConfig
+	OpenAI    OpenAIConfig
 }
 
 func Load() *Config {
@@ -28,5 +29,6 @@ func Load() *Config {
 		Redis:     loadRedisConfig(),
 		Sentry:    loadSentryConfig(),
 		Server:    loadServerConfig(),
+		OpenAI:    loadOpenAIConfig(),
 	}
 }

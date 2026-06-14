@@ -12,4 +12,5 @@ type IMessageRepository interface {
 	Create(ctx context.Context, m *models.Message) error
 	CreateBatch(ctx context.Context, msgs []*models.Message) error
 	ListBySessionID(ctx context.Context, sessionID string, q *database.Query) (*response.PaginatedResult[*models.Message], error)
+	GetByID(ctx context.Context, id string) (*models.Message, error)
 }
