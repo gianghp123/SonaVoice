@@ -10,7 +10,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="Status" />
-  <img src="https://img.shields.io/badge/go-%3E%3D1.25-00ADD8?logo=go" alt="Go" />
+  <img src="https://img.shields.io/badge/go-%3E%3D1.26-00ADD8?logo=go" alt="Go" />
   <img src="https://img.shields.io/badge/python-%3E%3D3.12-3776AB?logo=python" alt="Python" />
   <img src="https://img.shields.io/badge/next.js-16-000000?logo=nextdotjs" alt="Next.js" />
 </p>
@@ -29,9 +29,10 @@
 | **Auth** | Clerk |
 | **Voice Client** | Pipecat AI Client JS + React + SmallWebRTC Transport |
 | **API Backend** | Go, Gin, GORM |
+| **OpenAI Client** | openai-go v3 with structured output support |
 | **Speech Pipeline** | Python, Pipecat AI, FastAPI |
 | **STT** | Deepgram |
-| **LLM** | OpenAI-compatible API (Deepseek via OpenCode proxy) |
+| **LLM** | OpenAI-compatible API (configurable base_url) |
 | **TTS** | Piper (local model) |
 | **Memory** | Mem0 with pgvector extension |
 | **Database** | Neon PostgreSQL, Goose migration |
@@ -64,6 +65,10 @@ Sona is an end-to-end **AI voice companion platform** that combines **speech-to-
 | **User authentication** | Clerk provides sign-up, sign-in, and session management |
 | **Session management** | Create, start, and review past voice sessions with full message history |
 | **Rate limiting & quotas** | Configurable per-user rate limits and session duration caps |
+| **Grammar analysis** | AI-powered grammar correction with explanations and practice sentences |
+| **Browser navigation guard** | Prevents accidental navigation during active voice sessions |
+| **User idle timeout** | Automatic session ending after 5 minutes of inactivity |
+| **Learning module** | Extensible module for grammar, vocabulary, and future learning features |
 | **Observability** | Sentry error tracking across all services along with structured logging |
 | **Infrastructure as code** | Terraform modules for Neon, Redis, Sentry, and Vercel |
 
@@ -93,23 +98,26 @@ sona-voice/
 ├── web/                          # Next.js frontend
 │   ├── src/
 │   │   ├── app/                  # App Router pages
-│   │   │   ├── [lng]/            # i18n locale routing
-│   │   │   │   ├── (auth)/       # Sign-in / sign-up
-│   │   │   │   ├── (main)/       # Main app (chat, sessions, landing)
-│   │   │   │   ├── (admin)/      # Admin dashboard
-│   │   │   │   └── api/proxy/    # WebRTC proxy to backend
+│   │   │   ├── (auth)/           # Sign-in / sign-up
+│   │   │   ├── (main)/           # Main app (chat, sessions, landing)
+│   │   │   ├── (admin)/          # Admin dashboard
+│   │   │   ├── api/proxy/        # WebRTC proxy to backend
 │   │   │   ├── i18n/             # i18n configuration
 │   │   │   │   └── locales/      # en/, vi/ translations
 │   │   │   └── globals.css
 │   │   ├── components/           # Shared UI components
-│   │   │   ├── common/           # AnalysisCard, LoadingScreen, Logo, etc.
+│   │   │   ├── common/           # AnalysisCard, BrowserNavigationGuard, LoadingScreen, Logo, etc.
+│   │   │   ├── prompt-kit/       # Chat UI primitives (chat-container, code-block, markdown, message, scroll-button, tool)
 │   │   │   └── ui/               # shadcn/ui primitives
 │   │   ├── features/             # Feature modules
 │   │   │   ├── chat-interface/   # VoiceOrb, VoicePanel, VoiceToolbar, etc.
 │   │   │   ├── landing/          # LandingHero, ConnectNow
 │   │   │   ├── onboarding/       # User onboarding & preferences
 │   │   │   ├── profile/          # User profile
-│   │   │   └── session-history/  # SessionMessageList, services
+│   │   │   ├── session-history/  # SessionMessageList, services
+│   │   │   └── shared/           # Shared feature modules
+│   │   │       ├── grammar/      # Grammar analysis (components, hooks, services)
+│   │   │       └── profile/      # Profile constants
 │   │   ├── hooks/                # Custom React hooks
 │   │   ├── lib/                  # API client, types, utilities
 │   │   └── instrumentation.ts    # Sentry setup
@@ -127,7 +135,8 @@ sona-voice/
 │   │   │   ├── modules/
 │   │   │   │   ├── session/      # Session CRUD + WebRTC orchestration
 │   │   │   │   ├── message/      # Message persistence
-│   │   │   │   └── user_profile/ # User profile & preferences
+│   │   │   │   ├── user_profile/ # User profile & preferences
+│   │   │   │   └── learning/     # Grammar analysis & future learning features
 │   │   │   └── utils/            # Helpers
 │   │   ├── go.mod
 │   │   └── vercel.json
@@ -160,7 +169,7 @@ sona-voice/
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| [Go](https://go.dev/dl/) | >= 1.25 | API backend |
+| [Go](https://go.dev/dl/) | >= 1.26 | API backend |
 | [Python](https://www.python.org/downloads/) | >= 3.12 | Speech engine |
 | [Node.js](https://nodejs.org/) | >= 20 | Web frontend |
 | [PostgreSQL](https://www.postgresql.org/) | 15+ | Database (with pgvector extension) |
@@ -260,6 +269,33 @@ cd services/api
 make clean
 ```
 
+### API Development Commands
+
+The API service has additional Makefile commands for development:
+
+```bash
+# Create new database migration
+cd services/api && make migrate-create name=add_new_table
+
+# Roll back migrations
+cd services/api && make migrate-down
+
+# Run tests
+cd services/api && make test
+
+# Run tests with coverage report
+cd services/api && make test-coverage
+
+# Regenerate Swagger docs
+cd services/api && make swag-init
+
+# View Docker logs
+cd services/api && make logs
+
+# Restart Docker services
+cd services/api && make restart
+```
+
 ---
 
 ## Deployment
@@ -323,12 +359,17 @@ GitHub Actions handles:
 * [x] Unit tests for API backend
 * [x] Vietnamese i18n support
 * [x] Onboarding & user preference setup
+* [x] Grammar analysis & correction
+* [x] Browser navigation guard for active sessions
+* [x] User idle timeout detection & session canceling
+* [x] OpenAI client wrapper with structured output
+* [x] Learning module foundation
 
 ### Up Next
 
 * [ ] Production Terraform environment
 * [ ] Pronunciation feedback & fluency analysis
-* [ ] Vocabulary suggestions & grammar correction
+* [ ] Vocabulary suggestions
 * [ ] Personalized recommendations & learning insights
 * [ ] Adaptive difficulty & custom AI personas
 * [ ] Admin dashboard

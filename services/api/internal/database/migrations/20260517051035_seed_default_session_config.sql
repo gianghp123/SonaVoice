@@ -8,7 +8,7 @@ SELECT
       "reset_timezone": "Asia/Ho_Chi_Minh",
       "limits": {
         "user": {
-          "daily_voice_seconds": 300,
+          "daily_voice_seconds": 3000,
           "daily_request_count": 50
         },
         "session": {
@@ -34,7 +34,7 @@ WHERE config = '{
   "resetTimezone": "Asia/Ho_Chi_Minh",
   "limits": {
     "user": {
-      "dailyVoiceSeconds": 300,
+      "dailyVoiceSeconds": 3000,
       "dailyRequestCount": 50
     },
     "session": {
