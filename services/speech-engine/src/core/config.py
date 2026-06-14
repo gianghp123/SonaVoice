@@ -1,35 +1,40 @@
 from pathlib import Path
 from typing import Any, Dict
+
+from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from dotenv import load_dotenv
 
 # Load .env file if it exists
 load_dotenv()
+
 
 class Settings(BaseSettings):
     """
     Application settings and environment variables.
     Pydantic automatically looks for uppercase versions of these in your .env
     """
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     # API Keys
-    OPENCODE_API_KEY: str
+    OPENAI_API_KEY: str
     OPENAI_BASE_URL: str = "https://opencode.ai/zen/go/v1"
     DEEPGRAM_API_KEY: str
-    GOOGLE_API_KEY: str # Required for the embedding provider
-    
+    GOOGLE_API_KEY: str  # Required for the embedding provider
+
     # Database
     DATABASE_URL: str
-    
+
     LLM_NAME: str = "deepseek-v4-flash"
-    
+
     BOT_NAME: str = "SONA"
 
     # Sentry
     SENTRY_DSN: str = ""
-    
+
     # ICE / TURN Servers (JSON array of IceServer objects)
     ICE_SERVERS: str = ""
 
@@ -39,16 +44,15 @@ class Settings(BaseSettings):
     # Constants
     EMBEDDING_DIMS: int = 768
     MODEL_ENVIRONMENT: str = "production"
-    
-    MODELS_DIR: str = "./models"
 
+    MODELS_DIR: str = "./models"
 
     @property
     def piper_models_dir(self) -> Path:
         if self.MODEL_ENVIRONMENT == "local":
             return Path("./models")
         return Path(self.MODELS_DIR)
-    
+
     @property
     def memory_config(self) -> Dict[str, Any]:
         """
@@ -60,16 +64,16 @@ class Settings(BaseSettings):
                 "provider": "openai",
                 "config": {
                     "model": "deepseek-v4-flash",
-                    "api_key": self.OPENCODE_API_KEY,
+                    "api_key": self.OPENAI_API_KEY,
                     "openai_base_url": self.OPENAI_BASE_URL,
-                }
+                },
             },
             "vector_store": {
                 "provider": "pgvector",
                 "config": {
                     "connection_string": self.DATABASE_URL,
                     "embedding_model_dims": self.EMBEDDING_DIMS,
-                }
+                },
             },
             "embedder": {
                 "provider": "gemini",
@@ -77,15 +81,17 @@ class Settings(BaseSettings):
                     "model": "models/gemini-embedding-001",
                     "embedding_dims": self.EMBEDDING_DIMS,
                     "api_key": self.GOOGLE_API_KEY,
-                }
-            }
+                },
+            },
         }
+
 
 class RunnerBody(BaseModel):
     user_id: str
     session_id: str
     max_duration: int
     user_profile: dict | None = None
+
 
 # Instantiate settings to be used across the app
 settings = Settings()

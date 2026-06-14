@@ -1,17 +1,17 @@
-from pipecat.services.openai.llm import OpenAILLMService
-from pipecat.services.deepgram.stt import DeepgramSTTService
-from pipecat.services.piper.tts import PiperTTSService
-from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.adapters.schemas.tools_schema import ToolsSchema
-from pipecat.processors.metrics.sentry import SentryMetrics
-from pipecat.services.mem0.memory import Mem0MemoryService
-
-from src.core.config import settings
-from src.agents.prompts import ENGLIST_TEACHER_SYSTEM_INSTRUCTION
-from src.agents.tools import summarize_conversation, summarize_function
-
 import json
 import re
+
+from pipecat.adapters.schemas.tools_schema import ToolsSchema
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.metrics.sentry import SentryMetrics
+from pipecat.services.deepgram.stt import DeepgramSTTService
+from pipecat.services.mem0.memory import Mem0MemoryService
+from pipecat.services.openai.llm import OpenAILLMService
+from pipecat.services.piper.tts import PiperTTSService
+
+from src.agents.prompts import ENGLIST_TEACHER_SYSTEM_INSTRUCTION
+from src.agents.tools import summarize_conversation, summarize_function
+from src.core.config import settings
 
 
 async def clean_for_tts(text: str, type: str) -> str:
@@ -83,7 +83,7 @@ def build_llm(user_profile: dict | None = None) -> OpenAILLMService:
         )
 
     llm = OpenAILLMService(
-        api_key=settings.OPENCODE_API_KEY,
+        api_key=settings.OPENAI_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
         metrics=_get_metrics(),
         settings=OpenAILLMService.Settings(
@@ -104,9 +104,10 @@ def build_tts() -> PiperTTSService:
         ),
         download_dir=settings.piper_models_dir,
     )
-    
+
     tts.add_text_transformer(clean_for_tts, "*")
     return tts
+
 
 def build_context() -> LLMContext:
     tools = ToolsSchema([summarize_function])
