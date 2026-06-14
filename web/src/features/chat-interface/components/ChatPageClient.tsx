@@ -15,6 +15,7 @@ interface ChatPageClientProps {
   sessionId: string
 }
 
+
 export function ChatPageClient({ sessionId }: ChatPageClientProps) {
   const router = useRouter()
   const [maxDuration, setMaxDuration] = useState(0)
@@ -59,8 +60,7 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
       noThemeProvider
     >
       {({ client, error, handleDisconnect }) => {
-        if (!client) return <LoadingScreen />
-
+        if (!client && !error) return <LoadingScreen />
 
         const handleSessionError = async () => {
           Sentry.logger.error("Voice session fatal error handled", {
@@ -107,13 +107,12 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
             <ErrorListener
               handleError={handleSessionError}
               initialError={error}
-              isUserDisconnecting={isUserDisconnecting} 
+              isUserDisconnecting={isUserDisconnecting}
             />
             <ChatInterface
               maxDuration={maxDuration}
               handleDisconnect={handleSessionDisconnect}
             />
-            {/* <EventsPanel /> */}
           </>
         )
       }}

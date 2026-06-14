@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import * as Sentry from "@sentry/nextjs";
 
 type RequestInitWithDuplex = RequestInit & {
   duplex?: "half"
@@ -18,6 +19,10 @@ async function webrtcProxy(
   const API_URL = process.env.API_URL;
 
   if (!API_URL) {
+    Sentry.logger.error("API_URL is not configured", {
+      area: "webrtc-proxy",
+      path,
+    });
     return Response.json(
       { error: "Missing PIPECAT_API_URL" },
       { status: 500 }
@@ -52,18 +57,65 @@ async function webrtcProxy(
     const isStartRoute = path.endsWith("start");
 
     if (isStartRoute) {
-      // ✅ /start: unwrap { data: { sessionId, iceConfig } } -> { sessionId, iceConfig }
       const json = await upstreamResponse.json();
 
-      // unwrap if your Go backend wraps in { data: ... }
-      const unwrapped = json?.data ?? json;
+      if (!upstreamResponse.ok) {
+        const message = json?.error?.message ?? "Failed to start session";
 
+        Sentry.logger.error("Upstream /start returned error", {
+          area: "webrtc-proxy",
+          path,
+          status: upstreamResponse.status,
+          message,
+        });
+
+        Sentry.captureException(new Error(message), {
+          tags: {
+            area: "webrtc-proxy",
+            type: "upstream-start-error",
+            status: String(upstreamResponse.status),
+          },
+          extra: {
+            path,
+            targetUrl,
+            status: upstreamResponse.status,
+            responseBody: json,
+          },
+        });
+
+        return Response.json({ error: message }, {
+          status: upstreamResponse.status,
+        });
+      }
+
+      const unwrapped = json?.data ?? json;
       return Response.json(unwrapped, {
         status: upstreamResponse.status,
       });
     }
 
-    // ✅ /sessions/:sessionId/api/offer: stream as-is, no unwrapping
+    // /sessions/:sessionId/api/offer: stream as-is, no unwrapping
+    if (!upstreamResponse.ok) {
+      Sentry.logger.error("Upstream /offer returned error", {
+        area: "webrtc-proxy",
+        path,
+        status: upstreamResponse.status,
+      });
+
+      Sentry.captureException(new Error("Upstream offer error"), {
+        tags: {
+          area: "webrtc-proxy",
+          type: "upstream-offer-error",
+          status: String(upstreamResponse.status),
+        },
+        extra: {
+          path,
+          targetUrl,
+          status: upstreamResponse.status,
+        },
+      });
+    }
+
     const responseHeaders = new Headers();
     const upstreamContentType = upstreamResponse.headers.get("content-type");
     if (upstreamContentType) {
@@ -77,7 +129,23 @@ async function webrtcProxy(
     });
 
   } catch (error) {
-    console.error("[WebRTC proxy] Error:", error);
+    Sentry.logger.error("WebRTC proxy crashed", {
+      area: "webrtc-proxy",
+      path,
+    });
+
+    Sentry.captureException(error, {
+      tags: {
+        area: "webrtc-proxy",
+        type: "proxy-crash",
+      },
+      extra: {
+        path,
+        targetUrl,
+        method: req.method,
+      },
+    });
+
     return Response.json(
       { error: "Failed to proxy request to Pipecat API" },
       { status: 502 }

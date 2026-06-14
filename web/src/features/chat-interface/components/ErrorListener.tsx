@@ -65,9 +65,7 @@ function ErrorListener({
         duration: 10000,
       })
 
-      if (fatal) {
-        setFatalError(text.includes("408") ? t('timeout') : text)
-      }
+      setFatalError(text.includes("408") ? t('timeout') : text)
     }, [t])
   )
 
