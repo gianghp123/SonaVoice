@@ -113,6 +113,13 @@ func (s *sessionService) ListSessions(ctx context.Context, q req.SessionListQuer
 		return nil, errors.MapRepoError(err)
 	}
 
+	// Calculate actualUsage for sessions that don't have it in case speech not update in time
+	for _, session := range result.Data {
+		if session.ActualUsage == 0 && !session.EndedAt.IsZero() && !session.StartedAt.IsZero() {
+			session.ActualUsage = int64(session.EndedAt.Sub(session.StartedAt).Seconds())
+		}
+	}
+
 	return &response.PaginatedResult[*models.Session]{Data: result.Data, Meta: result.Meta}, nil
 }
 

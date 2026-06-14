@@ -12,8 +12,6 @@ type Query struct {
 func NewQuery() *Query {
 	return &Query{
 		Filters: make(map[string]interface{}),
-		Page:    1,
-		Limit:   10,
 	}
 }
 
@@ -43,17 +41,31 @@ func (q *Query) SetOrderBy(order string) *Query {
 
 func (q *Query) Count(tx *gorm.DB) (int64, error) {
 	var total int64
-	if err := tx.Where(q.Filters).Count(&total).Error; err != nil {
+
+	err := tx.
+		Where(q.Filters).
+		Count(&total).
+		Error
+
+	if err != nil {
 		return 0, err
 	}
+
 	return total, nil
 }
 
 func (q *Query) Apply(tx *gorm.DB) *gorm.DB {
 	tx = tx.Where(q.Filters)
+
 	if q.OrderBy != "" {
 		tx = tx.Order(q.OrderBy)
 	}
-	offset := (q.Page - 1) * q.Limit
-	return tx.Offset(offset).Limit(q.Limit)
+
+	if q.Page > 0 && q.Limit > 0 {
+		offset := (q.Page - 1) * q.Limit
+
+		tx = tx.Offset(offset).Limit(q.Limit)
+	}
+
+	return tx
 }

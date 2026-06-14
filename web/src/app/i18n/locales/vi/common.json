@@ -16,5 +16,9 @@
   "login": "Đăng nhập",
   "site_title": "Sona Voice",
   "site_description": "Luyện nói thời gian thực với AI",
-  "edit_profile": "Chỉnh sửa hồ sơ"
+  "edit_profile": "Chỉnh sửa hồ sơ",
+  "today": "Hôm nay",
+  "yesterday": "Hôm qua",
+  "this_week": "Tuần này",
+  "older": "Cũ hơn"
 }

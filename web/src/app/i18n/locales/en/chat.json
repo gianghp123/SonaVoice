@@ -19,5 +19,10 @@
   "no_grammar_issues": "No grammar issues found. Great job!",
   "analyze_grammar": "Analyze grammar",
   "correction": "Correction:",
-  "focus": "Focus:"
+  "focus": "Focus:",
+  "leave_session": "Leave session?",
+  "leave_session_description": "Your voice session will be disconnected.",
+  "stay": "Stay",
+  "leave": "Leave",
+  "leaving": "Leaving..."
 }
