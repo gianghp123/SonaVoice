@@ -9,6 +9,7 @@ import {
   useSidebar
 } from "@/components/ui/sidebar"
 import { HistoryPanelContent } from "@/features/chat-interface/components/HistoryPanelContent"
+import { MobileVoiceLayout } from "@/features/chat-interface/components/MobileVoiceLayout"
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { PanelRight } from "lucide-react"
@@ -36,6 +37,10 @@ export function ChatInterface({
 }) {
   const isMobile = useMediaQuery("(max-width: 767px)")
   const isDesktop = useMediaQuery("(min-width: 1024px)")
+
+  if (isMobile) {
+    return <MobileVoiceLayout maxDuration={maxDuration} handleDisconnect={handleDisconnect} />
+  }
 
   return (
     <SidebarProvider
