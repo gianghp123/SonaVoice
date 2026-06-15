@@ -94,7 +94,7 @@ export function HomePageLayout({ sessions, children, breadcrumb, sidebarFooter }
                               >
                                 <Link
                                   href={PAGE_ROUTES.SESSION.DETAIL(session.id)}
-                                  className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-muted"
+                                  className="flex min-h-[44px] items-center justify-between rounded-md px-2 py-2 hover:bg-muted"
                                 >
                                   <div className="flex items-center gap-2 min-w-0">
                                     <Podcast className="size-4 shrink-0 text-primary" />

@@ -12,14 +12,14 @@ export function VoiceToolbar({ handleDisconnect }: { handleDisconnect: () => voi
     <div className="flex lg:mb-10">
       <PipecatClientMicToggle>
         {({ disabled, isMicEnabled, onClick }) => (
-          <Button variant="ghost" disabled={disabled} onClick={onClick}>
+          <Button variant="ghost" disabled={disabled} onClick={onClick} className="size-12 md:size-10">
             {isMicEnabled ? <MicOff /> : <Mic />}
             {isMicEnabled ? t('mic_muted') : t('unmute')}
           </Button>
         )}
       </PipecatClientMicToggle>
       <ConnectButton
-        className="hover:bg-muted px-2.5 text-destructive"
+        className="size-12 md:size-10 hover:bg-muted px-2.5 text-destructive"
         onDisconnect={handleDisconnect}
       />
     </div>

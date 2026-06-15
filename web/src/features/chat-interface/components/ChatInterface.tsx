@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/sidebar"
 import { HistoryPanelContent } from "@/features/chat-interface/components/HistoryPanelContent"
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
+import { useMediaQuery } from "@/hooks/use-media-query"
 import { PanelRight } from "lucide-react"
 
 function HistoryTrigger() {
@@ -33,10 +34,13 @@ export function ChatInterface({
   maxDuration: number
   handleDisconnect: () => void | Promise<void>
 }) {
+  const isMobile = useMediaQuery("(max-width: 767px)")
+  const isDesktop = useMediaQuery("(min-width: 1024px)")
+
   return (
     <SidebarProvider
       defaultOpen={false}
-      style={{ "--sidebar-width": "60vh" } as React.CSSProperties}
+      style={{ "--sidebar-width": isMobile ? "100%" : isDesktop ? "60vh" : "280px" } as React.CSSProperties}
     >
       <SidebarInset>
         <VoicePanel maxDuration={maxDuration} handleDisconnect={handleDisconnect}>
