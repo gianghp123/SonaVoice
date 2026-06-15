@@ -18,7 +18,7 @@ export function LanguageSwitcher() {
 
   return (
     <Select value={currentLanguage} onValueChange={(lng) => changeLanguage(lng as SupportedLanguage)}>
-      <SelectTrigger className="w-9 md:w-[140px] px-0 md:px-3 [&>span]:hidden md:[&>span]:flex">
+      <SelectTrigger className="w-13 md:w-35 px-1 md:px-3">
         <Globe className="size-4 shrink-0" />
         <SelectValue />
       </SelectTrigger>
