@@ -130,12 +130,12 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
               {t("your_ai_partner")}
             </p>
           </Onboarding.Header>
-          <FieldGroup className="mt-6">
+          <FieldGroup className="@container/field-group mt-6">
             <Controller
               name="displayName"
               control={form.control}
               render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
+                <Field orientation="responsive" data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="displayName">
                     {t("what_should_we_call_you")} *
                   </FieldLabel>
@@ -153,7 +153,7 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
               name="nativeLanguage"
               control={form.control}
               render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
+                <Field orientation="responsive" data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="nativeLanguage">
                     {t("native_language")}
                   </FieldLabel>
@@ -176,7 +176,7 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
             title={t("your_english")}
             description={t("english_level_description")}
           />
-          <FieldGroup className="mt-6">
+          <FieldGroup className="@container/field-group mt-6">
             <Controller
               name="englishLevel"
               control={form.control}
@@ -222,7 +222,7 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
                       <FieldLabel
                         key={goal.value}
                         htmlFor={`goal-${goal.value}`}
-                        className="flex items-center gap-2"
+                        className="flex min-h-[44px] items-center gap-2"
                       >
                         <Checkbox
                           id={`goal-${goal.value}`}
@@ -253,7 +253,7 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
             title={t("preferences")}
             description={t("choose_topics_reasons")}
           />
-          <FieldGroup className="mt-6">
+          <FieldGroup className="@container/field-group mt-6">
             <Controller
               name="topics"
               control={form.control}
@@ -266,7 +266,7 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
                       <FieldLabel
                         key={topic.value}
                         htmlFor={`topic-${topic.value}`}
-                        className="flex items-center gap-2"
+                        className="flex min-h-[44px] items-center gap-2"
                       >
                         <Checkbox
                           id={`topic-${topic.value}`}
@@ -323,7 +323,7 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
                       <FieldLabel
                         key={reason.value}
                         htmlFor={`reason-${reason.value}`}
-                        className="flex items-center gap-2"
+                        className="flex min-h-[44px] items-center gap-2"
                       >
                         <Checkbox
                           id={`reason-${reason.value}`}
@@ -377,7 +377,7 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
           <Button
             type="button"
             variant="outline"
-            className="flex-1 rounded-xl py-5"
+            className="flex-1 rounded-xl py-4 md:py-5"
             disabled={currentStep === 1}
             onClick={handleBack}
           >
@@ -387,7 +387,7 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
             <Button
               type="submit"
               disabled={loading}
-              className="flex-1 rounded-xl py-5"
+              className="flex-1 rounded-xl py-4 md:py-5"
             >
               {loading && <Loader2 className="size-4 animate-spin mr-2" />}
               {t("get_started")}
@@ -395,7 +395,7 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
           ) : (
             <Button
               type="button"
-              className="flex-1 rounded-xl py-5"
+              className="flex-1 rounded-xl py-4 md:py-5"
               onClick={handleNext}
             >
               {t("next")}

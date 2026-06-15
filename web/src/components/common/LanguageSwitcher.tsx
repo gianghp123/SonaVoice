@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Globe } from "lucide-react"
 import { FALLBACK_LANGUAGE, LANGUAGE_LABELS, SUPPORTED_LANGUAGES, SupportedLanguage } from "@/lib/i18n/i18n"
 import { useChangeLanguage, useT } from "next-i18next/client"
 
@@ -17,7 +18,8 @@ export function LanguageSwitcher() {
 
   return (
     <Select value={currentLanguage} onValueChange={(lng) => changeLanguage(lng as SupportedLanguage)}>
-      <SelectTrigger className="w-[140px]">
+      <SelectTrigger className="w-9 md:w-[140px] px-0 md:px-3 [&>span]:hidden md:[&>span]:flex">
+        <Globe className="size-4 shrink-0" />
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
