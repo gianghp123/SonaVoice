@@ -26,25 +26,20 @@ export function MobileVoiceLayout({ maxDuration, handleDisconnect }: MobileVoice
   const { t } = useT("chat")
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen flex-col w-full">
       {/* Minimal header */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b px-4">
-        <Link href="/" className="flex items-center gap-2 text-muted-foreground">
-          <ArrowLeft className="size-4" />
-          <span className="text-sm">{t("back")}</span>
-        </Link>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setHistoryOpen(true)}
-        >
-          <History className="size-5" />
-        </Button>
-      </header>
 
       {/* Voice area */}
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
-        <VoicePanel maxDuration={maxDuration} handleDisconnect={handleDisconnect} />
+        <VoicePanel maxDuration={maxDuration} handleDisconnect={handleDisconnect}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setHistoryOpen(true)}
+          >
+            <History className="size-5" />
+          </Button>
+        </VoicePanel>
       </div>
 
       {/* History Drawer */}

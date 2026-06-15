@@ -9,17 +9,17 @@ import { Mic, MicOff } from "lucide-react"
 export function VoiceToolbar({ handleDisconnect }: { handleDisconnect: () => void | Promise<void> }) {
   const { t } = useT('chat')
   return (
-    <div className="flex lg:mb-10">
+    <div className="flex mb-5 md:mb-10">
       <PipecatClientMicToggle>
         {({ disabled, isMicEnabled, onClick }) => (
-          <Button variant="ghost" disabled={disabled} onClick={onClick} className="size-12 md:size-10">
+          <Button variant="ghost" disabled={disabled} onClick={onClick}>
             {isMicEnabled ? <MicOff /> : <Mic />}
             {isMicEnabled ? t('mic_muted') : t('unmute')}
           </Button>
         )}
       </PipecatClientMicToggle>
       <ConnectButton
-        className="size-12 md:size-10 hover:bg-muted px-2.5 text-destructive"
+        className="hover:bg-muted px-2.5 text-destructive"
         onDisconnect={handleDisconnect}
       />
     </div>

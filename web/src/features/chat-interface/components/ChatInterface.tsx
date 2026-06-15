@@ -13,6 +13,7 @@ import { MobileVoiceLayout } from "@/features/chat-interface/components/MobileVo
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { PanelRight } from "lucide-react"
+import { HistoryHeader } from "./HistoryHeader"
 
 function HistoryTrigger() {
   const { toggleSidebar, open } = useSidebar()
@@ -55,7 +56,10 @@ export function ChatInterface({
 
       <Sidebar side="right">
         <SidebarContent>
-          <HistoryPanelContent />
+          <div className="flex flex-col h-full md:pb-10">
+            <HistoryHeader />
+            <HistoryPanelContent />
+          </div>
         </SidebarContent>
       </Sidebar>
     </SidebarProvider>
