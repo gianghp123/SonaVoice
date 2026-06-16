@@ -55,11 +55,11 @@ export function MessageBubble({
       {avatar && (
         <MessageAvatar
           fallback={avatar}
-          className="h-8 w-8"
+          className="size-7 md:size-8"
         />
       )}
 
-      <div className={cn("flex flex-col gap-1", contentClassName)}>
+      <div className={cn("flex max-w-[85%] flex-col gap-1 md:max-w-[70%]", contentClassName)}>
         <RoleBadge role={role} />
 
         <Content

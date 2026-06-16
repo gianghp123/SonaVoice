@@ -19,7 +19,6 @@ import { ConversationMessage, ConversationMessagePart, usePipecatConversation } 
 import { useT } from "next-i18next/client"
 import { useState } from "react"
 import { toast } from "sonner"
-import { HistoryHeader } from "./HistoryHeader"
 
 function getMessageText(message: ConversationMessage) {
   return (
@@ -107,65 +106,61 @@ export function HistoryPanelContent() {
   }
 
   return (
-    <div className="flex flex-col h-full md:pb-10">
-      <HistoryHeader />
+    <ChatContainerRoot className="flex-1">
+      <ChatContainerContent className="flex flex-col gap-6 px-3">
+        {messages.map((message, i) => {
+          const role =
+            message.role === "user"
+              ? MessageRole.User
+              : MessageRole.Assistant
 
-      <ChatContainerRoot className="flex-1">
-        <ChatContainerContent className="flex flex-col gap-6 px-3">
-          {messages.map((message, i) => {
-            const role =
-              message.role === "user"
-                ? MessageRole.User
-                : MessageRole.Assistant
+          const text = getMessageText(message)
+          const isCurrentLoading = pendingIndex === i
+          const analysis = analyses[i]
+          const isUser = role === MessageRole.User
+          return (
+            <div key={i} className="flex flex-col">
+              <MessageBubble
+                role={role}
+                avatar={!isUser ? <BotAvatarIcon /> : undefined}
+                actions={
+                  isUser ? [
+                    {
+                      tooltip: t("analyze_grammar"),
+                      element: (
+                        <GrammarAnalysisButton
+                          tooltip={t("analyze_grammar")}
+                          disabled={pendingIndex !== null}
+                          isLoading={isCurrentLoading}
+                          onClick={() => handleAnalyzeGrammar(i, text)}
+                        />
+                      )
+                    }] : undefined
+                }
+              >
+                {text}
+              </MessageBubble>
 
-            const text = getMessageText(message)
-            const isCurrentLoading = pendingIndex === i
-            const analysis = analyses[i]
-            const isUser = role === MessageRole.User
-            return (
-              <div key={i} className="flex flex-col">
+              {analysis && (
                 <MessageBubble
-                  role={role}
-                  avatar={!isUser ? <BotAvatarIcon /> : undefined}
-                  actions={
-                    isUser ? [
-                      {
-                        tooltip: t("analyze_grammar"),
-                        element: (
-                          <GrammarAnalysisButton
-                            tooltip={t("analyze_grammar")}
-                            disabled={pendingIndex !== null}
-                            isLoading={isCurrentLoading}
-                            onClick={() => handleAnalyzeGrammar(i, text)}
-                          />
-                        )
-                      }] : undefined
-                  }
+                  role={MessageRole.Analysis}
+                  asChild
+                  contentClassName="w-full"
+                  avatar={<BotAvatarIcon />}
                 >
-                  {text}
+                  <GrammarAnalysisCard grammar={analysis} originalText={text} />
                 </MessageBubble>
+              )}
+            </div>
+          )
+        })}
 
-                {analysis && (
-                  <MessageBubble
-                    role={MessageRole.Analysis}
-                    asChild
-                    contentClassName="w-full"
-                    avatar={<BotAvatarIcon />}
-                  >
-                    <GrammarAnalysisCard grammar={analysis} originalText={text} />
-                  </MessageBubble>
-                )}
-              </div>
-            )
-          })}
+        <ChatContainerScrollAnchor />
+      </ChatContainerContent>
 
-          <ChatContainerScrollAnchor />
-        </ChatContainerContent>
-
-        <div className="absolute right-12 bottom-4">
-          <ScrollButton />
-        </div>
-      </ChatContainerRoot>
-    </div>
+      <div className="absolute right-12 bottom-4">
+        <ScrollButton />
+      </div>
+    </ChatContainerRoot>
   )
 }

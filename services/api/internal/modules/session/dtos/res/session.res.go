@@ -7,9 +7,11 @@ import (
 )
 
 type SessionListItemRes struct {
-	ID        string              `json:"id"`
-	Status    enums.SessionStatus `json:"status"`
-	CreatedAt time.Time           `json:"created_at"`
+	ID          string              `json:"id"`
+	Status      enums.SessionStatus `json:"status"`
+	CreatedAt   time.Time           `json:"created_at"`
+	ActualUsage int64               `json:"actual_usage"`
+	EndedAt     time.Time           `json:"ended_at"`
 }
 
 type SessionRes struct {

@@ -103,7 +103,10 @@ export function ChatPageClient({ sessionId }: ChatPageClientProps) {
 
         return (
           <>
-            <BrowserNavigationGuard enabled={navigationGuardEnabled} />
+            <BrowserNavigationGuard
+              enabled={navigationGuardEnabled}
+              onConfirmLeave={handleSessionDisconnect}
+            />
             <ErrorListener
               handleError={handleSessionError}
               initialError={error}

@@ -27,7 +27,7 @@ export function SessionMessageList({ items }: SessionMessageListProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-5 w-full max-w-7/12">
+    <div className="flex flex-col gap-6 px-4 w-full max-w-full md:max-w-7/12 md:px-5">
       {items.map((item, index) => {
         if (item.type === "analysis") {
           return (

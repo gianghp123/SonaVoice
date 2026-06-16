@@ -16,5 +16,9 @@
   "login": "Log in",
   "site_title": "Sona Voice",
   "site_description": "Real-time voice practice with AI",
-  "edit_profile": "Edit Profile"
+  "edit_profile": "Edit Profile",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "this_week": "This Week",
+  "older": "Older"
 }

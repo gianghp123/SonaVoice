@@ -9,8 +9,11 @@ import {
   useSidebar
 } from "@/components/ui/sidebar"
 import { HistoryPanelContent } from "@/features/chat-interface/components/HistoryPanelContent"
+import { MobileVoiceLayout } from "@/features/chat-interface/components/MobileVoiceLayout"
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
+import { useMediaQuery } from "@/hooks/use-media-query"
 import { PanelRight } from "lucide-react"
+import { HistoryHeader } from "./HistoryHeader"
 
 function HistoryTrigger() {
   const { toggleSidebar, open } = useSidebar()
@@ -33,10 +36,17 @@ export function ChatInterface({
   maxDuration: number
   handleDisconnect: () => void | Promise<void>
 }) {
+  const isMobile = useMediaQuery("(max-width: 767px)")
+  const isDesktop = useMediaQuery("(min-width: 1024px)")
+
+  if (isMobile) {
+    return <MobileVoiceLayout maxDuration={maxDuration} handleDisconnect={handleDisconnect} />
+  }
+
   return (
     <SidebarProvider
       defaultOpen={false}
-      style={{ "--sidebar-width": "60vh" } as React.CSSProperties}
+      style={{ "--sidebar-width": isMobile ? "100%" : isDesktop ? "60vh" : "280px" } as React.CSSProperties}
     >
       <SidebarInset>
         <VoicePanel maxDuration={maxDuration} handleDisconnect={handleDisconnect}>
@@ -46,7 +56,10 @@ export function ChatInterface({
 
       <Sidebar side="right">
         <SidebarContent>
-          <HistoryPanelContent />
+          <div className="flex flex-col h-full md:pb-10">
+            <HistoryHeader />
+            <HistoryPanelContent />
+          </div>
         </SidebarContent>
       </Sidebar>
     </SidebarProvider>

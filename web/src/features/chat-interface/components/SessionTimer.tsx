@@ -90,10 +90,10 @@ export function SessionTimer({
         <span className="text-lg font-bold text-primary">
           {formatElapsed(displayedElapsed)}
         </span>
-
+        /
         {maxDuration ? (
           <span className="text-sm text-muted-foreground">
-            / {formatElapsed(maxDuration)}
+            {formatElapsed(maxDuration)}
           </span>
         ) : null}
       </div>
