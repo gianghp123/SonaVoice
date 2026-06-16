@@ -117,7 +117,7 @@ export function OnboardingForm({ defaultValues }: OnboardingFormProps) {
       value={currentStep}
       onValueChange={setCurrentStep}
       totalSteps={TOTAL_STEPS}
-      className="w-full max-w-lg"
+      className="w-full max-w-lg mx-2"
     >
       <Onboarding.StepIndicator variant="pills" className="mb-6" />
 
