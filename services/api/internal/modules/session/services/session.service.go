@@ -9,6 +9,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 
+	"github.com/gianghp123/SonaVoice/api/internal/core/auth"
 	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
@@ -69,7 +70,10 @@ func (s *sessionService) GetSession(ctx context.Context, sessionID string) (*mod
 	logger := zapLogger.S()
 	logger.Debugw("Get session", "sessionId", sessionID)
 
-	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	actor, err := auth.ActorFromContext(ctx)
+	if err != nil {
+		return nil, errors.Unauthorized()
+	}
 
 	session, err := s.sessionRepo.Get(ctx, sessionID)
 	if err != nil {
@@ -77,8 +81,8 @@ func (s *sessionService) GetSession(ctx context.Context, sessionID string) (*mod
 		return nil, errors.MapRepoError(err)
 	}
 
-	if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
-		return nil, appErr
+	if err := auth.CanPerform(actor, session.UserID); err != nil {
+		return nil, errors.Forbidden()
 	}
 
 	return session, nil
@@ -88,11 +92,6 @@ func (s *sessionService) GetSession(ctx context.Context, sessionID string) (*mod
 func (s *sessionService) ListSessions(ctx context.Context, q req.SessionListQuery) (*response.PaginatedResult[*models.Session], *errors.AppError) {
 	logger := zapLogger.S()
 	logger.Debugw("List sessions", "page", q.Page, "limit", q.Limit)
-
-	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
-	status := enums.SessionStatusInactive
-	q.UserID = &requesterID
-	q.Status = &status
 
 	dbQuery := database.NewQuery().
 		SetPage(q.Page).
@@ -125,7 +124,11 @@ func (s *sessionService) ListSessions(ctx context.Context, q req.SessionListQuer
 
 func (s *sessionService) CreateSession(ctx context.Context) (*res.CreateSessionRes, *errors.AppError) {
 	logger := zapLogger.S()
-	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	actor, err := auth.ActorFromContext(ctx)
+	if err != nil {
+		return nil, errors.Unauthorized()
+	}
+	requesterID := actor.UserID
 
 	model, appErr := s.configService.Get(ctx)
 	if appErr != nil {
@@ -195,16 +198,20 @@ func (s *sessionService) CreateSession(ctx context.Context) (*res.CreateSessionR
 }
 
 func (s *sessionService) StartConnection(ctx context.Context, sessionID string) (*res.WebRTCConnectionRes, *errors.AppError) {
-	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	actor, err := auth.ActorFromContext(ctx)
+	if err != nil {
+		return nil, errors.Unauthorized()
+	}
 
 	session, appErr := s.GetSession(ctx, sessionID)
 	if appErr != nil {
 		return nil, appErr
 	}
 
-	if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
-		return nil, appErr
+	if err := auth.CanPerform(actor, session.UserID); err != nil {
+		return nil, errors.Forbidden()
 	}
+	requesterID := actor.UserID
 
 	if session.SpeechSessionID != "" && session.SpeechStartResponse != nil {
 		var cached res.WebRTCConnectionRes
@@ -270,16 +277,19 @@ func (s *sessionService) ProxyOffer(ctx context.Context, sessionId string, metho
 		return nil, 0, errors.BadRequest("missing session id")
 	}
 
-	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	actor, err := auth.ActorFromContext(ctx)
+	if err != nil {
+		return nil, 0, errors.Unauthorized()
+	}
 
 	session, appErr := s.GetSession(ctx, sessionId)
 	if appErr != nil {
 		logger.Errorw("Failed to get app session", "sessionId", sessionId, "error", appErr)
 		return nil, 0, appErr
 	}
-	if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
-		logger.Errorw("Ownership enforcement failed", "sessionId", sessionId, "error", appErr)
-		return nil, 0, appErr
+	if err := auth.CanPerform(actor, session.UserID); err != nil {
+		logger.Errorw("Ownership enforcement failed", "sessionId", sessionId, "error", err)
+		return nil, 0, errors.Forbidden()
 	}
 
 	speechSessionId := session.SpeechSessionID
@@ -298,7 +308,7 @@ func (s *sessionService) ProxyOffer(ctx context.Context, sessionId string, metho
 	var statusCode int
 	var proxyErr *errors.AppError
 
-	err := s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
+	err = s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
 		sessionRepo := p.Session()
 
 		sess, err := sessionRepo.GetForUpdate(ctx, session.ID)
@@ -416,9 +426,12 @@ func (s *sessionService) CancelSession(ctx context.Context, sessionID string) *e
 		return errors.BadRequest("sessionId is required")
 	}
 
-	requesterID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	actor, err := auth.ActorFromContext(ctx)
+	if err != nil {
+		return errors.Unauthorized()
+	}
 
-	err := s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
+	err = s.uow.Do(ctx, func(ctx context.Context, p transaction.IProvider) error {
 		sessionRepo := p.Session()
 
 		session, err := sessionRepo.GetForUpdate(ctx, sessionID)
@@ -426,8 +439,8 @@ func (s *sessionService) CancelSession(ctx context.Context, sessionID string) *e
 			return err
 		}
 
-		if appErr := utils.EnforceOwnership(session.UserID, requesterID); appErr != nil {
-			return appErr
+		if err := auth.CanPerform(actor, session.UserID); err != nil {
+			return errors.Forbidden()
 		}
 
 		domainSession := domain.NewSessionFromModel(session)

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/getsentry/sentry-go"
+	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/session/dtos/req"
@@ -158,11 +159,17 @@ func (ctrl *SessionController) HandleCancelSession(c *gin.Context) {
 // @Failure      500  {object}  response.BaseResponse[any]
 // @Router       /sessions [get]
 func (ctrl *SessionController) HandleListSessions(c *gin.Context) {
+	requesterID := utils.GetCtx[string](c.Request.Context(), enums.ContextKeyUserID)
+	status := enums.SessionStatusInactive
+
 	var query req.SessionListQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		c.JSON(http.StatusBadRequest, response.Fail(errors.BadRequest("invalid query params")))
 		return
 	}
+
+	query.UserID = &requesterID
+	query.Status = &status
 
 	result, appErr := ctrl.svc.ListSessions(c.Request.Context(), query)
 	if appErr != nil {

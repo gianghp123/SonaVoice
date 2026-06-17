@@ -3,14 +3,13 @@ package services
 import (
 	"context"
 
-	"github.com/gianghp123/SonaVoice/api/internal/core/enums"
+	"github.com/gianghp123/SonaVoice/api/internal/core/auth"
 	"github.com/gianghp123/SonaVoice/api/internal/core/errors"
 	"github.com/gianghp123/SonaVoice/api/internal/core/response"
 	"github.com/gianghp123/SonaVoice/api/internal/database"
 	"github.com/gianghp123/SonaVoice/api/internal/database/models"
 	repository_interfaces "github.com/gianghp123/SonaVoice/api/internal/database/repository-interfaces"
 	"github.com/gianghp123/SonaVoice/api/internal/modules/message/dtos/req"
-	"github.com/gianghp123/SonaVoice/api/internal/utils"
 )
 
 type IMessageService interface {
@@ -28,15 +27,18 @@ func NewMessageService(repo repository_interfaces.IMessageRepository, sessionRep
 }
 
 func (s *messageService) List(ctx context.Context, sessionID string, q req.MessageListQuery) (*response.PaginatedResult[*models.Message], *errors.AppError) {
-	userID := utils.GetCtx[string](ctx, enums.ContextKeyUserID)
+	actor, err := auth.ActorFromContext(ctx)
+	if err != nil {
+		return nil, errors.Unauthorized()
+	}
 
 	session, err := s.sessionRepo.Get(ctx, sessionID)
 	if err != nil {
 		return nil, errors.MapRepoError(err)
 	}
 
-	if appErr := utils.EnforceOwnership(session.UserID, userID); appErr != nil {
-		return nil, appErr
+	if err := auth.CanPerform(actor, session.UserID); err != nil {
+		return nil, errors.Forbidden()
 	}
 
 	dbQuery := database.NewQuery().

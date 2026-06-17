@@ -11,9 +11,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { HistoryPanelContent } from "@/features/chat-interface/components/HistoryPanelContent"
 import { VoicePanel } from "@/features/chat-interface/components/VoicePanel"
-import { ArrowLeft, History } from "lucide-react"
+import { History } from "lucide-react"
 import { useT } from "next-i18next/client"
-import Link from "next/link"
 import { useState } from "react"
 
 interface MobileVoiceLayoutProps {
@@ -27,8 +26,6 @@ export function MobileVoiceLayout({ maxDuration, handleDisconnect }: MobileVoice
 
   return (
     <div className="flex h-screen flex-col w-full">
-      {/* Minimal header */}
-
       {/* Voice area */}
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
         <VoicePanel maxDuration={maxDuration} handleDisconnect={handleDisconnect}>

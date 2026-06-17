@@ -27,6 +27,7 @@ import (
 func setupSessionCtx(userID string) context.Context {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, enums.ContextKeyUserID, userID)
+	ctx = context.WithValue(ctx, enums.ContextKeyUserRole, enums.UserRoleUser)
 	return ctx
 }
 

@@ -20,7 +20,9 @@ import (
 
 func setupMessageCtx(userID string) context.Context {
 	ctx := context.Background()
-	return context.WithValue(ctx, enums.ContextKeyUserID, userID)
+	ctx = context.WithValue(ctx, enums.ContextKeyUserID, userID)
+	ctx = context.WithValue(ctx, enums.ContextKeyUserRole, enums.UserRoleUser)
+	return ctx
 }
 
 func TestMessageService_List(t *testing.T) {

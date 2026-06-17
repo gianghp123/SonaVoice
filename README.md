@@ -362,8 +362,7 @@ GitHub Actions handles:
 * [x] Grammar analysis & correction
 * [x] Browser navigation guard for active sessions
 * [x] User idle timeout detection & session canceling
-* [x] OpenAI client wrapper with structured output
-* [x] Learning module foundation
+* [x] UI responsive for mobile
 
 ### Up Next
 
