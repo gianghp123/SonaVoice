@@ -1,8 +1,22 @@
-import { HomePageLayout } from "@/components/common/HomePageLayout"
-import { SidebarFooterUI } from "@/components/common/SidebarFooter"
-import { getProfile } from "@/features/profile/services/profile.get"
-import { getSessions } from "@/features/session-history/services/session.get"
+import { NewSessionButton } from "@/components/common/NewSessionButton"
+import { ProfileSkeleton } from "@/components/common/ProfileSkeleton"
+import { SessionList } from "@/components/common/SessionList"
+import { SessionSkeleton } from "@/components/common/SessionSkeleton"
+import { UserSetting } from "@/components/common/UserSetting"
+import { LanguageSwitcher } from "@/components/common/LanguageSwitcher"
+import { Logo } from "@/components/common/Logo"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { Separator } from "@/components/ui/separator"
+import { Show } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
+import { Suspense } from "react"
 
 export default async function SidebarLayout({
   children,
@@ -11,24 +25,41 @@ export default async function SidebarLayout({
   children: React.ReactNode
   breadcrumb: React.ReactNode
 }) {
-  const { sessionClaims, isAuthenticated } = await auth()
-
-  const onboardingCompleted = isAuthenticated && sessionClaims?.metadata?.onboardingCompleted
-
-  const [sessions, profile] = onboardingCompleted
-    ? await Promise.all([
-      getSessions().then((res) => res.data ?? []),
-      getProfile().then((res) => res.data ?? null),
-    ])
-    : [[], null]
+  await auth()
 
   return (
-    <HomePageLayout
-      sessions={sessions}
-      sidebarFooter={<SidebarFooterUI profile={profile} />}
-      breadcrumb={breadcrumb}
-    >
-      {children}
-    </HomePageLayout>
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader className="p-4">
+          <Logo className="text-xl" />
+        </SidebarHeader>
+        <SidebarContent>
+          <Show when="signed-in">
+            <NewSessionButton />
+
+            <Suspense fallback={<SessionSkeleton />}>
+              <SessionList />
+            </Suspense>
+
+            <Suspense fallback={<ProfileSkeleton />}>
+              <UserSetting />
+            </Suspense>
+          </Show>
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-3">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="my-auto mr-2 h-4" />
+            {breadcrumb}
+          </div>
+          <LanguageSwitcher />
+        </header>
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

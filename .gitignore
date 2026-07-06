@@ -3,3 +3,4 @@
 .env*.local
 PROGRESS.md
 *superpowers
+*.pdf
